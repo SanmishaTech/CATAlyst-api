@@ -44,8 +44,8 @@ if (process.env.SERVE_FRONTEND === 'true') {
   const frontendDistPath =
     process.env.NODE_ENV === "production"
       ? process.env.FRONTEND_PATH ||
-        path.resolve(__dirname, "..", "..", "CrediSphere", "dist")
-      : path.resolve(__dirname, "..", "..", "CrediSphere_api", "dist");
+        path.resolve(__dirname, "..", "..", "Catalyst", "dist")
+      : path.resolve(__dirname, "..", "..", "Catalyst_api", "dist");
   console.log(frontendDistPath);
   console.log(`Frontend build path: ${frontendDistPath}`);
 
@@ -82,8 +82,8 @@ app.get("*", (req, res, next) => {
     const frontendDistPath =
       process.env.NODE_ENV === "production"
         ? process.env.FRONTEND_PATH ||
-          path.resolve(__dirname, "..", "..", "CrediSphere", "dist")
-        : path.resolve(__dirname, "..", "..", "CrediSphere_api", "dist");
+          path.resolve(__dirname, "..", "..", "Catalyst", "dist")
+        : path.resolve(__dirname, "..", "..", "Catalyst_api", "dist");
     
     const indexPath = path.join(frontendDistPath, "index.html");
     res.sendFile(indexPath, (err) => {

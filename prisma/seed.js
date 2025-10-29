@@ -284,13 +284,13 @@ async function main() {
     prisma.siteSetting.create({
       data: {
         key: 'site_name',
-        value: 'CrediSphere Network',
+        value: 'Catalyst Network',
       },
     }),
     prisma.siteSetting.create({
       data: {
         key: 'contact_email',
-        value: 'info@CrediSphere.com',
+        value: 'info@Catalyst.com',
       },
     }),
     prisma.siteSetting.create({
@@ -335,7 +335,7 @@ async function main() {
   await Promise.all([
     prisma.message.create({
       data: {
-        heading: 'Welcome to CrediSphere Network',
+        heading: 'Welcome to Catalyst Network',
         powerteam: 'All',
         message: 'We are excited to have you as a part of our growing business network!',
       },
