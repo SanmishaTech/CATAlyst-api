@@ -1,6 +1,6 @@
-# node-star
+# CATAlyst
 
-A simple Node.js REST API project built with Express, Prisma, and JWT.
+A simple Node.js REST API project built with Express, Prisma.
 
 ## Features
 
@@ -32,7 +32,7 @@ A simple Node.js REST API project built with Express, Prisma, and JWT.
 2.  Navigate to the project directory:
 
     ```bash
-    cd node-star
+    cd CATAlyst-api
     ```
 
 3.  Install dependencies:
@@ -47,7 +47,7 @@ A simple Node.js REST API project built with Express, Prisma, and JWT.
 
     ```
     PORT=3000
-    DATABASE_URL="mysql://root:your_password@localhost:3306/node_star"
+    DATABASE_URL="mysql://root:your_password@localhost:3306/CATAlyst-api"
     JWT_SECRET="your_jwt_secret"
     EMAIL_TRANSPORTER="smtp" # Options: smtp, mailtrap, sendgrid
     EMAIL_HOST="smtp.example.com"
@@ -124,3 +124,4 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 ## License
 
 [License](https://choosealicense.com/licenses/mit/)
+
