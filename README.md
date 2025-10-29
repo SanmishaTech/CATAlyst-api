@@ -48,7 +48,6 @@ A simple Node.js REST API project built with Express, Prisma.
     ```
     PORT=3000
     DATABASE_URL="mysql://root:your_password@localhost:3306/CATAlyst-api"
-    JWT_SECRET="your_jwt_secret"
     EMAIL_TRANSPORTER="smtp" # Options: smtp, mailtrap, sendgrid
     EMAIL_HOST="smtp.example.com"
     EMAIL_PORT=587
@@ -98,7 +97,7 @@ The following environment variables are required:
 
 *   `PORT`: The port the server will listen on (default: 3000).
 *   `DATABASE_URL`: The connection string to your MySQL database.
-*   `JWT_SECRET`: A secret key used to sign JWTs.
+*   `Api key`: A secret key used to sign in.
 *   `EMAIL_TRANSPORTER`: The email transporter to use (options: smtp, mailtrap, sendgrid).
 *   `EMAIL_HOST`: The host for your email server (required if `EMAIL_TRANSPORTER` is `smtp`).
 *   `EMAIL_PORT`: The port for your email server (required if `EMAIL_TRANSPORTER` is `smtp`).
@@ -124,4 +123,5 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 ## License
 
 [License](https://choosealicense.com/licenses/mit/)
+
 
