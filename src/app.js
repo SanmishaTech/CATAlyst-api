@@ -10,6 +10,7 @@ const roleRoutes = require("./routes/roles");
 const userRoutes = require("./routes/users");
 const authRoutes = require("./routes/auth");
 const orderRoutes = require("./routes/orders");
+const batchRoutes = require("./routes/batches");
 const swaggerRouter = require("./swagger");
 
 const app = express();
@@ -70,6 +71,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/roles", roleRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/orders", orderRoutes);
+app.use("/api/batches", batchRoutes);
 app.use(swaggerRouter);
 
 app.get("*", (req, res, next) => {

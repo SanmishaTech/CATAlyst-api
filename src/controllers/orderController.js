@@ -81,6 +81,8 @@ const parseDecimal = (value) => {
 
 // Upload Excel file and parse orders
 const uploadOrders = async (req, res, next) => {
+  let batch = null;
+  
   try {
     if (!req.file) {
       return next(createError(400, "No file uploaded"));
@@ -89,6 +91,16 @@ const uploadOrders = async (req, res, next) => {
     const userId = req.user.id;
     const filePath = req.file.path;
 
+    // Create batch record to track this upload
+    batch = await prisma.batch.create({
+      data: {
+        userId,
+        fileName: req.file.originalname,
+        fileSize: req.file.size,
+        status: "processing",
+      },
+    });
+
     // Read Excel file
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(filePath);
@@ -96,6 +108,17 @@ const uploadOrders = async (req, res, next) => {
 
     if (!worksheet) {
       await fs.unlink(filePath);
+      
+      // Update batch as failed
+      await prisma.batch.update({
+        where: { id: batch.id },
+        data: {
+          status: "failed",
+          errorLog: "Excel file is empty or invalid",
+          completedAt: new Date(),
+        },
+      });
+      
       return next(createError(400, "Excel file is empty or invalid"));
     }
 
@@ -108,6 +131,17 @@ const uploadOrders = async (req, res, next) => {
     // Validate required fields
     if (!headers.includes("orderid")) {
       await fs.unlink(filePath);
+      
+      // Update batch as failed
+      await prisma.batch.update({
+        where: { id: batch.id },
+        data: {
+          status: "failed",
+          errorLog: "Excel file must contain 'orderid' column",
+          completedAt: new Date(),
+        },
+      });
+      
       return next(createError(400, "Excel file must contain 'orderid' column"));
     }
 
@@ -120,7 +154,7 @@ const uploadOrders = async (req, res, next) => {
       if (index === 1) return; // Skip header row
       rowNumber++;
 
-      const orderData = { userId };
+      const orderData = { userId, batchId: batch.id };
 
       row.eachCell((cell, colNumber) => {
         const header = headers[colNumber - 1];
@@ -176,8 +210,19 @@ const uploadOrders = async (req, res, next) => {
     await fs.unlink(filePath);
 
     if (orders.length === 0) {
+      // Update batch as failed
+      await prisma.batch.update({
+        where: { id: batch.id },
+        data: {
+          status: "failed",
+          errorLog: JSON.stringify(errors),
+          completedAt: new Date(),
+        },
+      });
+      
       return res.status(400).json({
         message: "No valid orders found in Excel file",
+        batchId: batch.id,
         errors,
       });
     }
@@ -189,8 +234,23 @@ const uploadOrders = async (req, res, next) => {
         skipDuplicates: true, // Skip if orderId already exists
       });
 
+      // Update batch with success statistics
+      await prisma.batch.update({
+        where: { id: batch.id },
+        data: {
+          totalOrders: orders.length,
+          successfulOrders: result.count,
+          failedOrders: orders.length - result.count,
+          status: "completed",
+          errorLog: errors.length > 0 ? JSON.stringify(errors) : null,
+          completedAt: new Date(),
+        },
+      });
+
       res.status(201).json({
         message: "Orders uploaded successfully",
+        batchId: batch.id,
+        fileName: batch.fileName,
         imported: result.count,
         total: orders.length,
         skipped: orders.length - result.count,
@@ -198,6 +258,19 @@ const uploadOrders = async (req, res, next) => {
       });
     } catch (dbError) {
       console.error("Database error:", dbError);
+      
+      // Update batch as failed
+      if (batch) {
+        await prisma.batch.update({
+          where: { id: batch.id },
+          data: {
+            status: "failed",
+            errorLog: dbError.message,
+            completedAt: new Date(),
+          },
+        });
+      }
+      
       return next(
         createError(
           500,
@@ -207,6 +280,23 @@ const uploadOrders = async (req, res, next) => {
     }
   } catch (error) {
     console.error("Upload error:", error);
+    
+    // Update batch as failed if it was created
+    if (batch) {
+      try {
+        await prisma.batch.update({
+          where: { id: batch.id },
+          data: {
+            status: "failed",
+            errorLog: error.message,
+            completedAt: new Date(),
+          },
+        });
+      } catch (updateError) {
+        console.error("Failed to update batch:", updateError);
+      }
+    }
+    
     // Clean up file if it exists
     if (req.file?.path) {
       try {

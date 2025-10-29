@@ -4,6 +4,7 @@ const multer = require("multer");
 const path = require("path");
 const auth = require("../middleware/auth");
 const orderController = require("../controllers/orderController");
+const templateController = require("../controllers/templateController");
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -44,10 +45,60 @@ const upload = multer({
 
 /**
  * @swagger
+ * /orders/template:
+ *   get:
+ *     summary: 📥 Download Excel Template (Start Here!)
+ *     tags: [Orders]
+ *     description: |
+ *       Download the Excel template with all required headers and sample data.
+ *       
+ *       **Template includes:**
+ *       - All 55+ order fields with proper headers
+ *       - Sample row with example data
+ *       - Instructions sheet with formatting guidelines
+ *       - Date format examples
+ *       
+ *       **Usage:**
+ *       1. Click "Execute" to download template
+ *       2. Fill in your order data
+ *       3. Upload using POST /orders/upload
+ *     security:
+ *       - ApiKeyAuth: []
+ *     responses:
+ *       200:
+ *         description: Excel template file (order_import_template.xlsx)
+ *         content:
+ *           application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/template", auth, templateController.downloadOrderTemplate);
+
+/**
+ * @swagger
  * /orders/upload:
  *   post:
- *     summary: Upload orders from Excel file
+ *     summary: 📤 Upload Orders from Excel
  *     tags: [Orders]
+ *     description: |
+ *       Upload an Excel file to bulk import orders into the system.
+ *       
+ *       **⚠️ Important:** Download the template first using GET /orders/template
+ *       
+ *       **File Requirements:**
+ *       - Format: .xlsx, .xls, or .csv
+ *       - Max size: 10MB
+ *       - Must contain 'orderId' column (required)
+ *       - Use template format for best results
+ *       
+ *       **Response includes:**
+ *       - batchId: Track this import
+ *       - imported: Number of successful orders
+ *       - skipped: Duplicate orders skipped
+ *       - errors: Any parsing errors
  *     security:
  *       - ApiKeyAuth: []
  *     requestBody:
@@ -60,7 +111,7 @@ const upload = multer({
  *               file:
  *                 type: string
  *                 format: binary
- *                 description: Excel file containing order data
+ *                 description: Excel file containing order data (use template format)
  *     responses:
  *       201:
  *         description: Orders uploaded successfully
@@ -71,12 +122,24 @@ const upload = multer({
  *               properties:
  *                 message:
  *                   type: string
+ *                 batchId:
+ *                   type: integer
+ *                   description: ID of the created batch
+ *                 fileName:
+ *                   type: string
+ *                   description: Name of the uploaded file
  *                 imported:
  *                   type: integer
+ *                   description: Number of orders successfully imported
  *                 total:
  *                   type: integer
+ *                   description: Total orders in file
  *                 skipped:
  *                   type: integer
+ *                   description: Number of duplicate orders skipped
+ *                 errors:
+ *                   type: array
+ *                   description: List of parsing errors if any
  *       400:
  *         description: Bad request (invalid file or data)
  *       401:
