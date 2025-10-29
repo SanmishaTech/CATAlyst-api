@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                Int       @id @default(autoincrement())
+  name              String
+  email             String    @unique
+  password          String
+  role              String
+  clientId          Int?      // For users: references their client
+  active            Boolean   @default(true)
+  lastLogin         DateTime?
+  resetToken        String?
+  resetTokenExpires DateTime?
+  apiKey            String?   @unique
+  apiKeyExpiry      DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  client            User?     @relation("ClientUsers", fields: [clientId], references: [id], onDelete: Cascade)
+  users             User[]    @relation("ClientUsers")
+  batches           Batch[]
+  orders            Order[]
+  
+  @@map("users")
+}
+
+model Batch {
+  id                Int       @id @default(autoincrement())
+  userId            Int
+  fileName          String
+  fileSize          Int?
+  totalOrders       Int       @default(0)
+  successfulOrders  Int       @default(0)
+  failedOrders      Int       @default(0)
+  status            String    @default("processing") // processing, completed, failed
+  errorLog          String?   @db.Text
+  importedAt        DateTime  @default(now())
+  completedAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders            Order[]
+  
+  @@index([userId])
+  @@map("batches")
+}
+
+model Order {
+  id                              Int       @id @default(autoincrement())
+  userId                          Int
+  batchId                         Int
+  clientId                        String?
+  orderId                         String    @unique
+  orderIdVersion                  String?
+  orderIdSession                  String?
+  orderIdInstance                 String?
+  parentOrderId                   String?
+  cancelReplaceOrderId            String?
+  linkedOrderId                   String?
+  orderAction                     String?
+  orderStatus                     String?
+  orderCapacity                   String?
+  orderDestination                String?
+  orderClientRef                  String?
+  orderClientRefDetails           String?
+  orderExecutingEntity            String?
+  orderBookingEntity              String?
+  orderPositionAccount            String?
+  orderSite                       String?
+  orderClientCapacity             String?
+  orderManualIndicator            String?
+  orderRequestTime                DateTime?
+  orderEventTime                  DateTime?
+  orderManualTimestamp            DateTime?
+  orderOmsSource                  String?
+  orderPublishingTime             DateTime?
+  orderTradeDate                  DateTime?
+  orderQuantity                   Decimal?  @db.Decimal(18, 8)
+  orderPrice                      Decimal?  @db.Decimal(18, 8)
+  orderType                       String?
+  orderTimeInForce                String?
+  orderExecutionInstruction       String?
+  orderAttributes                 String?
+  orderRestriction                String?
+  orderAuctionIndicator           String?
+  orderSwapIndicator              String?
+  orderOsi                        String?
+  orderInstrumentId               String?
+  orderLinkedInstrumentId         String?
+  orderCurrencyId                 String?
+  orderFlowType                   String?
+  orderAlgoInstruction            String?
+  orderSymbol                     String?
+  orderInstrumentReference        String?
+  orderInstrumentReferenceValue   String?
+  orderOptionPutCall              String?
+  orderOptionStrikePrice          Decimal?  @db.Decimal(18, 8)
+  orderOptionLegIndicator         String?
+  orderComplianceId               String?
+  orderEntityId                   String?
+  orderExecutingAccount           String?
+  orderClearingAccount            String?
+  orderClientOrderId              String?
+  orderRoutedOrderId              String?
+  orderTradingOwner               String?
+  orderExtendedAttribute          String?   @db.Text
+  createdAt                       DateTime  @default(now())
+  updatedAt                       DateTime  @updatedAt
+  
+  // Relations
+  user                            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  batch                           Batch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([batchId])
+  @@index([orderId])
+  @@map("orders")
+}
+
