@@ -60,7 +60,7 @@ model Order {
   userId                          Int
   batchId                         Int
   clientId                        String?
-  orderId                         String    @unique
+  orderId                         String
   orderIdVersion                  String?
   orderIdSession                  String?
   orderIdInstance                 String?

@@ -227,11 +227,11 @@ const uploadOrders = async (req, res, next) => {
       });
     }
 
-    // Insert orders into database
+    // Insert orders into database (allows duplicates)
     try {
       const result = await prisma.order.createMany({
         data: orders,
-        skipDuplicates: true, // Skip if orderId already exists
+        skipDuplicates: false, // Allow duplicate orderIds
       });
 
       // Update batch with success statistics
@@ -253,7 +253,7 @@ const uploadOrders = async (req, res, next) => {
         fileName: batch.fileName,
         imported: result.count,
         total: orders.length,
-        skipped: orders.length - result.count,
+        failed: orders.length - result.count,
         errors: errors.length > 0 ? errors : undefined,
       });
     } catch (dbError) {

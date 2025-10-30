@@ -20,10 +20,10 @@ const options = {
     components: {
       securitySchemes: {
         ApiKeyAuth: {
-          type: "apiKey",
-          in: "header",
-          name: "Authorization",
-          description: "API key authentication. Format: 'Bearer <your-api-key>'",
+          type: "http",
+          scheme: "bearer",
+          bearerFormat: "API Key",
+          description: "Enter your API key (the 'Bearer ' prefix will be added automatically)",
         },
       },
     },

@@ -114,9 +114,11 @@ file: <excel-file>
 ```json
 {
   "message": "Orders uploaded successfully",
+  "batchId": 5,
+  "fileName": "orders_october.xlsx",
   "imported": 95,
   "total": 100,
-  "skipped": 5,
+  "failed": 5,
   "errors": [
     {
       "row": 15,
@@ -128,7 +130,9 @@ file: <excel-file>
 
 ## Notes
 
-- Duplicate `orderid` values will be skipped automatically
+- **Every row in Excel creates a new database row** - duplicates are allowed
+- Same `orderid` can appear multiple times across different batches
+- Each order is linked to its batch via `batchId`
 - Date fields accept various formats (ISO, Excel date numbers, etc.)
 - The `userid` field will be automatically set to the authenticated user's ID if not provided
 - Empty cells are treated as NULL values

@@ -94,10 +94,15 @@ router.get("/template", auth, templateController.downloadOrderTemplate);
  *       - Must contain 'orderId' column (required)
  *       - Use template format for best results
  *       
+ *       **Duplicate Handling:**
+ *       - Every row in Excel creates a new database row
+ *       - Duplicate orderIds are allowed (tracked by batchId)
+ *       - Same orderId can exist across multiple batches
+ *       
  *       **Response includes:**
  *       - batchId: Track this import
- *       - imported: Number of successful orders
- *       - skipped: Duplicate orders skipped
+ *       - imported: Number of orders successfully created
+ *       - failed: Number of orders that failed
  *       - errors: Any parsing errors
  *     security:
  *       - ApiKeyAuth: []
@@ -134,9 +139,9 @@ router.get("/template", auth, templateController.downloadOrderTemplate);
  *                 total:
  *                   type: integer
  *                   description: Total orders in file
- *                 skipped:
+ *                 failed:
  *                   type: integer
- *                   description: Number of duplicate orders skipped
+ *                   description: Number of orders that failed to process
  *                 errors:
  *                   type: array
  *                   description: List of parsing errors if any
