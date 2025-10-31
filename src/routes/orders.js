@@ -208,121 +208,309 @@ router.post("/upload", auth, upload.single("file"), orderController.uploadOrders
  *                   required:
  *                     - orderId
  *                   properties:
+ *                     scenario:
+ *                       type: string
+ *                       description: Test or business scenario identifier
  *                     orderId:
  *                       type: string
  *                       description: Unique order identifier (REQUIRED)
  *                     orderIdVersion:
- *                       type: string
+ *                       type: integer
+ *                       description: Version number of the order
  *                     orderIdSession:
- *                       type: string
+ *                       type: integer
+ *                       description: Trading session identifier
  *                     orderIdInstance:
  *                       type: string
+ *                       description: Instance identifier for the order
  *                     parentOrderId:
  *                       type: string
- *                     cancelReplaceOrderId:
+ *                       description: Identifier of the parent order (for child orders)
+ *                     cancelreplaceOrderId:
  *                       type: string
+ *                       description: Original order ID when canceling/replacing
  *                     linkedOrderId:
  *                       type: string
+ *                       description: Related or linked order identifier
  *                     orderAction:
  *                       type: string
+ *                       description: Action taken on the order (new, cancel, replace, etc.)
  *                     orderStatus:
  *                       type: string
+ *                       description: Current status of the order (open, filled, canceled, etc.)
  *                     orderCapacity:
- *                       type: string
+ *                       type: integer
+ *                       description: Trading capacity (principal, agency, riskless principal)
  *                     orderDestination:
- *                       type: string
+ *                       type: integer
+ *                       description: Exchange or venue where order is routed
  *                     orderClientRef:
- *                       type: string
+ *                       type: integer
+ *                       description: Client reference number
  *                     orderClientRefDetails:
- *                       type: string
+ *                       type: integer
+ *                       description: Additional client reference details
  *                     orderExecutingEntity:
  *                       type: string
+ *                       description: Entity executing the order
  *                     orderBookingEntity:
  *                       type: string
+ *                       description: Entity booking the order
  *                     orderPositionAccount:
  *                       type: string
- *                     orderSite:
+ *                       description: Account for position tracking
+ *                     orderSide:
  *                       type: string
+ *                       description: Buy or sell side
  *                     orderClientCapacity:
  *                       type: string
+ *                       description: Client's trading capacity
  *                     orderManualIndicator:
  *                       type: string
+ *                       description: Whether order was manually entered
  *                     orderRequestTime:
  *                       type: string
- *                       format: date-time
+ *                       description: Time order was requested
  *                     orderEventTime:
  *                       type: string
- *                       format: date-time
+ *                       description: Time of order event
  *                     orderManualTimestamp:
  *                       type: string
- *                       format: date-time
+ *                       description: Timestamp for manual orders
  *                     orderOmsSource:
  *                       type: string
+ *                       description: Order management system source
  *                     orderPublishingTime:
  *                       type: string
- *                       format: date-time
+ *                       description: Time order was published
  *                     orderTradeDate:
  *                       type: string
- *                       format: date
+ *                       description: Trade date
  *                     orderQuantity:
  *                       type: number
+ *                       description: Total order quantity
  *                     orderPrice:
  *                       type: number
+ *                       description: Order price
  *                     orderType:
  *                       type: string
- *                     orderTimeInForce:
+ *                       description: Order type (market, limit, stop, etc.)
+ *                     orderTimeInforce:
  *                       type: string
- *                     orderExecutionInstruction:
+ *                       description: Time in force (day, GTC, IOC, FOK, etc.)
+ *                     orderExecutionInstructions:
  *                       type: string
+ *                       description: Special execution instructions
  *                     orderAttributes:
  *                       type: string
- *                     orderRestriction:
+ *                       description: Additional order attributes
+ *                     orderRestrictions:
  *                       type: string
+ *                       description: Trading restrictions on the order
  *                     orderAuctionIndicator:
  *                       type: string
+ *                       description: Whether order participates in auction
  *                     orderSwapIndicator:
  *                       type: string
+ *                       description: Swap transaction indicator
  *                     orderOsi:
  *                       type: string
+ *                       description: Order source indicator
  *                     orderInstrumentId:
  *                       type: string
+ *                       description: Unique instrument identifier
  *                     orderLinkedInstrumentId:
  *                       type: string
+ *                       description: Related instrument identifier
  *                     orderCurrencyId:
  *                       type: string
+ *                       description: Currency of the order
  *                     orderFlowType:
  *                       type: string
+ *                       description: Order flow classification
  *                     orderAlgoInstruction:
  *                       type: string
+ *                       description: Algorithmic trading instructions
  *                     orderSymbol:
  *                       type: string
+ *                       description: Trading symbol
  *                     orderInstrumentReference:
  *                       type: string
+ *                       description: Type of instrument reference
  *                     orderInstrumentReferenceValue:
  *                       type: string
+ *                       description: Value of instrument reference
  *                     orderOptionPutCall:
  *                       type: string
+ *                       description: Put or call for options
  *                     orderOptionStrikePrice:
  *                       type: number
+ *                       description: Strike price for options
  *                     orderOptionLegIndicator:
  *                       type: string
+ *                       description: Multi-leg option indicator
  *                     orderComplianceId:
  *                       type: string
+ *                       description: Compliance identifier
  *                     orderEntityId:
  *                       type: string
+ *                       description: Entity identifier
  *                     orderExecutingAccount:
  *                       type: string
+ *                       description: Executing account number
  *                     orderClearingAccount:
  *                       type: string
+ *                       description: Clearing account number
  *                     orderClientOrderId:
  *                       type: string
+ *                       description: Client's order identifier
  *                     orderRoutedOrderId:
  *                       type: string
+ *                       description: Order ID after routing
  *                     orderTradingOwner:
  *                       type: string
+ *                       description: Owner/trader of the order
  *                     orderExtendedAttribute:
  *                       type: string
- *                       description: Extended attributes as JSON string
+ *                       description: Extended attributes field
+ *                     orderQuoteId:
+ *                       type: string
+ *                       description: Related quote identifier
+ *                     orderRepresentOrderId:
+ *                       type: string
+ *                       description: Representative order identifier
+ *                     orderOnBehalfCompId:
+ *                       type: string
+ *                       description: On-behalf-of company ID
+ *                     orderSpread:
+ *                       type: string
+ *                       description: Spread value for multi-leg orders
+ *                     orderAmendReason:
+ *                       type: string
+ *                       description: Reason for order amendment
+ *                     orderCancelRejectReason:
+ *                       type: string
+ *                       description: Reason for cancel/reject
+ *                     orderBidSize:
+ *                       type: number
+ *                       description: Bid size at order time
+ *                     orderBidPrice:
+ *                       type: number
+ *                       description: Bid price at order time
+ *                     orderAskSize:
+ *                       type: number
+ *                       description: Ask size at order time
+ *                     orderAskPrice:
+ *                       type: number
+ *                       description: Ask price at order time
+ *                     orderBasketId:
+ *                       type: string
+ *                       description: Basket order identifier
+ *                     orderCumQty:
+ *                       type: number
+ *                       description: Cumulative filled quantity
+ *                     orderLeavesQty:
+ *                       type: number
+ *                       description: Remaining unfilled quantity
+ *                     orderStopPrice:
+ *                       type: number
+ *                       description: Stop price for stop orders
+ *                     orderDiscretionPrice:
+ *                       type: number
+ *                       description: Discretionary price limit
+ *                     orderExdestinationInstruction:
+ *                       type: string
+ *                       description: Exchange destination instructions
+ *                     orderExecutionParameter:
+ *                       type: string
+ *                       description: Execution parameters
+ *                     orderInfobarrierId:
+ *                       type: string
+ *                       description: Information barrier identifier
+ *                     orderLegRatio:
+ *                       type: string
+ *                       description: Ratio for multi-leg orders
+ *                     orderLocateId:
+ *                       type: string
+ *                       description: Short sale locate identifier
+ *                     orderNegotiatedIndicator:
+ *                       type: string
+ *                       description: Negotiated trade indicator
+ *                     orderOpenClose:
+ *                       type: string
+ *                       description: Open or close position indicator
+ *                     orderParticipantPriorityCode:
+ *                       type: string
+ *                       description: Participant priority code
+ *                     orderActionInitiated:
+ *                       type: string
+ *                       description: Who initiated the action
+ *                     orderPackageIndicator:
+ *                       type: string
+ *                       description: Package order indicator
+ *                     orderPackageId:
+ *                       type: string
+ *                       description: Package identifier
+ *                     orderPackagePricetype:
+ *                       type: string
+ *                       description: Package pricing type
+ *                     orderStrategyType:
+ *                       type: string
+ *                       description: Trading strategy type
+ *                     orderSecondaryOffering:
+ *                       type: string
+ *                       description: Secondary offering indicator
+ *                     orderStartTime:
+ *                       type: string
+ *                       description: Order start time
+ *                     orderTifExpiration:
+ *                       type: string
+ *                       description: Time in force expiration
+ *                     orderParentChildType:
+ *                       type: string
+ *                       description: Parent-child relationship type
+ *                     orderMinimumQty:
+ *                       type: number
+ *                       description: Minimum execution quantity
+ *                     orderTradingSession:
+ *                       type: string
+ *                       description: Trading session designation
+ *                     orderDisplayPrice:
+ *                       type: number
+ *                       description: Displayed price
+ *                     orderSeqNumber:
+ *                       type: string
+ *                       description: Sequence number
+ *                     atsDisplayIndicator:
+ *                       type: string
+ *                       description: Alternative trading system display indicator
+ *                     orderDisplayQty:
+ *                       type: number
+ *                       description: Displayed quantity
+ *                     orderWorkingPrice:
+ *                       type: number
+ *                       description: Working price
+ *                     atsOrderType:
+ *                       type: string
+ *                       description: ATS order type
+ *                     orderNbboSource:
+ *                       type: string
+ *                       description: National best bid and offer source
+ *                     orderNbboTimestamp:
+ *                       type: string
+ *                       description: NBBO timestamp
+ *                     orderSolicitationFlag:
+ *                       type: string
+ *                       description: Solicited order flag
+ *                     orderNetPrice:
+ *                       type: number
+ *                       description: Net price
+ *                     routeRejectedFlag:
+ *                       type: string
+ *                       description: Whether route was rejected
+ *                     orderOriginationSystem:
+ *                       type: string
+ *                       description: System where order originated
  *           example:
  *             orders:
  *               - scenario: "TEST"
