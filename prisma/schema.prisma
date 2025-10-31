@@ -12,7 +12,7 @@ model User {
   name              String
   email             String    @unique
   password          String
-  role              String
+  role              String    
   clientId          Int?      // For users: references their client
   active            Boolean   @default(true)
   lastLogin         DateTime?
@@ -24,12 +24,52 @@ model User {
   updatedAt         DateTime  @updatedAt
   
   // Relations
-  client            User?     @relation("ClientUsers", fields: [clientId], references: [id], onDelete: Cascade)
-  users             User[]    @relation("ClientUsers")
+  client            Client?   @relation("ClientUsers", fields: [clientId], references: [id], onDelete: Cascade)
   batches           Batch[]
   orders            Order[]
   
+  @@index([clientId])
   @@map("users")
+}
+
+model Client {
+  id                            Int       @id @default(autoincrement())
+  name                          String
+  entityName                    String?
+  address                       String?   @db.Text
+  legalAddress                  String?   @db.Text
+  taxOrEinNumber                String?
+  mpid                          String?
+  lei                           String?
+  catReporterImid               String?
+  catSubmitterImid              String?
+  contactPersonName             String?
+  contactNumber                 String?
+  contactEmailId                String?
+  serviceEmailId                String?
+  catEnabled                    Boolean   @default(false)
+  sixZeroFiveEnabled            Boolean   @default(false)
+  loprEnabled                   Boolean   @default(false)
+  supportEscalationContact      String?
+  dataSpecificationModel        String?   // Enum stored as string
+  configurationPlaceholder      String?   // Enum stored as string
+  configurationPlaceholder1     String?   // Enum stored as string
+  configurationPlaceholder2     String?   // Enum stored as string
+  placeholderColumn1            String?
+  placeholderColumn2            String?
+  placeholderColumn3            String?
+  placeholderColumn4            String?
+  placeholderColumn5            String?
+  placeholderColumn6            String?
+  placeholderColumn7            String?
+  active                        Boolean   @default(true)
+  createdAt                     DateTime  @default(now())
+  updatedAt                     DateTime  @updatedAt
+  
+  // Relations
+  users                         User[]    @relation("ClientUsers")
+  
+  @@map("clients")
 }
 
 model Batch {

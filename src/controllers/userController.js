@@ -150,6 +150,12 @@ const getUserById = async (req, res, next) => {
 };
 
 const createUser = async (req, res, next) => {
+  // If client is creating a user, lock role to 'user' and auto-assign clientId
+  if (req.user.role === "client") {
+    req.body.role = "user";
+    req.body.clientId = req.user.clientId || req.user.id; // Use client's own clientId if they're a client user, or their own id
+  }
+
   // Define Zod schema for user creation
   const schema = z.object({
     name: z
@@ -194,12 +200,20 @@ const createUser = async (req, res, next) => {
       if (req.user.role === "admin" && !data.clientId) {
         ctx.addIssue({
           path: ["clientId"],
-          message: "Client ID is required when creating a user.",
+          message: "Client ID is required when admin creates a user.",
         });
       }
-      if (req.user.role === "client") {
-        // Auto-assign to current client
-        data.clientId = req.user.id;
+      // Verify clientId exists in Client table
+      if (data.clientId) {
+        const clientExists = await prisma.client.findUnique({
+          where: { id: data.clientId },
+        });
+        if (!clientExists) {
+          ctx.addIssue({
+            path: ["clientId"],
+            message: "Invalid client ID. Client does not exist.",
+          });
+        }
       }
     }
   });

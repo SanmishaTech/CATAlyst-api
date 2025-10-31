@@ -35,6 +35,7 @@ async function main() {
 
   // Wipe existing data for core tables
   await prisma.user.deleteMany();
+  await prisma.client.deleteMany();
 
   const passwordHash = await bcrypt.hash('abcd123', SALT_ROUNDS);
 
@@ -51,29 +52,57 @@ async function main() {
   });
   console.log(`Admin created: ${admin.email}`);
 
-  // 2. Create Clients (managed by Admin)
+  // 2. Create Clients (in Client table, not User table)
   console.log('Creating clients...');
-  const client1 = await prisma.user.create({
+  const client1 = await prisma.client.create({
     data: {
-      name: 'Client One',
+      name: 'Client One Corporation',
+      entityName: 'Client One Corp Ltd',
+      contactEmailId: 'contact@clientone.com',
+      contactPersonName: 'John Client',
+      contactNumber: '+1-555-0101',
+      active: true,
+    },
+  });
+  console.log(`Client 1 created: ${client1.name}`);
+
+  const client2 = await prisma.client.create({
+    data: {
+      name: 'Client Two Industries',
+      entityName: 'Client Two Industries Inc',
+      contactEmailId: 'contact@clienttwo.com',
+      contactPersonName: 'Jane Client',
+      contactNumber: '+1-555-0102',
+      active: true,
+    },
+  });
+  console.log(`Client 2 created: ${client2.name}`);
+
+  // 2b. Create login accounts for clients
+  console.log('Creating client login accounts...');
+  const clientUser1 = await prisma.user.create({
+    data: {
+      name: 'Client One Admin',
       email: 'client1@example.com',
       password: passwordHash,
       role: 'client',
+      clientId: client1.id,
       active: true,
     },
   });
-  console.log(`Client 1 created: ${client1.email}`);
+  console.log(`Client 1 login created: ${clientUser1.email}`);
 
-  const client2 = await prisma.user.create({
+  const clientUser2 = await prisma.user.create({
     data: {
-      name: 'Client Two',
+      name: 'Client Two Admin',
       email: 'client2@example.com',
       password: passwordHash,
       role: 'client',
+      clientId: client2.id,
       active: true,
     },
   });
-  console.log(`Client 2 created: ${client2.email}`);
+  console.log(`Client 2 login created: ${clientUser2.email}`);
 
   // 3. Create Users under Client 1
   console.log('Creating users under Client 1...');
@@ -139,13 +168,16 @@ async function main() {
   console.log('\n✅ Seeding completed successfully!');
   console.log('\nHierarchy created:');
   console.log('📊 Admin (admin@gmail.com)');
-  console.log('  ├── Client 1 (client1@example.com)');
-  console.log('  │   ├── User 1A (user1a@example.com)');
-  console.log('  │   └── User 1B (user1b@example.com)');
-  console.log('  └── Client 2 (client2@example.com)');
-  console.log('      ├── User 2A (user2a@example.com)');
-  console.log('      ├── User 2B (user2b@example.com)');
-  console.log('      └── User 2C (user2c@example.com)');
+  console.log('  └── Manages Clients:');
+  console.log('      ├── Client 1: Client One Corporation');
+  console.log('      │   ├── 🔐 Client Login: client1@example.com');
+  console.log('      │   ├── User 1A (user1a@example.com)');
+  console.log('      │   └── User 1B (user1b@example.com)');
+  console.log('      └── Client 2: Client Two Industries');
+  console.log('          ├── 🔐 Client Login: client2@example.com');
+  console.log('          ├── User 2A (user2a@example.com)');
+  console.log('          ├── User 2B (user2b@example.com)');
+  console.log('          └── User 2C (user2c@example.com)');
   console.log('\n🔑 Default password for all accounts: abcd123');
   return;
 

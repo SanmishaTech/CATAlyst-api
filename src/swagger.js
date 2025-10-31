@@ -501,6 +501,7 @@ const specs = swaggerJsdoc(options);
 const swaggerUiOptions = {
   swaggerOptions: {
     filter: true, // Enable search/filter bar
+    defaultModelsExpandDepth: -1, // Hide schemas section
     requestInterceptor: (req) => {
       // Ensure content-type is properly set for file uploads
       if (req.body instanceof FormData) {
