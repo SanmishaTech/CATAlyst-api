@@ -22,7 +22,7 @@ const options = {
 
 This section provides detailed documentation for:
 - ⚙️ Environment variables and configuration
-- 🗄️ Database models (User, Batch, Order)
+- 🗄️ Database models (User, Client, Batch, Order)
 - 📝 Field descriptions and data types
 - 🛠️ Setup and deployment instructions
 
@@ -80,6 +80,50 @@ This section provides detailed documentation for:
 | **apiKeyExpiry** | datetime | Expiration date/time for the API key |
 | **createdAt** | datetime | Timestamp when user account was created |
 | **updatedAt** | datetime | Timestamp when user account was last updated |
+
+</details>
+
+<details>
+<summary><strong>🏢 Client Model Fields</strong></summary>
+
+| Field | Type | Description |
+|-------|------|-------------|
+| **id** | integer | Unique client identifier (auto-incremented) |
+| **name** | string | Client company name (required) |
+| **entityName** | string | Legal entity name |
+| **address** | text | Physical address |
+| **legalAddress** | text | Legal/registered address |
+| **taxOrEinNumber** | string | Tax ID or EIN number |
+| **mpid** | string | Market Participant ID |
+| **lei** | string | Legal Entity Identifier |
+| **catReporterImid** | string | CAT Reporter IMID |
+| **catSubmitterImid** | string | CAT Submitter IMID |
+| **contactPersonName** | string | Primary contact person name |
+| **contactNumber** | string | Contact phone number |
+| **contactEmailId** | string | Contact email address |
+| **serviceEmailId** | string | Service/support email address |
+| **catEnabled** | boolean | CAT reporting feature enabled (default: false) |
+| **sixZeroFiveEnabled** | boolean | Rule 605 reporting enabled (default: false) |
+| **loprEnabled** | boolean | LOPR feature enabled (default: false) |
+| **supportEscalationContact** | string | Support escalation email |
+| **dataSpecificationModel** | string | Data specification model type (enum) |
+| **configurationPlaceholder** | string | Configuration field 1 (enum) |
+| **configurationPlaceholder1** | string | Configuration field 2 (enum) |
+| **configurationPlaceholder2** | string | Configuration field 3 (enum) |
+| **placeholderColumn1** | string | Custom field 1 |
+| **placeholderColumn2** | string | Custom field 2 |
+| **placeholderColumn3** | string | Custom field 3 |
+| **placeholderColumn4** | string | Custom field 4 |
+| **placeholderColumn5** | string | Custom field 5 |
+| **placeholderColumn6** | string | Custom field 6 |
+| **placeholderColumn7** | string | Custom field 7 |
+| **active** | boolean | Client status (true = active, false = inactive) |
+| **createdAt** | datetime | Timestamp when client was created |
+| **updatedAt** | datetime | Timestamp when client was last updated |
+
+**Total: 32 fields** (29 business fields + 3 system fields)
+
+**Note:** Client login credentials are managed separately in the User model with role="client" and a reference to this Client record.
 
 </details>
 
