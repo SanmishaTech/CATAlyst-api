@@ -676,6 +676,11 @@ router.post("/upload-json", auth, orderController.uploadOrdersJson);
  *         schema:
  *           type: string
  *         description: Filter by order status
+ *       - in: query
+ *         name: batchId
+ *         schema:
+ *           type: integer
+ *         description: Filter by batch ID
  *     responses:
  *       200:
  *         description: List of orders

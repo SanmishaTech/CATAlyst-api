@@ -87,9 +87,12 @@ router.get("/", auth, clientController.getClients);
  *             type: object
  *             required:
  *               - name
+ *               - email
+ *               - password
  *             properties:
  *               name:
  *                 type: string
+ *                 description: Client company name (also used as the user's display name)
  *               entityName:
  *                 type: string
  *               address:
@@ -149,6 +152,15 @@ router.get("/", auth, clientController.getClients);
  *                 type: string
  *               active:
  *                 type: boolean
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Login email for the client user (must be unique)
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 minLength: 6
+ *                 description: Login password for the client user (min 6 characters)
  *     responses:
  *       201:
  *         description: Client created successfully

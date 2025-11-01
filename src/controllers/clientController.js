@@ -156,6 +156,16 @@ const getClientById = async (req, res, next) => {
 
 const createClient = async (req, res, next) => {
   const schema = z.object({
+    // Login credentials (required)
+    email: z
+      .string()
+      .email("Invalid email format.")
+      .min(1, "Email is required for login."),
+    password: z
+      .string()
+      .min(6, "Password must be at least 6 characters.")
+      .max(100, "Password must not exceed 100 characters."),
+    // Client business information
     name: z
       .string()
       .min(1, "Name is required.")
@@ -193,10 +203,54 @@ const createClient = async (req, res, next) => {
   const validationErrors = await validateRequest(schema, req.body, res);
 
   try {
-    const client = await prisma.client.create({
-      data: req.body,
+    const { email, password, ...clientData } = req.body;
+
+    // Check if email already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
     });
-    res.status(201).json(client);
+
+    if (existingUser) {
+      return res.status(400).json({
+        errors: { email: "Email already exists." },
+      });
+    }
+
+    // Create client and user in a transaction
+    const bcrypt = require("bcrypt");
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const result = await prisma.$transaction(async (tx) => {
+      // Create the client
+      const client = await tx.client.create({
+        data: clientData,
+      });
+
+      // Create the user with login credentials
+      const user = await tx.user.create({
+        data: {
+          name: clientData.name,
+          email: email,
+          password: hashedPassword,
+          role: "client",
+          clientId: client.id,
+          active: true,
+        },
+      });
+
+      return { client, user };
+    });
+
+    // Return client data with user info (excluding password)
+    res.status(201).json({
+      ...result.client,
+      user: {
+        id: result.user.id,
+        name: result.user.name,
+        email: result.user.email,
+        role: result.user.role,
+      },
+    });
   } catch (error) {
     next(error);
   }

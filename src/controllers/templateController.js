@@ -10,7 +10,6 @@ const downloadOrderTemplate = async (req, res, next) => {
 
     // Define headers - All 101 order fields (matching the field mapping in orderController)
     const headers = [
-      "scenario",
       "orderId",
       "orderIdVersion",
       "orderIdSession",
@@ -135,85 +134,80 @@ const downloadOrderTemplate = async (req, res, next) => {
     
     // Test Row 1
     const testRow1 = new Array(headers.length).fill("");
-    testRow1[0] = "TEST"; // scenario
-    testRow1[1] = "ORD-001"; // orderId (REQUIRED)
-    testRow1[2] = 1; // orderIdVersion
-    testRow1[3] = 1; // orderIdSession
-    testRow1[7] = "NEW"; // orderAction
-    testRow1[8] = "PENDING"; // orderStatus
-    testRow1[17] = "BUY"; // orderSide
-    testRow1[26] = 100; // orderQuantity
-    testRow1[27] = 150.50; // orderPrice
-    testRow1[28] = "LIMIT"; // orderType
-    testRow1[29] = "DAY"; // orderTimeInforce
-    testRow1[41] = "AAPL"; // orderSymbol
+    testRow1[0] = "ORD-001"; // orderId (REQUIRED)
+    testRow1[1] = 1; // orderIdVersion
+    testRow1[2] = 1; // orderIdSession
+    testRow1[6] = "NEW"; // orderAction
+    testRow1[7] = "PENDING"; // orderStatus
+    testRow1[16] = "BUY"; // orderSide
+    testRow1[25] = 100; // orderQuantity
+    testRow1[26] = 150.50; // orderPrice
+    testRow1[27] = "LIMIT"; // orderType
+    testRow1[28] = "DAY"; // orderTimeInforce
+    testRow1[40] = "AAPL"; // orderSymbol
     worksheet.addRow(testRow1);
     
     // Test Row 2
     const testRow2 = new Array(headers.length).fill("");
-    testRow2[0] = "PROD"; // scenario
-    testRow2[1] = "ORD-002"; // orderId
-    testRow2[2] = 1; // orderIdVersion
-    testRow2[3] = 1; // orderIdSession
-    testRow2[7] = "NEW"; // orderAction
-    testRow2[8] = "FILLED"; // orderStatus
-    testRow2[17] = "SELL"; // orderSide
-    testRow2[26] = 50; // orderQuantity
-    testRow2[27] = 2800.00; // orderPrice
-    testRow2[28] = "MARKET"; // orderType
-    testRow2[41] = "GOOGL"; // orderSymbol
+    testRow2[0] = "ORD-002"; // orderId
+    testRow2[1] = 1; // orderIdVersion
+    testRow2[2] = 1; // orderIdSession
+    testRow2[6] = "NEW"; // orderAction
+    testRow2[7] = "FILLED"; // orderStatus
+    testRow2[16] = "SELL"; // orderSide
+    testRow2[25] = 50; // orderQuantity
+    testRow2[26] = 2800.00; // orderPrice
+    testRow2[27] = "MARKET"; // orderType
+    testRow2[40] = "GOOGL"; // orderSymbol
     worksheet.addRow(testRow2);
     
     // Test Row 3
     const testRow3 = new Array(headers.length).fill("");
-    testRow3[0] = "ALGO-VWAP"; // scenario
-    testRow3[1] = "ORD-003"; // orderId
-    testRow3[2] = 2; // orderIdVersion
-    testRow3[3] = 1; // orderIdSession
-    testRow3[7] = "REPLACE"; // orderAction
-    testRow3[8] = "PENDING"; // orderStatus
-    testRow3[17] = "BUY"; // orderSide
-    testRow3[26] = 200; // orderQuantity
-    testRow3[27] = 350.25; // orderPrice
-    testRow3[28] = "LIMIT"; // orderType
-    testRow3[29] = "GTC"; // orderTimeInforce
-    testRow3[40] = "VWAP"; // orderAlgoInstruction
-    testRow3[41] = "MSFT"; // orderSymbol
+    testRow3[0] = "ORD-003"; // orderId
+    testRow3[1] = 2; // orderIdVersion
+    testRow3[2] = 1; // orderIdSession
+    testRow3[6] = "REPLACE"; // orderAction
+    testRow3[7] = "PENDING"; // orderStatus
+    testRow3[16] = "BUY"; // orderSide
+    testRow3[25] = 200; // orderQuantity
+    testRow3[26] = 350.25; // orderPrice
+    testRow3[27] = "LIMIT"; // orderType
+    testRow3[28] = "GTC"; // orderTimeInforce
+    testRow3[39] = "VWAP"; // orderAlgoInstruction
+    testRow3[40] = "MSFT"; // orderSymbol
     worksheet.addRow(testRow3);
     
     // Test Row 4
     const testRow4 = new Array(headers.length).fill("");
-    testRow4[0] = "MORNING-SESSION"; // scenario
-    testRow4[1] = "ORD-004"; // orderId
-    testRow4[2] = 1; // orderIdVersion
-    testRow4[3] = 2; // orderIdSession
-    testRow4[7] = "NEW"; // orderAction
-    testRow4[8] = "CANCELLED"; // orderStatus
-    testRow4[17] = "BUY"; // orderSide
-    testRow4[26] = 75; // orderQuantity
-    testRow4[27] = 180.00; // orderPrice
-    testRow4[28] = "STOP"; // orderType
-    testRow4[29] = "DAY"; // orderTimeInforce
-    testRow4[41] = "TSLA"; // orderSymbol
-    testRow4[68] = 175.00; // orderStopPrice
+    testRow4[0] = "ORD-004"; // orderId
+    testRow4[1] = 1; // orderIdVersion
+    testRow4[2] = 2; // orderIdSession
+    testRow4[6] = "NEW"; // orderAction
+    testRow4[7] = "CANCELLED"; // orderStatus
+    testRow4[16] = "BUY"; // orderSide
+    testRow4[25] = 75; // orderQuantity
+    testRow4[26] = 180.00; // orderPrice
+    testRow4[27] = "STOP"; // orderType
+    testRow4[28] = "DAY"; // orderTimeInforce
+    testRow4[40] = "TSLA"; // orderSymbol
+    testRow4[67] = 175.00; // orderStopPrice
     worksheet.addRow(testRow4);
     
     // Test Row 5
     const testRow5 = new Array(headers.length).fill("");
-    testRow5[0] = "EOD-REBALANCE"; // scenario
-    testRow5[1] = "ORD-005"; // orderId
-    testRow5[2] = 1; // orderIdVersion
-    testRow5[3] = 1; // orderIdSession
-    testRow5[7] = "NEW"; // orderAction
-    testRow5[8] = "PARTIAL"; // orderStatus
-    testRow5[17] = "SELL"; // orderSide
-    testRow5[26] = 150; // orderQuantity
-    testRow5[27] = 95.75; // orderPrice
-    testRow5[28] = "LIMIT"; // orderType
-    testRow5[29] = "IOC"; // orderTimeInforce
-    testRow5[41] = "NVDA"; // orderSymbol
-    testRow5[61] = 100; // orderCumQty (filled quantity)
-    testRow5[62] = 50; // orderLeavesQty (remaining)
+    testRow5[0] = "ORD-005"; // orderId
+    testRow5[1] = 1; // orderIdVersion
+    testRow5[2] = 1; // orderIdSession
+    testRow5[6] = "NEW"; // orderAction
+    testRow5[7] = "PARTIAL"; // orderStatus
+    testRow5[16] = "SELL"; // orderSide
+    testRow5[25] = 150; // orderQuantity
+    testRow5[26] = 95.75; // orderPrice
+    testRow5[27] = "LIMIT"; // orderType
+    testRow5[28] = "IOC"; // orderTimeInforce
+    testRow5[40] = "NVDA"; // orderSymbol
+    testRow5[60] = 100; // orderCumQty (filled quantity)
+    testRow5[61] = 50; // orderLeavesQty (remaining)
     worksheet.addRow(testRow5);
 
     // Add instructions sheet

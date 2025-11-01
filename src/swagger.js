@@ -283,7 +283,10 @@ This section provides detailed documentation for:
     },
     servers: [
       {
-        url: "http://localhost:3000/api",
+        url: process.env.NODE_ENV === "production"
+          ? `${process.env.API_URL || "https://CATAlystc.3.7.237.251.sslip.io"}/api`
+          : "http://localhost:3000/api",
+        description: process.env.NODE_ENV === "production" ? "Production server" : "Development server",
       },
     ],
     components: {
@@ -543,6 +546,7 @@ This section provides detailed documentation for:
 const specs = swaggerJsdoc(options);
 
 const swaggerUiOptions = {
+  customSiteTitle: "Catalyst API Engine",
   swaggerOptions: {
     filter: true, // Enable search/filter bar
     defaultModelsExpandDepth: -1, // Hide schemas section
@@ -557,7 +561,7 @@ const swaggerUiOptions = {
 };
 
 router.use(
-  "/api-docs",
+  "/api",
   swaggerUi.serve,
   swaggerUi.setup(specs, swaggerUiOptions)
 );

@@ -7,7 +7,6 @@ const fs = require("fs").promises;
 // Field mapping from Excel headers to database fields (snake_case to camelCase)
 const fieldMapping = {
   userid: "userId",
-  scenario: "scenario",
   orderid: "orderId",
   order_id: "orderId",
   orderidversion: "orderIdVersion",
@@ -485,7 +484,7 @@ const uploadOrders = async (req, res, next) => {
 const getOrders = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { page = 1, limit = 50, orderId, orderStatus } = req.query;
+    const { page = 1, limit = 50, orderId, orderStatus, batchId } = req.query;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
@@ -497,6 +496,9 @@ const getOrders = async (req, res, next) => {
     }
     if (orderStatus) {
       where.orderStatus = orderStatus;
+    }
+    if (batchId) {
+      where.batchId = parseInt(batchId);
     }
 
     const [orders, total] = await Promise.all([
@@ -622,7 +624,6 @@ const uploadOrdersJson = async (req, res, next) => {
         userId,
         batchId: batch.id,
         clientId: clientId,
-        scenario: orderData.scenario || null,
         orderId: orderData.orderId || null,
         orderIdVersion: orderData.orderIdVersion || null,
         orderIdSession: orderData.orderIdSession || null,
