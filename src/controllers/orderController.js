@@ -223,165 +223,292 @@ const parseIntValue = (value) => {
   return isNaN(parsed) ? null : parsed;
 };
 
-// Upload Excel file and parse orders
-const uploadOrders = async (req, res, next) => {
-  let batch = null;
+// Helper function to validate and normalize order data using JSON validation logic
+const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
+  const order = {
+    userId,
+    batchId,
+    clientId,
+    orderId: orderData.orderId || null,
+    orderIdVersion: orderData.orderIdVersion || null,
+    orderIdSession: orderData.orderIdSession || null,
+    orderIdInstance: orderData.orderIdInstance || null,
+    parentOrderId: orderData.parentOrderId || null,
+    cancelreplaceOrderId: orderData.cancelreplaceOrderId || orderData.cancelReplaceOrderId || null,
+    linkedOrderId: orderData.linkedOrderId || null,
+    orderAction: orderData.orderAction || null,
+    orderStatus: orderData.orderStatus || null,
+    orderCapacity: orderData.orderCapacity || null,
+    orderDestination: orderData.orderDestination || null,
+    orderClientRef: orderData.orderClientRef || null,
+    orderClientRefDetails: orderData.orderClientRefDetails || null,
+    orderExecutingEntity: orderData.orderExecutingEntity || null,
+    orderBookingEntity: orderData.orderBookingEntity || null,
+    orderPositionAccount: orderData.orderPositionAccount || null,
+    orderSide: orderData.orderSide || null,
+    orderClientCapacity: orderData.orderClientCapacity || null,
+    orderManualIndicator: orderData.orderManualIndicator || null,
+    orderRequestTime: orderData.orderRequestTime || null,
+    orderEventTime: orderData.orderEventTime || null,
+    orderManualTimestamp: orderData.orderManualTimestamp || null,
+    orderOmsSource: orderData.orderOmsSource || null,
+    orderPublishingTime: orderData.orderPublishingTime || null,
+    orderTradeDate: orderData.orderTradeDate || null,
+    orderQuantity: orderData.orderQuantity || null,
+    orderPrice: orderData.orderPrice || null,
+    orderType: orderData.orderType || null,
+    orderTimeInforce: orderData.orderTimeInforce || orderData.orderTimeInForce || null,
+    orderExecutionInstructions: orderData.orderExecutionInstructions || orderData.orderExecutionInstruction || null,
+    orderAttributes: orderData.orderAttributes || null,
+    orderRestrictions: orderData.orderRestrictions || orderData.orderRestriction || null,
+    orderAuctionIndicator: orderData.orderAuctionIndicator || null,
+    orderSwapIndicator: orderData.orderSwapIndicator || null,
+    orderOsi: orderData.orderOsi || null,
+    orderInstrumentId: orderData.orderInstrumentId || null,
+    orderLinkedInstrumentId: orderData.orderLinkedInstrumentId || null,
+    orderCurrencyId: orderData.orderCurrencyId || null,
+    orderFlowType: orderData.orderFlowType || null,
+    orderAlgoInstruction: orderData.orderAlgoInstruction || null,
+    orderSymbol: orderData.orderSymbol || null,
+    orderInstrumentReference: orderData.orderInstrumentReference || null,
+    orderInstrumentReferenceValue: orderData.orderInstrumentReferenceValue || null,
+    orderOptionPutCall: orderData.orderOptionPutCall || null,
+    orderOptionStrikePrice: orderData.orderOptionStrikePrice || null,
+    orderOptionLegIndicator: orderData.orderOptionLegIndicator || null,
+    orderComplianceId: orderData.orderComplianceId || null,
+    orderEntityId: orderData.orderEntityId || null,
+    orderExecutingAccount: orderData.orderExecutingAccount || null,
+    orderClearingAccount: orderData.orderClearingAccount || null,
+    orderClientOrderId: orderData.orderClientOrderId || null,
+    orderRoutedOrderId: orderData.orderRoutedOrderId || null,
+    orderTradingOwner: orderData.orderTradingOwner || null,
+    orderExtendedAttribute: orderData.orderExtendedAttribute || null,
+    orderQuoteId: orderData.orderQuoteId || null,
+    orderRepresentOrderId: orderData.orderRepresentOrderId || null,
+    orderOnBehalfCompId: orderData.orderOnBehalfCompId || null,
+    orderSpread: orderData.orderSpread || null,
+    orderAmendReason: orderData.orderAmendReason || null,
+    orderCancelRejectReason: orderData.orderCancelRejectReason || null,
+    orderBidSize: orderData.orderBidSize || null,
+    orderBidPrice: orderData.orderBidPrice || null,
+    orderAskSize: orderData.orderAskSize || null,
+    orderAskPrice: orderData.orderAskPrice || null,
+    orderBasketId: orderData.orderBasketId || null,
+    orderCumQty: orderData.orderCumQty || null,
+    orderLeavesQty: orderData.orderLeavesQty || null,
+    orderStopPrice: orderData.orderStopPrice || null,
+    orderDiscretionPrice: orderData.orderDiscretionPrice || null,
+    orderExdestinationInstruction: orderData.orderExdestinationInstruction || null,
+    orderExecutionParameter: orderData.orderExecutionParameter || null,
+    orderInfobarrierId: orderData.orderInfobarrierId || null,
+    orderLegRatio: orderData.orderLegRatio || null,
+    orderLocateId: orderData.orderLocateId || null,
+    orderNegotiatedIndicator: orderData.orderNegotiatedIndicator || null,
+    orderOpenClose: orderData.orderOpenClose || null,
+    orderParticipantPriorityCode: orderData.orderParticipantPriorityCode || null,
+    orderActionInitiated: orderData.orderActionInitiated || null,
+    orderPackageIndicator: orderData.orderPackageIndicator || null,
+    orderPackageId: orderData.orderPackageId || null,
+    orderPackagePricetype: orderData.orderPackagePricetype || null,
+    orderStrategyType: orderData.orderStrategyType || null,
+    orderSecondaryOffering: orderData.orderSecondaryOffering || null,
+    orderStartTime: orderData.orderStartTime || null,
+    orderTifExpiration: orderData.orderTifExpiration || null,
+    orderParentChildType: orderData.orderParentChildType || null,
+    orderMinimumQty: orderData.orderMinimumQty || null,
+    orderTradingSession: orderData.orderTradingSession || null,
+    orderDisplayPrice: orderData.orderDisplayPrice || null,
+    orderSeqNumber: orderData.orderSeqNumber || null,
+    atsDisplayIndicator: orderData.atsDisplayIndicator || null,
+    orderDisplayQty: orderData.orderDisplayQty || null,
+    orderWorkingPrice: orderData.orderWorkingPrice || null,
+    atsOrderType: orderData.atsOrderType || null,
+    orderNbboSource: orderData.orderNbboSource || null,
+    orderNbboTimestamp: orderData.orderNbboTimestamp || null,
+    orderSolicitationFlag: orderData.orderSolicitationFlag || null,
+    orderNetPrice: orderData.orderNetPrice || null,
+    routeRejectedFlag: orderData.routeRejectedFlag || null,
+    orderOriginationSystem: orderData.orderOriginationSystem || null,
+  };
   
-  try {
-    if (!req.file) {
-      return next(createError(400, "No file uploaded"));
+  return order;
+};
+
+// Parse Excel file and convert to JSON array
+const parseExcelToJson = async (filePath) => {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(filePath);
+  const worksheet = workbook.getWorksheet(1);
+
+  if (!worksheet) {
+    throw new Error("Excel file is empty or invalid");
+  }
+
+  // Get headers from first row
+  const headers = [];
+  worksheet.getRow(1).eachCell((cell) => {
+    headers.push(cell.value.toString().toLowerCase().trim());
+  });
+
+  // Validate required fields
+  if (!headers.includes("orderid")) {
+    throw new Error("Excel file must contain 'orderid' column");
+  }
+
+  const orders = [];
+  const errors = [];
+  let rowNumber = 1;
+
+  // Parse rows
+  worksheet.eachRow((row, index) => {
+    if (index === 1) return; // Skip header row
+    rowNumber++;
+
+    const orderData = {};
+
+    row.eachCell((cell, colNumber) => {
+      const header = headers[colNumber - 1];
+      const mappedField = fieldMapping[header];
+
+      if (mappedField) {
+        let value = cell.value;
+
+        // Handle integer fields
+        if (
+          [
+            "orderIdVersion",
+            "orderIdSession",
+            "orderCapacity",
+            "orderDestination",
+            "orderClientRef",
+            "orderClientRefDetails",
+          ].includes(mappedField)
+        ) {
+          value = parseIntValue(value);
+        }
+        // Handle decimal fields
+        else if (
+          [
+            "orderQuantity",
+            "orderPrice",
+            "orderOptionStrikePrice",
+            "orderBidSize",
+            "orderBidPrice",
+            "orderAskSize",
+            "orderAskPrice",
+            "orderCumQty",
+            "orderLeavesQty",
+            "orderStopPrice",
+            "orderDiscretionPrice",
+            "orderMinimumQty",
+            "orderDisplayPrice",
+            "orderDisplayQty",
+            "orderWorkingPrice",
+            "orderNetPrice",
+          ].includes(mappedField)
+        ) {
+          value = parseDecimal(value);
+        }
+        // All other fields (including dates) are stored as strings
+        else if (value !== null && value !== undefined) {
+          value = value.toString();
+        }
+
+        orderData[mappedField] = value;
+      }
+    });
+
+    // Validate required field
+    if (!orderData.orderId) {
+      errors.push({
+        row: rowNumber,
+        error: "Missing required field: orderId",
+      });
+      return;
     }
 
+    orders.push(orderData);
+  });
+
+  return { orders, errors };
+};
+
+// Unified upload handler for both JSON and Excel
+const uploadOrders = async (req, res, next) => {
+  let batch = null;
+  let filePath = null;
+  
+  try {
     const userId = req.user.id;
-    const filePath = req.file.path;
     
     // Determine clientId based on user role
     let clientId = null;
     if (req.user.role === 'client') {
-      clientId = req.user.id.toString(); // Client's own ID
+      clientId = req.user.id.toString();
     } else if (req.user.role === 'user') {
-      clientId = req.user.clientId ? req.user.clientId.toString() : null; // User's associated client
+      clientId = req.user.clientId ? req.user.clientId.toString() : null;
     }
-    // If admin, clientId remains null
 
-    // Create batch record to track this upload
+    let ordersArray = [];
+    let fileName = "json_upload.json";
+    let fileSize = 0;
+    let errors = [];
+
+    // Check if this is a file upload (Excel) or JSON body
+    if (req.file) {
+      // Excel file upload
+      filePath = req.file.path;
+      fileName = req.file.originalname;
+      fileSize = req.file.size;
+
+      // Parse Excel to JSON
+      const parseResult = await parseExcelToJson(filePath);
+      ordersArray = parseResult.orders;
+      errors = parseResult.errors;
+
+      // Clean up file after parsing
+      await fs.unlink(filePath);
+      filePath = null;
+    } else if (req.body.orders) {
+      // Direct JSON upload
+      ordersArray = req.body.orders;
+      
+      if (!Array.isArray(ordersArray) || ordersArray.length === 0) {
+        return next(createError(400, "Request body must contain an 'orders' array"));
+      }
+      
+      fileSize = JSON.stringify(ordersArray).length;
+    } else {
+      return next(createError(400, "Either file upload or JSON body with 'orders' array is required"));
+    }
+
+    // Create batch record
     batch = await prisma.batch.create({
       data: {
         userId,
-        fileName: req.file.originalname,
-        fileSize: req.file.size,
+        fileName,
+        fileSize,
         status: "processing",
       },
     });
 
-    // Read Excel file
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.readFile(filePath);
-    const worksheet = workbook.getWorksheet(1);
-
-    if (!worksheet) {
-      await fs.unlink(filePath);
-      
-      // Update batch as failed
-      await prisma.batch.update({
-        where: { id: batch.id },
-        data: {
-          status: "failed",
-          errorLog: "Excel file is empty or invalid",
-          completedAt: new Date(),
-        },
-      });
-      
-      return next(createError(400, "Excel file is empty or invalid"));
-    }
-
-    // Get headers from first row
-    const headers = [];
-    worksheet.getRow(1).eachCell((cell) => {
-      headers.push(cell.value.toString().toLowerCase().trim());
-    });
-
-    // Validate required fields
-    if (!headers.includes("orderid")) {
-      await fs.unlink(filePath);
-      
-      // Update batch as failed
-      await prisma.batch.update({
-        where: { id: batch.id },
-        data: {
-          status: "failed",
-          errorLog: "Excel file must contain 'orderid' column",
-          completedAt: new Date(),
-        },
-      });
-      
-      return next(createError(400, "Excel file must contain 'orderid' column"));
-    }
-
-    const orders = [];
-    const errors = [];
-    let rowNumber = 1;
-
-    // Parse rows
-    worksheet.eachRow((row, index) => {
-      if (index === 1) return; // Skip header row
-      rowNumber++;
-
-      const orderData = { userId, batchId: batch.id, clientId };
-
-      row.eachCell((cell, colNumber) => {
-        const header = headers[colNumber - 1];
-        const mappedField = fieldMapping[header];
-
-        if (mappedField) {
-          let value = cell.value;
-
-          // Handle integer fields
-          if (
-            [
-              "orderIdVersion",
-              "orderIdSession",
-              "orderCapacity",
-              "orderDestination",
-              "orderClientRef",
-              "orderClientRefDetails",
-            ].includes(mappedField)
-          ) {
-            value = parseIntValue(value);
-          }
-          // Handle decimal fields
-          else if (
-            [
-              "orderQuantity",
-              "orderPrice",
-              "orderOptionStrikePrice",
-              "orderBidSize",
-              "orderBidPrice",
-              "orderAskSize",
-              "orderAskPrice",
-              "orderCumQty",
-              "orderLeavesQty",
-              "orderStopPrice",
-              "orderDiscretionPrice",
-              "orderMinimumQty",
-              "orderDisplayPrice",
-              "orderDisplayQty",
-              "orderWorkingPrice",
-              "orderNetPrice",
-            ].includes(mappedField)
-          ) {
-            value = parseDecimal(value);
-          }
-          // Handle userId as integer
-          else if (mappedField === "userId") {
-            value = parseInt(value) || userId;
-          }
-          // All other fields (including dates) are stored as strings
-          else if (value !== null && value !== undefined) {
-            value = value.toString();
-          }
-
-          orderData[mappedField] = value;
-        }
-      });
-
-      // Validate required field
+    // Validate and normalize all orders using JSON validation wrapper
+    const validOrders = [];
+    ordersArray.forEach((orderData, index) => {
       if (!orderData.orderId) {
         errors.push({
-          row: rowNumber,
+          index: index,
+          row: index + 2, // +2 for Excel (header + 0-index)
           error: "Missing required field: orderId",
         });
         return;
       }
 
-      orders.push(orderData);
+      const normalizedOrder = validateAndNormalizeOrder(orderData, userId, batch.id, clientId);
+      validOrders.push(normalizedOrder);
     });
 
-    // Delete uploaded file
-    await fs.unlink(filePath);
-
-    if (orders.length === 0) {
-      // Update batch as failed
+    if (validOrders.length === 0) {
       await prisma.batch.update({
         where: { id: batch.id },
         data: {
@@ -392,63 +519,40 @@ const uploadOrders = async (req, res, next) => {
       });
       
       return res.status(400).json({
-        message: "No valid orders found in Excel file",
+        message: "No valid orders found",
         batchId: batch.id,
         errors,
       });
     }
 
-    // Insert orders into database (allows duplicates)
-    try {
-      const result = await prisma.order.createMany({
-        data: orders,
-        skipDuplicates: false, // Allow duplicate orderIds
-      });
+    // Insert orders into database
+    const result = await prisma.order.createMany({
+      data: validOrders,
+      skipDuplicates: false,
+    });
 
-      // Update batch with success statistics
-      await prisma.batch.update({
-        where: { id: batch.id },
-        data: {
-          totalOrders: orders.length,
-          successfulOrders: result.count,
-          failedOrders: orders.length - result.count,
-          status: "completed",
-          errorLog: errors.length > 0 ? JSON.stringify(errors) : null,
-          completedAt: new Date(),
-        },
-      });
+    // Update batch with success statistics
+    await prisma.batch.update({
+      where: { id: batch.id },
+      data: {
+        totalOrders: validOrders.length,
+        successfulOrders: result.count,
+        failedOrders: validOrders.length - result.count,
+        status: "completed",
+        errorLog: errors.length > 0 ? JSON.stringify(errors) : null,
+        completedAt: new Date(),
+      },
+    });
 
-      res.status(201).json({
-        message: "Orders uploaded successfully",
-        batchId: batch.id,
-        fileName: batch.fileName,
-        imported: result.count,
-        total: orders.length,
-        failed: orders.length - result.count,
-        errors: errors.length > 0 ? errors : undefined,
-      });
-    } catch (dbError) {
-      console.error("Database error:", dbError);
-      
-      // Update batch as failed
-      if (batch) {
-        await prisma.batch.update({
-          where: { id: batch.id },
-          data: {
-            status: "failed",
-            errorLog: dbError.message,
-            completedAt: new Date(),
-          },
-        });
-      }
-      
-      return next(
-        createError(
-          500,
-          `Database error: ${dbError.message || "Failed to insert orders"}`
-        )
-      );
-    }
+    res.status(201).json({
+      message: "Orders uploaded successfully",
+      batchId: batch.id,
+      fileName: fileName,
+      imported: result.count,
+      total: validOrders.length,
+      failed: validOrders.length - result.count,
+      errors: errors.length > 0 ? errors : undefined,
+    });
   } catch (error) {
     console.error("Upload error:", error);
     
@@ -469,13 +573,14 @@ const uploadOrders = async (req, res, next) => {
     }
     
     // Clean up file if it exists
-    if (req.file?.path) {
+    if (filePath) {
       try {
-        await fs.unlink(req.file.path);
+        await fs.unlink(filePath);
       } catch (unlinkError) {
         console.error("Failed to delete file:", unlinkError);
       }
     }
+    
     next(error);
   }
 };
@@ -575,229 +680,9 @@ const deleteOrder = async (req, res, next) => {
   }
 };
 
-// Upload orders directly from JSON
-const uploadOrdersJson = async (req, res, next) => {
-  let batch = null;
-  
-  try {
-    const { orders: ordersArray } = req.body;
-    
-    if (!ordersArray || !Array.isArray(ordersArray) || ordersArray.length === 0) {
-      return next(createError(400, "Request body must contain an 'orders' array"));
-    }
-
-    const userId = req.user.id;
-    const errors = [];
-    const validOrders = [];
-    
-    // Determine clientId based on user role
-    let clientId = null;
-    if (req.user.role === 'client') {
-      clientId = req.user.id.toString(); // Client's own ID
-    } else if (req.user.role === 'user') {
-      clientId = req.user.clientId ? req.user.clientId.toString() : null; // User's associated client
-    }
-    // If admin, clientId remains null
-
-    // Create batch record
-    batch = await prisma.batch.create({
-      data: {
-        userId,
-        fileName: "json_upload.json",
-        fileSize: JSON.stringify(ordersArray).length,
-        status: "processing",
-      },
-    });
-
-    // Validate and prepare orders
-    ordersArray.forEach((orderData, index) => {
-      if (!orderData.orderId) {
-        errors.push({
-          index: index,
-          error: "Missing required field: orderId",
-        });
-        return;
-      }
-
-      // Map JSON fields to database columns - copy all fields from orderData
-      const order = {
-        userId,
-        batchId: batch.id,
-        clientId: clientId,
-        orderId: orderData.orderId || null,
-        orderIdVersion: orderData.orderIdVersion || null,
-        orderIdSession: orderData.orderIdSession || null,
-        orderIdInstance: orderData.orderIdInstance || null,
-        parentOrderId: orderData.parentOrderId || null,
-        cancelreplaceOrderId: orderData.cancelreplaceOrderId || orderData.cancelReplaceOrderId || null,
-        linkedOrderId: orderData.linkedOrderId || null,
-        orderAction: orderData.orderAction || null,
-        orderStatus: orderData.orderStatus || null,
-        orderCapacity: orderData.orderCapacity || null,
-        orderDestination: orderData.orderDestination || null,
-        orderClientRef: orderData.orderClientRef || null,
-        orderClientRefDetails: orderData.orderClientRefDetails || null,
-        orderExecutingEntity: orderData.orderExecutingEntity || null,
-        orderBookingEntity: orderData.orderBookingEntity || null,
-        orderPositionAccount: orderData.orderPositionAccount || null,
-        orderSide: orderData.orderSide || null,
-        orderClientCapacity: orderData.orderClientCapacity || null,
-        orderManualIndicator: orderData.orderManualIndicator || null,
-        orderRequestTime: orderData.orderRequestTime || null,
-        orderEventTime: orderData.orderEventTime || null,
-        orderManualTimestamp: orderData.orderManualTimestamp || null,
-        orderOmsSource: orderData.orderOmsSource || null,
-        orderPublishingTime: orderData.orderPublishingTime || null,
-        orderTradeDate: orderData.orderTradeDate || null,
-        orderQuantity: orderData.orderQuantity || null,
-        orderPrice: orderData.orderPrice || null,
-        orderType: orderData.orderType || null,
-        orderTimeInforce: orderData.orderTimeInforce || orderData.orderTimeInForce || null,
-        orderExecutionInstructions: orderData.orderExecutionInstructions || orderData.orderExecutionInstruction || null,
-        orderAttributes: orderData.orderAttributes || null,
-        orderRestrictions: orderData.orderRestrictions || orderData.orderRestriction || null,
-        orderAuctionIndicator: orderData.orderAuctionIndicator || null,
-        orderSwapIndicator: orderData.orderSwapIndicator || null,
-        orderOsi: orderData.orderOsi || null,
-        orderInstrumentId: orderData.orderInstrumentId || null,
-        orderLinkedInstrumentId: orderData.orderLinkedInstrumentId || null,
-        orderCurrencyId: orderData.orderCurrencyId || null,
-        orderFlowType: orderData.orderFlowType || null,
-        orderAlgoInstruction: orderData.orderAlgoInstruction || null,
-        orderSymbol: orderData.orderSymbol || null,
-        orderInstrumentReference: orderData.orderInstrumentReference || null,
-        orderInstrumentReferenceValue: orderData.orderInstrumentReferenceValue || null,
-        orderOptionPutCall: orderData.orderOptionPutCall || null,
-        orderOptionStrikePrice: orderData.orderOptionStrikePrice || null,
-        orderOptionLegIndicator: orderData.orderOptionLegIndicator || null,
-        orderComplianceId: orderData.orderComplianceId || null,
-        orderEntityId: orderData.orderEntityId || null,
-        orderExecutingAccount: orderData.orderExecutingAccount || null,
-        orderClearingAccount: orderData.orderClearingAccount || null,
-        orderClientOrderId: orderData.orderClientOrderId || null,
-        orderRoutedOrderId: orderData.orderRoutedOrderId || null,
-        orderTradingOwner: orderData.orderTradingOwner || null,
-        orderExtendedAttribute: orderData.orderExtendedAttribute || null,
-        orderQuoteId: orderData.orderQuoteId || null,
-        orderRepresentOrderId: orderData.orderRepresentOrderId || null,
-        orderOnBehalfCompId: orderData.orderOnBehalfCompId || null,
-        orderSpread: orderData.orderSpread || null,
-        orderAmendReason: orderData.orderAmendReason || null,
-        orderCancelRejectReason: orderData.orderCancelRejectReason || null,
-        orderBidSize: orderData.orderBidSize || null,
-        orderBidPrice: orderData.orderBidPrice || null,
-        orderAskSize: orderData.orderAskSize || null,
-        orderAskPrice: orderData.orderAskPrice || null,
-        orderBasketId: orderData.orderBasketId || null,
-        orderCumQty: orderData.orderCumQty || null,
-        orderLeavesQty: orderData.orderLeavesQty || null,
-        orderStopPrice: orderData.orderStopPrice || null,
-        orderDiscretionPrice: orderData.orderDiscretionPrice || null,
-        orderExdestinationInstruction: orderData.orderExdestinationInstruction || null,
-        orderExecutionParameter: orderData.orderExecutionParameter || null,
-        orderInfobarrierId: orderData.orderInfobarrierId || null,
-        orderLegRatio: orderData.orderLegRatio || null,
-        orderLocateId: orderData.orderLocateId || null,
-        orderNegotiatedIndicator: orderData.orderNegotiatedIndicator || null,
-        orderOpenClose: orderData.orderOpenClose || null,
-        orderParticipantPriorityCode: orderData.orderParticipantPriorityCode || null,
-        orderActionInitiated: orderData.orderActionInitiated || null,
-        orderPackageIndicator: orderData.orderPackageIndicator || null,
-        orderPackageId: orderData.orderPackageId || null,
-        orderPackagePricetype: orderData.orderPackagePricetype || null,
-        orderStrategyType: orderData.orderStrategyType || null,
-        orderSecondaryOffering: orderData.orderSecondaryOffering || null,
-        orderStartTime: orderData.orderStartTime || null,
-        orderTifExpiration: orderData.orderTifExpiration || null,
-        orderParentChildType: orderData.orderParentChildType || null,
-        orderMinimumQty: orderData.orderMinimumQty || null,
-        orderTradingSession: orderData.orderTradingSession || null,
-        orderDisplayPrice: orderData.orderDisplayPrice || null,
-        orderSeqNumber: orderData.orderSeqNumber || null,
-        atsDisplayIndicator: orderData.atsDisplayIndicator || null,
-        orderDisplayQty: orderData.orderDisplayQty || null,
-        orderWorkingPrice: orderData.orderWorkingPrice || null,
-        atsOrderType: orderData.atsOrderType || null,
-        orderNbboSource: orderData.orderNbboSource || null,
-        orderNbboTimestamp: orderData.orderNbboTimestamp || null,
-        orderSolicitationFlag: orderData.orderSolicitationFlag || null,
-        orderNetPrice: orderData.orderNetPrice || null,
-        routeRejectedFlag: orderData.routeRejectedFlag || null,
-        orderOriginationSystem: orderData.orderOriginationSystem || null,
-      };
-
-      validOrders.push(order);
-    });
-
-    if (validOrders.length === 0) {
-      await prisma.batch.update({
-        where: { id: batch.id },
-        data: {
-          status: "failed",
-          errorLog: JSON.stringify(errors),
-          completedAt: new Date(),
-        },
-      });
-      
-      return res.status(400).json({
-        message: "No valid orders found in JSON data",
-        batchId: batch.id,
-        errors,
-      });
-    }
-
-    // Insert orders into database
-    const result = await prisma.order.createMany({
-      data: validOrders,
-      skipDuplicates: false,
-    });
-
-    // Update batch with success statistics
-    await prisma.batch.update({
-      where: { id: batch.id },
-      data: {
-        totalOrders: validOrders.length,
-        successfulOrders: result.count,
-        failedOrders: validOrders.length - result.count,
-        status: "completed",
-        errorLog: errors.length > 0 ? JSON.stringify(errors) : null,
-        completedAt: new Date(),
-      },
-    });
-
-    res.status(201).json({
-      message: "Orders uploaded successfully",
-      batchId: batch.id,
-      imported: result.count,
-      total: validOrders.length,
-      failed: validOrders.length - result.count,
-      errors: errors.length > 0 ? errors : undefined,
-    });
-  } catch (error) {
-    console.error("JSON upload error:", error);
-    
-    if (batch) {
-      try {
-        await prisma.batch.update({
-          where: { id: batch.id },
-          data: {
-            status: "failed",
-            errorLog: error.message,
-            completedAt: new Date(),
-          },
-        });
-      } catch (updateError) {
-        console.error("Failed to update batch:", updateError);
-      }
-    }
-    
-    next(error);
-  }
-};
 
 module.exports = {
   uploadOrders,
-  uploadOrdersJson,
   getOrders,
   getOrderById,
   deleteOrder,

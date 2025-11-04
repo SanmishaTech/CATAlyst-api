@@ -1,5 +1,6 @@
 const swaggerJsdoc = require("swagger-jsdoc");
 const swaggerUi = require("swagger-ui-express");
+const { apiReference } = require("@scalar/express-api-reference");
 const express = require("express");
 
 const router = express.Router();
@@ -564,6 +565,19 @@ router.use(
   "/api",
   swaggerUi.serve,
   swaggerUi.setup(specs, swaggerUiOptions)
+);
+
+// Scalar API documentation
+router.use(
+  "/api-scalar",
+  apiReference({
+    spec: {
+      content: specs,
+    },
+    theme: "purple",
+    layout: "modern",
+    darkMode: true,
+  })
 );
 
 module.exports = router;
