@@ -150,34 +150,34 @@ This section provides detailed documentation for:
 
 | Field | Type | Data Length | Required | Description |
 |-------|------|-------------|----------|-------------|
-| **orderId** | string | 128 | No | Unique identifier for Order as assigned by sell-side |
+| **orderId** | string | 128 | Yes | Unique identifier for Order as assigned by sell-side |
 | **orderIdVersion** | integer | - | No | Version number of the order |
 | **orderIdSession** | string | 16 | No | Trading session identifier to distinguish orders across multiple days |
 | **orderIdInstance** | string | 64 | No | Instance identifier for the order |
 | **parentOrderId** | string | 128 | No | Identifier of the parent order (for child orders) |
 | **cancelreplaceOrderId** | string | 128 | No | Original order ID when canceling/replacing |
 | **linkedOrderId** | string | 128 | No | Related or linked order identifier |
-| **orderAction** | string | 50 (Enum) | No | Action taken on the order (new, cancel, replace, etc.) |
+| **orderAction** | string | 50 (Enum) | Yes | Action taken on the order (new, cancel, replace, etc.) |
 | **orderStatus** | string | 48 | No | Current status of the order (open, filled, canceled, etc.) |
-| **orderCapacity** | string | 48 | No | Trading capacity (principal, agency, riskless principal) |
+| **orderCapacity** | string | 48 | Yes | Trading capacity (principal, agency, riskless principal) |
 | **orderDestination** | string | 48 | No | Exchange or venue where order is routed |
 | **orderClientRef** | string | 128 | No | Client reference number |
 | **orderClientRefDetails** | string | 48 | No | Additional client reference details |
 | **orderExecutingEntity** | integer | - | No | Entity executing the order |
 | **orderBookingEntity** | integer | - | No | Entity booking the order |
 | **orderPositionAccount** | integer | - | No | Account for position tracking |
-| **orderSide** | string | 50 (Enum) | No | Buy or sell side |
+| **orderSide** | string | 50 (Enum) | Yes | Buy or sell side |
 | **orderClientCapacity** | string | 50 (Enum) | No | Client's trading capacity |
 | **orderManualIndicator** | string | 50 (Enum) | No | Whether order was manually entered |
 | **orderRequestTime** | string | 50 | No | Time order was requested (UTC timestamp in nanoseconds) |
 | **orderEventTime** | string | 50 | No | Time of order event (UTC timestamp in nanoseconds) |
 | **orderManualTimestamp** | string | 50 | No | Timestamp for manual orders (UTC timestamp in nanoseconds) |
-| **orderOmsSource** | string | 64 | No | Order management system source |
-| **orderPublishingTime** | string | 50 | No | Time order was published (UTC timestamp in nanoseconds) |
+| **orderOmsSource** | string | 64 | Yes | Order management system source |
+| **orderPublishingTime** | string | 50 | Yes | Time order was published (UTC timestamp in nanoseconds) |
 | **orderTradeDate** | string | 50 | No | Trade date (UTC timestamp in nanoseconds) |
 | **orderQuantity** | decimal | 18,6 | No | Total order quantity (18 digits, 6 decimal places) |
 | **orderPrice** | decimal | 18,6 | No | Order price (18 digits, 6 decimal places) |
-| **orderType** | string | 50 (Enum) | No | Order type (market, limit, stop, etc.) |
+| **orderType** | string | 50 (Enum) | Yes | Order type (market, limit, stop, etc.) |
 | **orderTimeInforce** | string | 50 (Enum) | No | Time in force (day, GTC, IOC, FOK, etc.) |
 | **orderExecutionInstructions** | string | 128 | No | Special execution instructions |
 | **orderAttributes** | string | 128 | No | Additional order attributes |
@@ -196,7 +196,7 @@ This section provides detailed documentation for:
 | **orderOptionPutCall** | string | 50 (Enum) | No | Put or call for options |
 | **orderOptionStrikePrice** | decimal | 18,6 | No | Strike price for options (18 digits, 6 decimal places) |
 | **orderOptionLegIndicator** | string | 50 (Enum) | No | Multi-leg option indicator |
-| **orderComplianceId** | string | 128 | No | Compliance identifier |
+| **orderComplianceId** | string | 128 | Yes | Compliance identifier |
 | **orderEntityId** | string | 128 | No | Entity identifier |
 | **orderExecutingAccount** | integer | - | No | Executing account number |
 | **orderClearingAccount** | integer | - | No | Clearing account number |
@@ -249,7 +249,7 @@ This section provides detailed documentation for:
 | **orderSolicitationFlag** | string | 50 (Enum) | No | Solicited order flag |
 | **orderNetPrice** | decimal | 18,6 | No | Net price (18 digits, 6 decimal places) |
 | **routeRejectedFlag** | string | 50 (Enum) | No | Whether route was rejected |
-| **orderOriginationSystem** | string | 64 | No | System where order originated |
+| **orderOriginationSystem** | string | 64 | Yes | System where order originated |
 | **createdAt** | datetime | - | Yes | Timestamp when order record was created in database |
 | **updatedAt** | datetime | - | Yes | Timestamp when order record was last updated in database |
 
@@ -461,7 +461,6 @@ This section provides detailed documentation for:
             orderId: {
               type: "string",
               maxLength: 128,
-              nullable: true,
               description: "Unique identifier for Order as assigned by sell-side (VARCHAR 128)",
             },
             orderIdVersion: {
@@ -502,7 +501,6 @@ This section provides detailed documentation for:
             orderAction: {
               type: "string",
               maxLength: 50,
-              nullable: true,
               description: "Action taken on order - Enum (new, cancel, replace, etc.) (VARCHAR 50)",
             },
             orderStatus: {
@@ -514,7 +512,6 @@ This section provides detailed documentation for:
             orderCapacity: {
               type: "string",
               maxLength: 48,
-              nullable: true,
               description: "Trading capacity (principal, agency, riskless principal) (VARCHAR 48)",
             },
             orderDestination: {
@@ -553,7 +550,6 @@ This section provides detailed documentation for:
             orderSide: {
               type: "string",
               maxLength: 50,
-              nullable: true,
               description: "Buy or sell side indicator - Enum (VARCHAR 50)",
             },
             orderClientCapacity: {
@@ -583,7 +579,6 @@ This section provides detailed documentation for:
             orderType: {
               type: "string",
               maxLength: 50,
-              nullable: true,
               description: "Order type - Enum (market, limit, stop, etc.) (VARCHAR 50)",
             },
             orderSymbol: {

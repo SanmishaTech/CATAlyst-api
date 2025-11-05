@@ -102,34 +102,34 @@ model Order {
   clientId                        String?
   
   // Excel fields (101 total)
-  orderId                         String?   @db.VarChar(128)
+  orderId                         String    @db.VarChar(128)
   orderIdVersion                  Int?
   orderIdSession                  String?   @db.VarChar(16)
   orderIdInstance                 String?   @db.VarChar(64)
   parentOrderId                   String?   @db.VarChar(128)
   cancelreplaceOrderId            String?   @db.VarChar(128)
   linkedOrderId                   String?   @db.VarChar(128)
-  orderAction                     String?   @db.VarChar(50)
+  orderAction                     String    @db.VarChar(50)
   orderStatus                     String?   @db.VarChar(48)
-  orderCapacity                   String?   @db.VarChar(48)
+  orderCapacity                   String    @db.VarChar(48)
   orderDestination                String?   @db.VarChar(48)
   orderClientRef                  String?   @db.VarChar(128)
   orderClientRefDetails           String?   @db.VarChar(48)
   orderExecutingEntity            Int?
   orderBookingEntity              Int?
   orderPositionAccount            Int?
-  orderSide                       String?   @db.VarChar(50)
+  orderSide                       String    @db.VarChar(50)
   orderClientCapacity              String?   @db.VarChar(50)
   orderManualIndicator             String?   @db.VarChar(50)
   orderRequestTime                 String?   @db.VarChar(50)
   orderEventTime                  String?   @db.VarChar(50)
   orderManualTimestamp            String?   @db.VarChar(50)
-  orderOmsSource                  String?   @db.VarChar(64)
-  orderPublishingTime             String?   @db.VarChar(50)
+  orderOmsSource                  String    @db.VarChar(64)
+  orderPublishingTime             String    @db.VarChar(50)
   orderTradeDate                  String?   @db.VarChar(50)
   orderQuantity                   Decimal?  @db.Decimal(18, 6)
   orderPrice                      Decimal?  @db.Decimal(18, 6)
-  orderType                       String?   @db.VarChar(50)
+  orderType                       String    @db.VarChar(50)
   orderTimeInforce                String?   @db.VarChar(50)
   orderExecutionInstructions      String?   @db.VarChar(128)
   orderAttributes                 String?   @db.VarChar(128)
@@ -148,7 +148,7 @@ model Order {
   orderOptionPutCall              String?   @db.VarChar(50)
   orderOptionStrikePrice          Decimal?  @db.Decimal(18, 6)
   orderOptionLegIndicator         String?   @db.VarChar(50)
-  orderComplianceId               String?   @db.VarChar(128)
+  orderComplianceId               String    @db.VarChar(128)
   orderEntityId                   String?   @db.VarChar(128)
   orderExecutingAccount           Int?
   orderClearingAccount            Int?
@@ -201,7 +201,7 @@ model Order {
   orderSolicitationFlag           String?   @db.VarChar(50)
   orderNetPrice                   Decimal?  @db.Decimal(18, 6)
   routeRejectedFlag               String?   @db.VarChar(50)
-  orderOriginationSystem          String?   @db.VarChar(64)
+  orderOriginationSystem          String    @db.VarChar(64)
   
   createdAt                       DateTime  @default(now())
   updatedAt                       DateTime  @updatedAt
