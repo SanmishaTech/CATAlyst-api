@@ -102,106 +102,106 @@ model Order {
   clientId                        String?
   
   // Excel fields (101 total)
-  orderId                         String?
+  orderId                         String?   @db.VarChar(128)
   orderIdVersion                  Int?
-  orderIdSession                  Int?
-  orderIdInstance                 String?
-  parentOrderId                   String?
-  cancelreplaceOrderId            String?
-  linkedOrderId                   String?
-  orderAction                     String?
-  orderStatus                     String?
-  orderCapacity                   Int?
-  orderDestination                Int?
-  orderClientRef                  Int?
-  orderClientRefDetails           Int?
-  orderExecutingEntity            String?
-  orderBookingEntity              String?
-  orderPositionAccount            String?
-  orderSide                       String?
-  orderClientCapacity              String?
-  orderManualIndicator             String?
-  orderRequestTime                 String?
-  orderEventTime                  String?
-  orderManualTimestamp            String?
-  orderOmsSource                  String?
-  orderPublishingTime             String?
-  orderTradeDate                  String?
-  orderQuantity                   Decimal?  @db.Decimal(18, 8)
-  orderPrice                      Decimal?  @db.Decimal(18, 8)
-  orderType                       String?
-  orderTimeInforce                String?
-  orderExecutionInstructions      String?
-  orderAttributes                 String?
-  orderRestrictions               String?
-  orderAuctionIndicator           String?
-  orderSwapIndicator              String?
-  orderOsi                        String?
-  orderInstrumentId               String?
-  orderLinkedInstrumentId         String?
-  orderCurrencyId                 String?
-  orderFlowType                   String?
-  orderAlgoInstruction            String?
-  orderSymbol                     String?
-  orderInstrumentReference        String?
-  orderInstrumentReferenceValue   String?
-  orderOptionPutCall              String?
-  orderOptionStrikePrice          Decimal?  @db.Decimal(18, 8)
-  orderOptionLegIndicator         String?
-  orderComplianceId               String?
-  orderEntityId                   String?
-  orderExecutingAccount           String?
-  orderClearingAccount            String?
-  orderClientOrderId              String?
-  orderRoutedOrderId              String?
-  orderTradingOwner               String?
-  orderExtendedAttribute          String?   @db.Text
-  orderQuoteId                    String?
-  orderRepresentOrderId           String?
-  orderOnBehalfCompId             String?
-  orderSpread                     String?
-  orderAmendReason                String?
-  orderCancelRejectReason         String?
-  orderBidSize                    Decimal?  @db.Decimal(18, 8)
-  orderBidPrice                   Decimal?  @db.Decimal(18, 8)
-  orderAskSize                    Decimal?  @db.Decimal(18, 8)
-  orderAskPrice                   Decimal?  @db.Decimal(18, 8)
-  orderBasketId                   String?
-  orderCumQty                     Decimal?  @db.Decimal(18, 8)
-  orderLeavesQty                  Decimal?  @db.Decimal(18, 8)
-  orderStopPrice                  Decimal?  @db.Decimal(18, 8)
-  orderDiscretionPrice            Decimal?  @db.Decimal(18, 8)
-  orderExdestinationInstruction   String?
-  orderExecutionParameter         String?
-  orderInfobarrierId              String?
-  orderLegRatio                   String?
-  orderLocateId                   String?
-  orderNegotiatedIndicator        String?
-  orderOpenClose                  String?
-  orderParticipantPriorityCode    String?
-  orderActionInitiated            String?
-  orderPackageIndicator           String?
-  orderPackageId                  String?
-  orderPackagePricetype           String?
-  orderStrategyType                String?
-  orderSecondaryOffering          String?
-  orderStartTime                   String?
-  orderTifExpiration              String?
-  orderParentChildType            String?
-  orderMinimumQty                 Decimal?  @db.Decimal(18, 8)
-  orderTradingSession             String?
-  orderDisplayPrice               Decimal?  @db.Decimal(18, 8)
-  orderSeqNumber                  String?
-  atsDisplayIndicator             String?
-  orderDisplayQty                 Decimal?  @db.Decimal(18, 8)
-  orderWorkingPrice               Decimal?  @db.Decimal(18, 8)
-  atsOrderType                    String?
-  orderNbboSource                 String?
-  orderNbboTimestamp              String?
-  orderSolicitationFlag           String?
-  orderNetPrice                   Decimal?  @db.Decimal(18, 8)
-  routeRejectedFlag               String?
-  orderOriginationSystem          String?
+  orderIdSession                  String?   @db.VarChar(16)
+  orderIdInstance                 String?   @db.VarChar(64)
+  parentOrderId                   String?   @db.VarChar(128)
+  cancelreplaceOrderId            String?   @db.VarChar(128)
+  linkedOrderId                   String?   @db.VarChar(128)
+  orderAction                     String?   @db.VarChar(50)
+  orderStatus                     String?   @db.VarChar(48)
+  orderCapacity                   String?   @db.VarChar(48)
+  orderDestination                String?   @db.VarChar(48)
+  orderClientRef                  String?   @db.VarChar(128)
+  orderClientRefDetails           String?   @db.VarChar(48)
+  orderExecutingEntity            Int?
+  orderBookingEntity              Int?
+  orderPositionAccount            Int?
+  orderSide                       String?   @db.VarChar(50)
+  orderClientCapacity              String?   @db.VarChar(50)
+  orderManualIndicator             String?   @db.VarChar(50)
+  orderRequestTime                 String?   @db.VarChar(50)
+  orderEventTime                  String?   @db.VarChar(50)
+  orderManualTimestamp            String?   @db.VarChar(50)
+  orderOmsSource                  String?   @db.VarChar(64)
+  orderPublishingTime             String?   @db.VarChar(50)
+  orderTradeDate                  String?   @db.VarChar(50)
+  orderQuantity                   Decimal?  @db.Decimal(18, 6)
+  orderPrice                      Decimal?  @db.Decimal(18, 6)
+  orderType                       String?   @db.VarChar(50)
+  orderTimeInforce                String?   @db.VarChar(50)
+  orderExecutionInstructions      String?   @db.VarChar(128)
+  orderAttributes                 String?   @db.VarChar(128)
+  orderRestrictions               String?   @db.VarChar(256)
+  orderAuctionIndicator           String?   @db.VarChar(64)
+  orderSwapIndicator              String?   @db.VarChar(50)
+  orderOsi                        String?   @db.VarChar(128)
+  orderInstrumentId               Int?
+  orderLinkedInstrumentId         Int?
+  orderCurrencyId                 String?   @db.VarChar(32)
+  orderFlowType                   String?   @db.VarChar(32)
+  orderAlgoInstruction            String?   @db.VarChar(64)
+  orderSymbol                     String?   @db.VarChar(64)
+  orderInstrumentReference        String?   @db.VarChar(24)
+  orderInstrumentReferenceValue   String?   @db.VarChar(64)
+  orderOptionPutCall              String?   @db.VarChar(50)
+  orderOptionStrikePrice          Decimal?  @db.Decimal(18, 6)
+  orderOptionLegIndicator         String?   @db.VarChar(50)
+  orderComplianceId               String?   @db.VarChar(128)
+  orderEntityId                   String?   @db.VarChar(128)
+  orderExecutingAccount           Int?
+  orderClearingAccount            Int?
+  orderClientOrderId              String?   @db.VarChar(128)
+  orderRoutedOrderId              String?   @db.VarChar(128)
+  orderTradingOwner               Int?
+  orderExtendedAttribute          String?   @db.VarChar(256)
+  orderQuoteId                    String?   @db.VarChar(128)
+  orderRepresentOrderId           String?   @db.VarChar(128)
+  orderOnBehalfCompId             String?   @db.VarChar(64)
+  orderSpread                     Decimal?  @db.Decimal(18, 6)
+  orderAmendReason                String?   @db.VarChar(64)
+  orderCancelRejectReason         String?   @db.VarChar(64)
+  orderBidSize                    Decimal?  @db.Decimal(18, 6)
+  orderBidPrice                   Decimal?  @db.Decimal(18, 6)
+  orderAskSize                    Decimal?  @db.Decimal(18, 6)
+  orderAskPrice                   Decimal?  @db.Decimal(18, 6)
+  orderBasketId                   String?   @db.VarChar(128)
+  orderCumQty                     Decimal?  @db.Decimal(18, 6)
+  orderLeavesQty                  Decimal?  @db.Decimal(18, 6)
+  orderStopPrice                  Decimal?  @db.Decimal(18, 6)
+  orderDiscretionPrice            Decimal?  @db.Decimal(18, 6)
+  orderExdestinationInstruction   String?   @db.VarChar(64)
+  orderExecutionParameter         String?   @db.VarChar(128)
+  orderInfobarrierId              String?   @db.VarChar(128)
+  orderLegRatio                   Decimal?  @db.Decimal(18, 6)
+  orderLocateId                   String?   @db.VarChar(128)
+  orderNegotiatedIndicator        String?   @db.VarChar(50)
+  orderOpenClose                  String?   @db.VarChar(50)
+  orderParticipantPriorityCode    String?   @db.VarChar(32)
+  orderActionInitiated            String?   @db.VarChar(32)
+  orderPackageIndicator           String?   @db.VarChar(50)
+  orderPackageId                  String?   @db.VarChar(128)
+  orderPackagePricetype           String?   @db.VarChar(64)
+  orderStrategyType                String?   @db.VarChar(64)
+  orderSecondaryOffering          String?   @db.VarChar(50)
+  orderStartTime                   String?   @db.VarChar(50)
+  orderTifExpiration              String?   @db.VarChar(50)
+  orderParentChildType            String?   @db.VarChar(50)
+  orderMinimumQty                 Decimal?  @db.Decimal(18, 6)
+  orderTradingSession             String?   @db.VarChar(50)
+  orderDisplayPrice               Decimal?  @db.Decimal(18, 6)
+  orderSeqNumber                  String?   @db.VarChar(128)
+  atsDisplayIndicator             String?   @db.VarChar(50)
+  orderDisplayQty                 Decimal?  @db.Decimal(18, 6)
+  orderWorkingPrice               Decimal?  @db.Decimal(18, 6)
+  atsOrderType                    String?   @db.VarChar(32)
+  orderNbboSource                 String?   @db.VarChar(64)
+  orderNbboTimestamp              String?   @db.VarChar(50)
+  orderSolicitationFlag           String?   @db.VarChar(50)
+  orderNetPrice                   Decimal?  @db.Decimal(18, 6)
+  routeRejectedFlag               String?   @db.VarChar(50)
+  orderOriginationSystem          String?   @db.VarChar(64)
   
   createdAt                       DateTime  @default(now())
   updatedAt                       DateTime  @updatedAt

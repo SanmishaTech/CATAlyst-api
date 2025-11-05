@@ -67,7 +67,6 @@ This section provides detailed documentation for:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| **id** | integer | Unique user identifier (auto-incremented) |
 | **name** | string | User's full name |
 | **email** | string | User's email address (unique) |
 | **password** | string | Hashed password for authentication |
@@ -89,7 +88,6 @@ This section provides detailed documentation for:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| **id** | integer | Unique client identifier (auto-incremented) |
 | **name** | string | Client company name (required) |
 | **entityName** | string | Legal entity name |
 | **address** | text | Physical address |
@@ -133,8 +131,6 @@ This section provides detailed documentation for:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| **id** | integer | Unique batch identifier (auto-incremented) |
-| **userId** | integer | Reference to the user who created the batch |
 | **fileName** | string | Name of the uploaded Excel file |
 | **fileSize** | integer | Size of the uploaded file in bytes |
 | **totalOrders** | integer | Total number of orders in the batch |
@@ -152,114 +148,110 @@ This section provides detailed documentation for:
 <details>
 <summary><strong>📊 Order Model Fields</strong></summary>
 
-| Field | Type | Description |
-|-------|------|-------------|
-| **id** | integer | Unique order identifier in database (auto-incremented) |
-| **userId** | integer | Reference to the user who owns the order |
-| **batchId** | integer | Reference to the batch this order belongs to |
-| **clientId** | string | Client identifier from external system |
-| **orderId** | string | Unique order identifier |
-| **orderIdVersion** | integer | Version number of the order |
-| **orderIdSession** | integer | Trading session identifier |
-| **orderIdInstance** | string | Instance identifier for the order |
-| **parentOrderId** | string | Identifier of the parent order (for child orders) |
-| **cancelreplaceOrderId** | string | Original order ID when canceling/replacing |
-| **linkedOrderId** | string | Related or linked order identifier |
-| **orderAction** | string | Action taken on the order (new, cancel, replace, etc.) |
-| **orderStatus** | string | Current status of the order (open, filled, canceled, etc.) |
-| **orderCapacity** | integer | Trading capacity (principal, agency, riskless principal) |
-| **orderDestination** | integer | Exchange or venue where order is routed |
-| **orderClientRef** | integer | Client reference number |
-| **orderClientRefDetails** | integer | Additional client reference details |
-| **orderExecutingEntity** | string | Entity executing the order |
-| **orderBookingEntity** | string | Entity booking the order |
-| **orderPositionAccount** | string | Account for position tracking |
-| **orderSide** | string | Buy or sell side |
-| **orderClientCapacity** | string | Client's trading capacity |
-| **orderManualIndicator** | string | Whether order was manually entered |
-| **orderRequestTime** | string | Time order was requested |
-| **orderEventTime** | string | Time of order event |
-| **orderManualTimestamp** | string | Timestamp for manual orders |
-| **orderOmsSource** | string | Order management system source |
-| **orderPublishingTime** | string | Time order was published |
-| **orderTradeDate** | string | Trade date |
-| **orderQuantity** | decimal | Total order quantity (18 digits, 8 decimal places) |
-| **orderPrice** | decimal | Order price (18 digits, 8 decimal places) |
-| **orderType** | string | Order type (market, limit, stop, etc.) |
-| **orderTimeInforce** | string | Time in force (day, GTC, IOC, FOK, etc.) |
-| **orderExecutionInstructions** | string | Special execution instructions |
-| **orderAttributes** | string | Additional order attributes |
-| **orderRestrictions** | string | Trading restrictions on the order |
-| **orderAuctionIndicator** | string | Whether order participates in auction |
-| **orderSwapIndicator** | string | Swap transaction indicator |
-| **orderOsi** | string | Order source indicator |
-| **orderInstrumentId** | string | Unique instrument identifier |
-| **orderLinkedInstrumentId** | string | Related instrument identifier |
-| **orderCurrencyId** | string | Currency of the order |
-| **orderFlowType** | string | Order flow classification |
-| **orderAlgoInstruction** | string | Algorithmic trading instructions |
-| **orderSymbol** | string | Trading symbol |
-| **orderInstrumentReference** | string | Type of instrument reference |
-| **orderInstrumentReferenceValue** | string | Value of instrument reference |
-| **orderOptionPutCall** | string | Put or call for options |
-| **orderOptionStrikePrice** | decimal | Strike price for options (18 digits, 8 decimal places) |
-| **orderOptionLegIndicator** | string | Multi-leg option indicator |
-| **orderComplianceId** | string | Compliance identifier |
-| **orderEntityId** | string | Entity identifier |
-| **orderExecutingAccount** | string | Executing account number |
-| **orderClearingAccount** | string | Clearing account number |
-| **orderClientOrderId** | string | Client's order identifier |
-| **orderRoutedOrderId** | string | Order ID after routing |
-| **orderTradingOwner** | string | Owner/trader of the order |
-| **orderExtendedAttribute** | text | Extended attributes field |
-| **orderQuoteId** | string | Related quote identifier |
-| **orderRepresentOrderId** | string | Representative order identifier |
-| **orderOnBehalfCompId** | string | On-behalf-of company ID |
-| **orderSpread** | string | Spread value for multi-leg orders |
-| **orderAmendReason** | string | Reason for order amendment |
-| **orderCancelRejectReason** | string | Reason for cancel/reject |
-| **orderBidSize** | decimal | Bid size at order time (18 digits, 8 decimal places) |
-| **orderBidPrice** | decimal | Bid price at order time (18 digits, 8 decimal places) |
-| **orderAskSize** | decimal | Ask size at order time (18 digits, 8 decimal places) |
-| **orderAskPrice** | decimal | Ask price at order time (18 digits, 8 decimal places) |
-| **orderBasketId** | string | Basket order identifier |
-| **orderCumQty** | decimal | Cumulative filled quantity (18 digits, 8 decimal places) |
-| **orderLeavesQty** | decimal | Remaining unfilled quantity (18 digits, 8 decimal places) |
-| **orderStopPrice** | decimal | Stop price for stop orders (18 digits, 8 decimal places) |
-| **orderDiscretionPrice** | decimal | Discretionary price limit (18 digits, 8 decimal places) |
-| **orderExdestinationInstruction** | string | Exchange destination instructions |
-| **orderExecutionParameter** | string | Execution parameters |
-| **orderInfobarrierId** | string | Information barrier identifier |
-| **orderLegRatio** | string | Ratio for multi-leg orders |
-| **orderLocateId** | string | Short sale locate identifier |
-| **orderNegotiatedIndicator** | string | Negotiated trade indicator |
-| **orderOpenClose** | string | Open or close position indicator |
-| **orderParticipantPriorityCode** | string | Participant priority code |
-| **orderActionInitiated** | string | Who initiated the action |
-| **orderPackageIndicator** | string | Package order indicator |
-| **orderPackageId** | string | Package identifier |
-| **orderPackagePricetype** | string | Package pricing type |
-| **orderStrategyType** | string | Trading strategy type |
-| **orderSecondaryOffering** | string | Secondary offering indicator |
-| **orderStartTime** | string | Order start time |
-| **orderTifExpiration** | string | Time in force expiration |
-| **orderParentChildType** | string | Parent-child relationship type |
-| **orderMinimumQty** | decimal | Minimum execution quantity (18 digits, 8 decimal places) |
-| **orderTradingSession** | string | Trading session designation |
-| **orderDisplayPrice** | decimal | Displayed price (18 digits, 8 decimal places) |
-| **orderSeqNumber** | string | Sequence number |
-| **atsDisplayIndicator** | string | Alternative trading system display indicator |
-| **orderDisplayQty** | decimal | Displayed quantity (18 digits, 8 decimal places) |
-| **orderWorkingPrice** | decimal | Working price (18 digits, 8 decimal places) |
-| **atsOrderType** | string | ATS order type |
-| **orderNbboSource** | string | National best bid and offer source |
-| **orderNbboTimestamp** | string | NBBO timestamp |
-| **orderSolicitationFlag** | string | Solicited order flag |
-| **orderNetPrice** | decimal | Net price (18 digits, 8 decimal places) |
-| **routeRejectedFlag** | string | Whether route was rejected |
-| **orderOriginationSystem** | string | System where order originated |
-| **createdAt** | datetime | Timestamp when order record was created in database |
-| **updatedAt** | datetime | Timestamp when order record was last updated in database |
+| Field | Type | Data Length | Required | Description |
+|-------|------|-------------|----------|-------------|
+| **orderId** | string | 128 | No | Unique identifier for Order as assigned by sell-side |
+| **orderIdVersion** | integer | - | No | Version number of the order |
+| **orderIdSession** | string | 16 | No | Trading session identifier to distinguish orders across multiple days |
+| **orderIdInstance** | string | 64 | No | Instance identifier for the order |
+| **parentOrderId** | string | 128 | No | Identifier of the parent order (for child orders) |
+| **cancelreplaceOrderId** | string | 128 | No | Original order ID when canceling/replacing |
+| **linkedOrderId** | string | 128 | No | Related or linked order identifier |
+| **orderAction** | string | 50 (Enum) | No | Action taken on the order (new, cancel, replace, etc.) |
+| **orderStatus** | string | 48 | No | Current status of the order (open, filled, canceled, etc.) |
+| **orderCapacity** | string | 48 | No | Trading capacity (principal, agency, riskless principal) |
+| **orderDestination** | string | 48 | No | Exchange or venue where order is routed |
+| **orderClientRef** | string | 128 | No | Client reference number |
+| **orderClientRefDetails** | string | 48 | No | Additional client reference details |
+| **orderExecutingEntity** | integer | - | No | Entity executing the order |
+| **orderBookingEntity** | integer | - | No | Entity booking the order |
+| **orderPositionAccount** | integer | - | No | Account for position tracking |
+| **orderSide** | string | 50 (Enum) | No | Buy or sell side |
+| **orderClientCapacity** | string | 50 (Enum) | No | Client's trading capacity |
+| **orderManualIndicator** | string | 50 (Enum) | No | Whether order was manually entered |
+| **orderRequestTime** | string | 50 | No | Time order was requested (UTC timestamp in nanoseconds) |
+| **orderEventTime** | string | 50 | No | Time of order event (UTC timestamp in nanoseconds) |
+| **orderManualTimestamp** | string | 50 | No | Timestamp for manual orders (UTC timestamp in nanoseconds) |
+| **orderOmsSource** | string | 64 | No | Order management system source |
+| **orderPublishingTime** | string | 50 | No | Time order was published (UTC timestamp in nanoseconds) |
+| **orderTradeDate** | string | 50 | No | Trade date (UTC timestamp in nanoseconds) |
+| **orderQuantity** | decimal | 18,6 | No | Total order quantity (18 digits, 6 decimal places) |
+| **orderPrice** | decimal | 18,6 | No | Order price (18 digits, 6 decimal places) |
+| **orderType** | string | 50 (Enum) | No | Order type (market, limit, stop, etc.) |
+| **orderTimeInforce** | string | 50 (Enum) | No | Time in force (day, GTC, IOC, FOK, etc.) |
+| **orderExecutionInstructions** | string | 128 | No | Special execution instructions |
+| **orderAttributes** | string | 128 | No | Additional order attributes |
+| **orderRestrictions** | string | 256 | No | Trading restrictions on the order |
+| **orderAuctionIndicator** | string | 64 | No | Whether order participates in auction |
+| **orderSwapIndicator** | string | 50 (Enum) | No | Swap transaction indicator |
+| **orderOsi** | string | 128 | No | Order source indicator |
+| **orderInstrumentId** | integer | - | No | Unique instrument identifier |
+| **orderLinkedInstrumentId** | integer | - | No | Related instrument identifier |
+| **orderCurrencyId** | string | 32 | No | Currency of the order |
+| **orderFlowType** | string | 32 | No | Order flow classification |
+| **orderAlgoInstruction** | string | 64 | No | Algorithmic trading instructions |
+| **orderSymbol** | string | 64 | No | Trading symbol |
+| **orderInstrumentReference** | string | 24 | No | Type of instrument reference |
+| **orderInstrumentReferenceValue** | string | 64 | No | Value of instrument reference |
+| **orderOptionPutCall** | string | 50 (Enum) | No | Put or call for options |
+| **orderOptionStrikePrice** | decimal | 18,6 | No | Strike price for options (18 digits, 6 decimal places) |
+| **orderOptionLegIndicator** | string | 50 (Enum) | No | Multi-leg option indicator |
+| **orderComplianceId** | string | 128 | No | Compliance identifier |
+| **orderEntityId** | string | 128 | No | Entity identifier |
+| **orderExecutingAccount** | integer | - | No | Executing account number |
+| **orderClearingAccount** | integer | - | No | Clearing account number |
+| **orderClientOrderId** | string | 128 | No | Client's order identifier |
+| **orderRoutedOrderId** | string | 128 | No | Order ID after routing |
+| **orderTradingOwner** | integer | - | No | Owner/trader of the order |
+| **orderExtendedAttribute** | string | 256 | No | Extended attributes field |
+| **orderQuoteId** | string | 128 | No | Related quote identifier |
+| **orderRepresentOrderId** | string | 128 | No | Representative order identifier |
+| **orderOnBehalfCompId** | string | 64 | No | On-behalf-of company ID |
+| **orderSpread** | decimal | 18,6 | No | Spread value for multi-leg orders (18 digits, 6 decimal places) |
+| **orderAmendReason** | string | 64 | No | Reason for order amendment |
+| **orderCancelRejectReason** | string | 64 | No | Reason for cancel/reject |
+| **orderBidSize** | decimal | 18,6 | No | Bid size at order time (18 digits, 6 decimal places) |
+| **orderBidPrice** | decimal | 18,6 | No | Bid price at order time (18 digits, 6 decimal places) |
+| **orderAskSize** | decimal | 18,6 | No | Ask size at order time (18 digits, 6 decimal places) |
+| **orderAskPrice** | decimal | 18,6 | No | Ask price at order time (18 digits, 6 decimal places) |
+| **orderBasketId** | string | 128 | No | Basket order identifier |
+| **orderCumQty** | decimal | 18,6 | No | Cumulative filled quantity (18 digits, 6 decimal places) |
+| **orderLeavesQty** | decimal | 18,6 | No | Remaining unfilled quantity (18 digits, 6 decimal places) |
+| **orderStopPrice** | decimal | 18,6 | No | Stop price for stop orders (18 digits, 6 decimal places) |
+| **orderDiscretionPrice** | decimal | 18,6 | No | Discretionary price limit (18 digits, 6 decimal places) |
+| **orderExdestinationInstruction** | string | 64 | No | Exchange destination instructions |
+| **orderExecutionParameter** | string | 128 | No | Execution parameters |
+| **orderInfobarrierId** | string | 128 | No | Information barrier identifier |
+| **orderLegRatio** | decimal | 18,6 | No | Ratio for multi-leg orders (18 digits, 6 decimal places) |
+| **orderLocateId** | string | 128 | No | Short sale locate identifier |
+| **orderNegotiatedIndicator** | string | 50 (Enum) | No | Negotiated trade indicator |
+| **orderOpenClose** | string | 50 (Enum) | No | Open or close position indicator |
+| **orderParticipantPriorityCode** | string | 32 | No | Participant priority code |
+| **orderActionInitiated** | string | 32 | No | Who initiated the action |
+| **orderPackageIndicator** | string | 50 (Enum) | No | Package order indicator |
+| **orderPackageId** | string | 128 | No | Package identifier |
+| **orderPackagePricetype** | string | 64 | No | Package pricing type |
+| **orderStrategyType** | string | 64 | No | Trading strategy type |
+| **orderSecondaryOffering** | string | 50 (Enum) | No | Secondary offering indicator |
+| **orderStartTime** | string | 50 | No | Order start time (UTC timestamp in nanoseconds) |
+| **orderTifExpiration** | string | 50 | No | Time in force expiration (UTC timestamp in nanoseconds) |
+| **orderParentChildType** | string | 50 (Enum) | No | Parent-child relationship type |
+| **orderMinimumQty** | decimal | 18,6 | No | Minimum execution quantity (18 digits, 6 decimal places) |
+| **orderTradingSession** | string | 50 (Enum) | No | Trading session designation |
+| **orderDisplayPrice** | decimal | 18,6 | No | Displayed price (18 digits, 6 decimal places) |
+| **orderSeqNumber** | string | 128 | No | Sequence number |
+| **atsDisplayIndicator** | string | 50 (Enum) | No | Alternative trading system display indicator |
+| **orderDisplayQty** | decimal | 18,6 | No | Displayed quantity (18 digits, 6 decimal places) |
+| **orderWorkingPrice** | decimal | 18,6 | No | Working price (18 digits, 6 decimal places) |
+| **atsOrderType** | string | 32 | No | ATS order type |
+| **orderNbboSource** | string | 64 | No | National best bid and offer source |
+| **orderNbboTimestamp** | string | 50 | No | NBBO timestamp (UTC timestamp in nanoseconds) |
+| **orderSolicitationFlag** | string | 50 (Enum) | No | Solicited order flag |
+| **orderNetPrice** | decimal | 18,6 | No | Net price (18 digits, 6 decimal places) |
+| **routeRejectedFlag** | string | 50 (Enum) | No | Whether route was rejected |
+| **orderOriginationSystem** | string | 64 | No | System where order originated |
+| **createdAt** | datetime | - | Yes | Timestamp when order record was created in database |
+| **updatedAt** | datetime | - | Yes | Timestamp when order record was last updated in database |
 
 **Total: 107 fields** (4 system fields + 101 order fields + 2 timestamp fields)
 
@@ -468,53 +460,140 @@ This section provides detailed documentation for:
             },
             orderId: {
               type: "string",
+              maxLength: 128,
               nullable: true,
-              description: "External order identifier",
+              description: "Unique identifier for Order as assigned by sell-side (VARCHAR 128)",
             },
             orderIdVersion: {
               type: "integer",
               nullable: true,
               description: "Version number of the order",
             },
-            orderStatus: {
+            orderIdSession: {
               type: "string",
+              maxLength: 16,
               nullable: true,
-              description: "Current status of order (open, filled, canceled, etc.)",
+              description: "Trading session identifier to distinguish orders across multiple days (VARCHAR 16)",
+            },
+            orderIdInstance: {
+              type: "string",
+              maxLength: 64,
+              nullable: true,
+              description: "Instance identifier for the order (VARCHAR 64)",
+            },
+            parentOrderId: {
+              type: "string",
+              maxLength: 128,
+              nullable: true,
+              description: "Identifier of the parent order (for child orders) (VARCHAR 128)",
+            },
+            cancelreplaceOrderId: {
+              type: "string",
+              maxLength: 128,
+              nullable: true,
+              description: "Original order ID when canceling/replacing (VARCHAR 128)",
+            },
+            linkedOrderId: {
+              type: "string",
+              maxLength: 128,
+              nullable: true,
+              description: "Related or linked order identifier (VARCHAR 128)",
             },
             orderAction: {
               type: "string",
+              maxLength: 50,
               nullable: true,
-              description: "Action taken on order (new, cancel, replace, etc.)",
+              description: "Action taken on order - Enum (new, cancel, replace, etc.) (VARCHAR 50)",
+            },
+            orderStatus: {
+              type: "string",
+              maxLength: 48,
+              nullable: true,
+              description: "Current status of order (open, filled, canceled, etc.) (VARCHAR 48)",
+            },
+            orderCapacity: {
+              type: "string",
+              maxLength: 48,
+              nullable: true,
+              description: "Trading capacity (principal, agency, riskless principal) (VARCHAR 48)",
+            },
+            orderDestination: {
+              type: "string",
+              maxLength: 48,
+              nullable: true,
+              description: "Exchange or venue where order is routed (VARCHAR 48)",
+            },
+            orderClientRef: {
+              type: "string",
+              maxLength: 128,
+              nullable: true,
+              description: "Client reference number (VARCHAR 128)",
+            },
+            orderClientRefDetails: {
+              type: "string",
+              maxLength: 48,
+              nullable: true,
+              description: "Additional client reference details (VARCHAR 48)",
+            },
+            orderExecutingEntity: {
+              type: "integer",
+              nullable: true,
+              description: "Entity executing the order",
+            },
+            orderBookingEntity: {
+              type: "integer",
+              nullable: true,
+              description: "Entity booking the order",
+            },
+            orderPositionAccount: {
+              type: "integer",
+              nullable: true,
+              description: "Account for position tracking",
             },
             orderSide: {
               type: "string",
+              maxLength: 50,
               nullable: true,
-              description: "Buy or sell side indicator",
+              description: "Buy or sell side indicator - Enum (VARCHAR 50)",
+            },
+            orderClientCapacity: {
+              type: "string",
+              maxLength: 50,
+              nullable: true,
+              description: "Client's trading capacity - Enum (VARCHAR 50)",
+            },
+            orderManualIndicator: {
+              type: "string",
+              maxLength: 50,
+              nullable: true,
+              description: "Whether order was manually entered - Enum (VARCHAR 50)",
             },
             orderQuantity: {
               type: "number",
               format: "decimal",
               nullable: true,
-              description: "Total order quantity (decimal: 18 digits, 8 decimal places)",
+              description: "Total order quantity (decimal: 18 digits, 6 decimal places)",
             },
             orderPrice: {
               type: "number",
               format: "decimal",
               nullable: true,
-              description: "Order price (decimal: 18 digits, 8 decimal places)",
+              description: "Order price (decimal: 18 digits, 6 decimal places)",
             },
             orderType: {
               type: "string",
+              maxLength: 50,
               nullable: true,
-              description: "Order type (market, limit, stop, etc.)",
+              description: "Order type - Enum (market, limit, stop, etc.) (VARCHAR 50)",
             },
             orderSymbol: {
               type: "string",
+              maxLength: 64,
               nullable: true,
-              description: "Trading symbol/ticker",
+              description: "Trading symbol/ticker (VARCHAR 64)",
             },
             orderInstrumentId: {
-              type: "string",
+              type: "integer",
               nullable: true,
               description: "Unique instrument identifier",
             },
