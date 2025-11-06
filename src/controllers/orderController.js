@@ -3,6 +3,37 @@ const prisma = require("../config/db");
 const createError = require("http-errors");
 const path = require("path");
 const fs = require("fs").promises;
+const {
+  OrderAction,
+  OrderStatus,
+  OrderCapacity,
+  OrderClientCapacity,
+  OrderSide,
+  OrderManualIndicator,
+  OrderType,
+  OrderTimeInforce,
+  OrderAuctionIndicator,
+  OrderSwapIndicator,
+  OrderOptionPutCall,
+  OrderOptionLegIndicator,
+  OrderNegotiatedIndicator,
+  OrderOpenClose,
+  OrderPackageIndicator,
+  OrderSecondaryOffering,
+  OrderParentChildType,
+  OrderTradingSession,
+  AtsDisplayIndicator,
+  OrderSolicitationFlag,
+  RouteRejectedFlag,
+  ExecutionSide,
+  OrderExecutionInstructions,
+  OrderAttributes,
+  OrderRestrictions,
+  OrderInstrumentReference,
+  OrderActionInitiated,
+  OrderFlowType,
+  validateEnum
+} = require("../constants/orderEnums");
 
 // Field mapping from Excel headers to database fields (snake_case to camelCase)
 const fieldMapping = {
@@ -225,6 +256,59 @@ const parseIntValue = (value) => {
 
 // Helper function to validate and normalize order data using JSON validation logic
 const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
+  const validationErrors = [];
+  
+  // Validate enum fields and store normalized values
+  const validatedEnumValues = {};
+  const enumValidations = [
+    { field: 'orderAction', enum: OrderAction, name: 'Order_Action', required: true },
+    { field: 'orderStatus', enum: OrderStatus, name: 'Order_Status' },
+    { field: 'orderCapacity', enum: OrderCapacity, name: 'Order_Capacity', required: true },
+    { field: 'orderClientCapacity', enum: OrderClientCapacity, name: 'Order_Client_Capacity' },
+    { field: 'orderSide', enum: OrderSide, name: 'Order_Side', required: true },
+    { field: 'orderManualIndicator', enum: OrderManualIndicator, name: 'Order_Manual_Indicator' },
+    { field: 'orderType', enum: OrderType, name: 'Order_Type', required: true },
+    { field: 'orderTimeInforce', enum: OrderTimeInforce, name: 'Order_TimeInforce' },
+    { field: 'orderAuctionIndicator', enum: OrderAuctionIndicator, name: 'Order_Auction_Indicator' },
+    { field: 'orderSwapIndicator', enum: OrderSwapIndicator, name: 'Order_Swap_Indicator' },
+    { field: 'orderOptionPutCall', enum: OrderOptionPutCall, name: 'Order_Option_Put_Call' },
+    { field: 'orderOptionLegIndicator', enum: OrderOptionLegIndicator, name: 'Order_Option_Leg_Indicator' },
+    { field: 'orderNegotiatedIndicator', enum: OrderNegotiatedIndicator, name: 'Order_Negotiated_Indicator' },
+    { field: 'orderOpenClose', enum: OrderOpenClose, name: 'Order_Open_Close' },
+    { field: 'orderPackageIndicator', enum: OrderPackageIndicator, name: 'Order_Package_Indicator' },
+    { field: 'orderSecondaryOffering', enum: OrderSecondaryOffering, name: 'Order_Secondary_Offering' },
+    { field: 'orderParentChildType', enum: OrderParentChildType, name: 'Order_Parent_Child_Type' },
+    { field: 'orderTradingSession', enum: OrderTradingSession, name: 'Order_Trading_Session' },
+    { field: 'atsDisplayIndicator', enum: AtsDisplayIndicator, name: 'ATS_Display_Indicator' },
+    { field: 'orderSolicitationFlag', enum: OrderSolicitationFlag, name: 'Order_Solicitation_Flag' },
+    { field: 'routeRejectedFlag', enum: RouteRejectedFlag, name: 'Route_Rejected_Flag' },
+    { field: 'orderFlowType', enum: OrderFlowType, name: 'Order_Flow_Type' },
+    { field: 'orderInstrumentReference', enum: OrderInstrumentReference, name: 'Order_Instrument_Reference' },
+    { field: 'orderActionInitiated', enum: OrderActionInitiated, name: 'Order_Action_Initiated' }
+  ];
+  
+  // Validate each enum field and store validated value
+  enumValidations.forEach(({ field, enum: enumObj, name, required }) => {
+    const value = orderData[field];
+    if (required && (value === null || value === undefined || value === "")) {
+      validationErrors.push(`${name} is required`);
+      return;
+    }
+    
+    const validation = validateEnum(enumObj, value, name);
+    if (!validation.valid) {
+      validationErrors.push(validation.error);
+    } else {
+      // Store the validated string value
+      validatedEnumValues[field] = validation.value;
+    }
+  });
+  
+  // If validation errors exist, throw them
+  if (validationErrors.length > 0) {
+    throw new Error(validationErrors.join('; '));
+  }
+  
   const order = {
     userId,
     batchId,
@@ -236,18 +320,18 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
     parentOrderId: orderData.parentOrderId || null,
     cancelreplaceOrderId: orderData.cancelreplaceOrderId || orderData.cancelReplaceOrderId || null,
     linkedOrderId: orderData.linkedOrderId || null,
-    orderAction: orderData.orderAction || null,
-    orderStatus: orderData.orderStatus || null,
-    orderCapacity: orderData.orderCapacity || null,
+    orderAction: validatedEnumValues.orderAction || null,
+    orderStatus: validatedEnumValues.orderStatus || null,
+    orderCapacity: validatedEnumValues.orderCapacity || null,
     orderDestination: orderData.orderDestination || null,
     orderClientRef: orderData.orderClientRef || null,
     orderClientRefDetails: orderData.orderClientRefDetails || null,
     orderExecutingEntity: orderData.orderExecutingEntity || null,
     orderBookingEntity: orderData.orderBookingEntity || null,
     orderPositionAccount: orderData.orderPositionAccount || null,
-    orderSide: orderData.orderSide || null,
-    orderClientCapacity: orderData.orderClientCapacity || null,
-    orderManualIndicator: orderData.orderManualIndicator || null,
+    orderSide: validatedEnumValues.orderSide || null,
+    orderClientCapacity: validatedEnumValues.orderClientCapacity || null,
+    orderManualIndicator: validatedEnumValues.orderManualIndicator || null,
     orderRequestTime: orderData.orderRequestTime || null,
     orderEventTime: orderData.orderEventTime || null,
     orderManualTimestamp: orderData.orderManualTimestamp || null,
@@ -256,25 +340,25 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
     orderTradeDate: orderData.orderTradeDate || null,
     orderQuantity: orderData.orderQuantity || null,
     orderPrice: orderData.orderPrice || null,
-    orderType: orderData.orderType || null,
-    orderTimeInforce: orderData.orderTimeInforce || orderData.orderTimeInForce || null,
+    orderType: validatedEnumValues.orderType || null,
+    orderTimeInforce: validatedEnumValues.orderTimeInforce || null,
     orderExecutionInstructions: orderData.orderExecutionInstructions || orderData.orderExecutionInstruction || null,
     orderAttributes: orderData.orderAttributes || null,
     orderRestrictions: orderData.orderRestrictions || orderData.orderRestriction || null,
-    orderAuctionIndicator: orderData.orderAuctionIndicator || null,
-    orderSwapIndicator: orderData.orderSwapIndicator || null,
+    orderAuctionIndicator: validatedEnumValues.orderAuctionIndicator || null,
+    orderSwapIndicator: validatedEnumValues.orderSwapIndicator || null,
     orderOsi: orderData.orderOsi || null,
     orderInstrumentId: orderData.orderInstrumentId || null,
     orderLinkedInstrumentId: orderData.orderLinkedInstrumentId || null,
     orderCurrencyId: orderData.orderCurrencyId || null,
-    orderFlowType: orderData.orderFlowType || null,
+    orderFlowType: validatedEnumValues.orderFlowType || null,
     orderAlgoInstruction: orderData.orderAlgoInstruction || null,
     orderSymbol: orderData.orderSymbol || null,
-    orderInstrumentReference: orderData.orderInstrumentReference || null,
+    orderInstrumentReference: validatedEnumValues.orderInstrumentReference || null,
     orderInstrumentReferenceValue: orderData.orderInstrumentReferenceValue || null,
-    orderOptionPutCall: orderData.orderOptionPutCall || null,
+    orderOptionPutCall: validatedEnumValues.orderOptionPutCall || null,
     orderOptionStrikePrice: orderData.orderOptionStrikePrice || null,
-    orderOptionLegIndicator: orderData.orderOptionLegIndicator || null,
+    orderOptionLegIndicator: validatedEnumValues.orderOptionLegIndicator || null,
     orderComplianceId: orderData.orderComplianceId || null,
     orderEntityId: orderData.orderEntityId || null,
     orderExecutingAccount: orderData.orderExecutingAccount || null,
@@ -303,31 +387,31 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
     orderInfobarrierId: orderData.orderInfobarrierId || null,
     orderLegRatio: orderData.orderLegRatio || null,
     orderLocateId: orderData.orderLocateId || null,
-    orderNegotiatedIndicator: orderData.orderNegotiatedIndicator || null,
-    orderOpenClose: orderData.orderOpenClose || null,
+    orderNegotiatedIndicator: validatedEnumValues.orderNegotiatedIndicator || null,
+    orderOpenClose: validatedEnumValues.orderOpenClose || null,
     orderParticipantPriorityCode: orderData.orderParticipantPriorityCode || null,
-    orderActionInitiated: orderData.orderActionInitiated || null,
-    orderPackageIndicator: orderData.orderPackageIndicator || null,
+    orderActionInitiated: validatedEnumValues.orderActionInitiated || null,
+    orderPackageIndicator: validatedEnumValues.orderPackageIndicator || null,
     orderPackageId: orderData.orderPackageId || null,
     orderPackagePricetype: orderData.orderPackagePricetype || null,
     orderStrategyType: orderData.orderStrategyType || null,
-    orderSecondaryOffering: orderData.orderSecondaryOffering || null,
+    orderSecondaryOffering: validatedEnumValues.orderSecondaryOffering || null,
     orderStartTime: orderData.orderStartTime || null,
     orderTifExpiration: orderData.orderTifExpiration || null,
-    orderParentChildType: orderData.orderParentChildType || null,
+    orderParentChildType: validatedEnumValues.orderParentChildType || null,
     orderMinimumQty: orderData.orderMinimumQty || null,
-    orderTradingSession: orderData.orderTradingSession || null,
+    orderTradingSession: validatedEnumValues.orderTradingSession || null,
     orderDisplayPrice: orderData.orderDisplayPrice || null,
     orderSeqNumber: orderData.orderSeqNumber || null,
-    atsDisplayIndicator: orderData.atsDisplayIndicator || null,
+    atsDisplayIndicator: validatedEnumValues.atsDisplayIndicator || null,
     orderDisplayQty: orderData.orderDisplayQty || null,
     orderWorkingPrice: orderData.orderWorkingPrice || null,
     atsOrderType: orderData.atsOrderType || null,
     orderNbboSource: orderData.orderNbboSource || null,
     orderNbboTimestamp: orderData.orderNbboTimestamp || null,
-    orderSolicitationFlag: orderData.orderSolicitationFlag || null,
+    orderSolicitationFlag: validatedEnumValues.orderSolicitationFlag || null,
     orderNetPrice: orderData.orderNetPrice || null,
-    routeRejectedFlag: orderData.routeRejectedFlag || null,
+    routeRejectedFlag: validatedEnumValues.routeRejectedFlag || null,
     orderOriginationSystem: orderData.orderOriginationSystem || null,
   };
   
@@ -421,7 +505,8 @@ const parseExcelToJson = async (filePath) => {
     // Validate required field
     if (!orderData.orderId) {
       errors.push({
-        row: rowNumber,
+        index: rowNumber - 2, // Convert back to 0-based index
+        orderId: null,
         error: "Missing required field: orderId",
       });
       return;
@@ -482,7 +567,44 @@ const uploadOrders = async (req, res, next) => {
       return next(createError(400, "Either file upload or JSON body with 'orders' array is required"));
     }
 
-    // Create batch record
+    // Validate all orders FIRST (before creating batch)
+    const validOrders = [];
+    ordersArray.forEach((orderData, index) => {
+      if (!orderData.orderId) {
+        errors.push({
+          index: index,
+          orderId: null,
+          error: "Missing required field: orderId",
+        });
+        return;
+      }
+
+      try {
+        // Validate without batch.id (we'll add it after batch creation)
+        const normalizedOrder = validateAndNormalizeOrder(orderData, userId, null, clientId);
+        validOrders.push(normalizedOrder);
+      } catch (validationError) {
+        // Split multiple errors (separated by semicolons) into separate error objects
+        const errorMessages = validationError.message.split('; ');
+        errorMessages.forEach(errorMsg => {
+          errors.push({
+            index: index,
+            orderId: orderData.orderId,
+            error: errorMsg,
+          });
+        });
+      }
+    });
+
+    // If no valid orders, return error WITHOUT creating batch
+    if (validOrders.length === 0) {
+      return res.status(400).json({
+        message: "No valid orders found. Batch not created.",
+        errors,
+      });
+    }
+
+    // Create batch record ONLY if we have valid orders
     batch = await prisma.batch.create({
       data: {
         userId,
@@ -492,38 +614,10 @@ const uploadOrders = async (req, res, next) => {
       },
     });
 
-    // Validate and normalize all orders using JSON validation wrapper
-    const validOrders = [];
-    ordersArray.forEach((orderData, index) => {
-      if (!orderData.orderId) {
-        errors.push({
-          index: index,
-          row: index + 2, // +2 for Excel (header + 0-index)
-          error: "Missing required field: orderId",
-        });
-        return;
-      }
-
-      const normalizedOrder = validateAndNormalizeOrder(orderData, userId, batch.id, clientId);
-      validOrders.push(normalizedOrder);
+    // Add batchId to all valid orders
+    validOrders.forEach(order => {
+      order.batchId = batch.id;
     });
-
-    if (validOrders.length === 0) {
-      await prisma.batch.update({
-        where: { id: batch.id },
-        data: {
-          status: "failed",
-          errorLog: JSON.stringify(errors),
-          completedAt: new Date(),
-        },
-      });
-      
-      return res.status(400).json({
-        message: "No valid orders found",
-        batchId: batch.id,
-        errors,
-      });
-    }
 
     // Insert orders into database
     const result = await prisma.order.createMany({

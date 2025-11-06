@@ -625,6 +625,7 @@ const swaggerUiOptions = {
   swaggerOptions: {
     filter: true, // Enable search/filter bar
     defaultModelsExpandDepth: -1, // Hide schemas section
+    docExpansion: "none", // Keep tag accordions closed by default (list,none & full)
     requestInterceptor: (req) => {
       // Ensure content-type is properly set for file uploads
       if (req.body instanceof FormData) {
