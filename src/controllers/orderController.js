@@ -535,16 +535,12 @@ const uploadOrders = async (req, res, next) => {
     }
 
     let ordersArray = [];
-    let fileName = "json_upload.json";
-    let fileSize = 0;
     let errors = [];
 
     // Check if this is a file upload (Excel) or JSON body
     if (req.file) {
       // Excel file upload
       filePath = req.file.path;
-      fileName = req.file.originalname;
-      fileSize = req.file.size;
 
       // Parse Excel to JSON
       const parseResult = await parseExcelToJson(filePath);
@@ -561,8 +557,6 @@ const uploadOrders = async (req, res, next) => {
       if (!Array.isArray(ordersArray) || ordersArray.length === 0) {
         return next(createError(400, "Request body must contain an 'orders' array"));
       }
-      
-      fileSize = JSON.stringify(ordersArray).length;
     } else {
       return next(createError(400, "Either file upload or JSON body with 'orders' array is required"));
     }
@@ -608,8 +602,6 @@ const uploadOrders = async (req, res, next) => {
     batch = await prisma.batch.create({
       data: {
         userId,
-        fileName,
-        fileSize,
         status: "processing",
       },
     });
@@ -641,7 +633,6 @@ const uploadOrders = async (req, res, next) => {
     res.status(201).json({
       message: "Orders uploaded successfully",
       batchId: batch.id,
-      fileName: fileName,
       imported: result.count,
       total: validOrders.length,
       failed: validOrders.length - result.count,

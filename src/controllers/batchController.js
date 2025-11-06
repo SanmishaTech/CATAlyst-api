@@ -161,7 +161,6 @@ const getBatchOrders = async (req, res, next) => {
 
     res.json({
       batchId: batch.id,
-      fileName: batch.fileName,
       orders,
       pagination: {
         page: parseInt(page),
@@ -207,7 +206,6 @@ const deleteBatch = async (req, res, next) => {
       message: "Batch and all associated orders deleted successfully",
       deletedBatch: {
         id: batch.id,
-        fileName: batch.fileName,
         ordersDeleted: batch._count.orders,
       },
     });
@@ -243,7 +241,6 @@ const getBatchStats = async (req, res, next) => {
         orderBy: { createdAt: "desc" },
         select: {
           id: true,
-          fileName: true,
           status: true,
           totalOrders: true,
           successfulOrders: true,
