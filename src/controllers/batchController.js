@@ -151,6 +151,9 @@ const getBatchOrders = async (req, res, next) => {
         skip,
         take,
         orderBy: { createdAt: "desc" },
+        include: {
+          validations: true,
+        },
       }),
       prisma.order.count({
         where: {

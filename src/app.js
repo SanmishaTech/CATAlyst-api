@@ -42,7 +42,12 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Frontend serving - only enable if   is true
+// Serve static files from public directory (HTML/CSS/JS frontend)
+const publicPath = path.resolve(__dirname, "..", "public");
+console.log(`Serving static files from: ${publicPath}`);
+app.use(express.static(publicPath));
+
+// Frontend serving - only enable if SERVE_FRONTEND is true
 if (process.env.SERVE_FRONTEND === 'true') {
   const frontendDistPath =
     process.env.NODE_ENV === "production"

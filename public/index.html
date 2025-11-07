@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catalyst Order Management</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar" id="navbar" style="display: none;">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <h1>Catalyst</h1>
+            </div>
+            <div class="nav-menu">
+                <a href="#orders" class="nav-link" data-page="orders">Orders</a>
+                <a href="#batches" class="nav-link" data-page="batches">Batches</a>
+            </div>
+            <div class="nav-user">
+                <span id="user-name"></span>
+                <button class="btn btn-outline" id="logout-btn">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Login Page -->
+        <div id="login-page" class="page active">
+            <div class="login-container">
+                <div class="login-card">
+                    <div class="login-header">
+                        <h2>Welcome to Catalyst</h2>
+                        <p>Sign in to manage your orders</p>
+                    </div>
+                    <form id="login-form">
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" name="email" required placeholder="Enter your email">
+                        </div>
+                        <div class="form-group">
+                            <label for="password">Password</label>
+                            <input type="password" id="password" name="password" required placeholder="Enter your password">
+                        </div>
+                        <div id="login-error" class="error-message"></div>
+                        <button type="submit" class="btn btn-primary btn-block" id="login-submit">
+                            Sign In
+                        </button>
+                    </form>
+                    <div class="login-footer">
+                        <a href="#" id="forgot-password-link">Forgot password?</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Orders Page -->
+        <div id="orders-page" class="page">
+            <div class="page-header">
+                <h2>Order Management</h2>
+                <div class="header-actions">
+                    <button class="btn btn-outline" id="download-template-btn">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+                        </svg>
+                        Download Template
+                    </button>
+                    <button class="btn btn-primary" id="upload-orders-btn">
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                            <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/>
+                        </svg>
+                        Upload Orders
+                    </button>
+                </div>
+            </div>
+
+            <!-- Upload Modal -->
+            <div id="upload-modal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Upload Orders</h3>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="upload-tabs">
+                            <button class="tab-btn active" data-tab="excel">Excel File</button>
+                            <button class="tab-btn" data-tab="json">JSON Data</button>
+                        </div>
+                        
+                        <!-- Excel Upload Tab -->
+                        <div id="excel-tab" class="tab-content active">
+                            <div class="upload-area" id="drop-zone">
+                                <input type="file" id="file-input" accept=".xlsx,.xls,.csv" style="display: none;">
+                                <svg width="48" height="48" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+                                    <path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/>
+                                </svg>
+                                <p>Drag and drop your file here or <span class="link">browse</span></p>
+                                <small>Supports: .xlsx, .xls, .csv (Max 10MB)</small>
+                            </div>
+                            <div id="file-info" class="file-info" style="display: none;">
+                                <p><strong>Selected File:</strong> <span id="file-name"></span></p>
+                                <button class="btn btn-sm btn-outline" id="change-file-btn">Change File</button>
+                            </div>
+                        </div>
+
+                        <!-- JSON Upload Tab -->
+                        <div id="json-tab" class="tab-content">
+                            <textarea id="json-input" placeholder='{"orders": [{"orderId": "ORD-001", "orderSymbol": "AAPL", ...}]}' rows="10"></textarea>
+                            <small>Enter JSON with an "orders" array</small>
+                        </div>
+
+                        <div id="upload-error" class="error-message"></div>
+                        <div id="upload-success" class="success-message"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-outline" id="cancel-upload-btn">Cancel</button>
+                        <button class="btn btn-primary" id="submit-upload-btn">Upload</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="filters-section">
+                <div class="search-box">
+                    <input type="text" id="order-search" placeholder="Search by Order ID, Symbol...">
+                </div>
+                <div class="filter-group">
+                    <select id="filter-status" class="filter-select">
+                        <option value="">All Status</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="FILLED">Filled</option>
+                        <option value="CANCELLED">Cancelled</option>
+                        <option value="REJECTED">Rejected</option>
+                    </select>
+                    <select id="filter-side" class="filter-select">
+                        <option value="">All Sides</option>
+                        <option value="BUY">Buy</option>
+                        <option value="SELL">Sell</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Orders Table -->
+            <div class="table-container">
+                <table class="data-table" id="orders-table">
+                    <thead>
+                        <tr>
+                            <th>Order ID</th>
+                            <th>Symbol</th>
+                            <th>Side</th>
+                            <th>Quantity</th>
+                            <th>Price</th>
+                            <th>Status</th>
+                            <th>Type</th>
+                            <th>Created At</th>
+                        </tr>
+                    </thead>
+                    <tbody id="orders-tbody">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+                <div id="orders-loading" class="loading">Loading orders...</div>
+                <div id="orders-empty" class="empty-state" style="display: none;">
+                    <p>No orders found. Upload orders to get started.</p>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div class="pagination" id="orders-pagination">
+                <button class="btn btn-sm" id="prev-page" disabled>Previous</button>
+                <span id="page-info">Page 1 of 1</span>
+                <button class="btn btn-sm" id="next-page" disabled>Next</button>
+            </div>
+        </div>
+
+        <!-- Batches Page -->
+        <div id="batches-page" class="page">
+            <div class="page-header">
+                <h2>Batch Management</h2>
+            </div>
+
+            <!-- Batch Stats -->
+            <div class="stats-grid" id="batch-stats">
+                <div class="stat-card">
+                    <div class="stat-label">Total Batches</div>
+                    <div class="stat-value" id="stat-total-batches">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Completed</div>
+                    <div class="stat-value" id="stat-completed-batches">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Processing</div>
+                    <div class="stat-value" id="stat-processing-batches">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Orders Imported</div>
+                    <div class="stat-value" id="stat-total-orders">0</div>
+                </div>
+            </div>
+
+            <!-- Batch Filters -->
+            <div class="filters-section">
+                <select id="batch-filter-status" class="filter-select">
+                    <option value="">All Status</option>
+                    <option value="processing">Processing</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                </select>
+            </div>
+
+            <!-- Batches Table -->
+            <div class="table-container">
+                <table class="data-table" id="batches-table">
+                    <thead>
+                        <tr>
+                            <th>Batch ID</th>
+                            <th>File Name</th>
+                            <th>Status</th>
+                            <th>Total Orders</th>
+                            <th>Successful</th>
+                            <th>Failed</th>
+                            <th>Success Rate</th>
+                            <th>Validation</th>
+                            <th>Imported At</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="batches-tbody">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+                <div id="batches-loading" class="loading">Loading batches...</div>
+                <div id="batches-empty" class="empty-state" style="display: none;">
+                    <p>No batches found.</p>
+                </div>
+            </div>
+
+            <!-- Validation Errors Modal -->
+            <div id="validation-modal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Validation Errors</h3>
+                        <button class="modal-close" id="validation-modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="validation-content" class="validation-errors-container">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-outline" id="close-validation-btn">Close</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div class="pagination" id="batches-pagination">
+                <button class="btn btn-sm" id="batch-prev-page" disabled>Previous</button>
+                <span id="batch-page-info">Page 1 of 1</span>
+                <button class="btn btn-sm" id="batch-next-page" disabled>Next</button>
+            </div>
+        </div>
+    </main>
+
+    <script src="/js/utils.js"></script>
+    <script src="/js/auth.js"></script>
+    <script src="/js/orders.js"></script>
+    <script src="/js/batches.js"></script>
+    <script src="/js/app.js"></script>
+</body>
+</html>
