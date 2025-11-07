@@ -101,12 +101,6 @@
       "orderNetPrice": 150.48,
       "routeRejectedFlag": "N",
       "orderOriginationSystem": "OMS-SYSTEM-1"
-    },
-    {
-      "orderId": "ORD-002",
-      "orderSymbol": "GOOGL",
-      "orderPrice": 2800,
-      "orderQuantity": 50
     }
   ]
 }
