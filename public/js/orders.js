@@ -13,6 +13,7 @@ const Orders = {
     init() {
         this.setupEventListeners();
         this.setupUploadModal();
+        this.setupErrorDetailsPage();
         
         // Load orders when page is shown
         window.addEventListener('pageLoad', (e) => {
@@ -186,6 +187,49 @@ const Orders = {
         }
     },
 
+    setupErrorDetailsPage() {
+        // Back button handler
+        const backBtn = document.getElementById('back-from-errors-btn');
+        if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                // Hide error details page
+                document.getElementById('error-details-page')?.classList.remove('active');
+                // Show orders page
+                document.getElementById('orders-page')?.classList.add('active');
+                // Reopen upload modal
+                this.openUploadModal();
+            });
+        }
+
+        // Copy JSON button handler
+        const copyJsonBtn = document.getElementById('copy-json-btn');
+        if (copyJsonBtn) {
+            copyJsonBtn.addEventListener('click', () => {
+                const jsonDisplay = document.getElementById('error-json-display');
+                if (jsonDisplay && jsonDisplay.textContent) {
+                    navigator.clipboard.writeText(jsonDisplay.textContent)
+                        .then(() => {
+                            // Show success feedback
+                            const originalText = copyJsonBtn.innerHTML;
+                            copyJsonBtn.innerHTML = `
+                                <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/>
+                                </svg>
+                                Copied!
+                            `;
+                            setTimeout(() => {
+                                copyJsonBtn.innerHTML = originalText;
+                            }, 2000);
+                        })
+                        .catch(err => {
+                            console.error('Failed to copy:', err);
+                            alert('Failed to copy JSON to clipboard');
+                        });
+                }
+            });
+        }
+    },
+
     handleFileSelect(file) {
         this.selectedFile = file;
         const fileInfo = document.getElementById('file-info');
@@ -273,6 +317,9 @@ const Orders = {
                     throw new Error('Invalid JSON format');
                 }
 
+                // Store the uploaded JSON for error display
+                this.lastUploadedJson = parsedData;
+
                 response = await API.post('/orders/upload', parsedData);
             }
 
@@ -285,10 +332,126 @@ const Orders = {
             }, 2000);
 
         } catch (error) {
-            Utils.showMessage('upload-error', error.message || 'Upload failed');
+            console.log('Upload error:', error);
+            console.log('Error errorData:', error.errorData);
+            this.displayUploadError(error);
         } finally {
             submitBtn.disabled = false;
             submitBtn.textContent = 'Upload';
+        }
+    },
+
+    displayUploadError(error) {
+        const errorElement = document.getElementById('upload-error');
+        if (!errorElement) return;
+
+        let errorMessage = '';
+
+        // Check if error has errorData attached (from API client)
+        if (error.errorData && error.errorData.errors && Array.isArray(error.errorData.errors)) {
+            const errorData = error.errorData;
+            const errors = errorData.errors;
+            
+            // If more than 3 errors, show first 3 with "Show More" button
+            if (errors.length > 3) {
+                const firstThreeErrors = errors.slice(0, 3);
+                
+                errorMessage = `
+                    <div>
+                        ${firstThreeErrors.map((err) => `
+                            <div style="margin-bottom: 8px; padding: 8px; background-color: rgba(255, 255, 255, 0.5); border-radius: 4px; border-left: 3px solid #991b1b;">
+                                <div style="font-size: 14px; color: #991b1b;">
+                                    <strong>Index ${err.index !== undefined ? err.index : 'N/A'}</strong> - ${err.orderId || 'Unknown'} - ${err.error || err.message || JSON.stringify(err)}
+                                </div>
+                            </div>
+                        `).join('')}
+                        <div style="text-align: center; margin-top: 12px;">
+                            <button 
+                                id="show-more-errors-btn" 
+                                style="padding: 8px 16px; background: #4f46e5; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;"
+                            >
+                                Show More (${errors.length - 3} more errors)
+                            </button>
+                        </div>
+                    </div>
+                `;
+                errorElement.innerHTML = errorMessage;
+                
+                // Store error data for the error details page
+                this.lastUploadErrors = {
+                    errors: errors,
+                    uploadedJson: this.lastUploadedJson
+                };
+                
+                // Add click handler for "Show More" button
+                document.getElementById('show-more-errors-btn')?.addEventListener('click', () => {
+                    this.closeUploadModal();
+                    this.showErrorDetailsPage();
+                });
+            } else {
+                // Show all errors if 3 or fewer
+                errorMessage = `
+                    <div>
+                        ${errors.map((err) => `
+                            <div style="margin-bottom: 8px; padding: 8px; background-color: rgba(255, 255, 255, 0.5); border-radius: 4px; border-left: 3px solid #991b1b;">
+                                <div style="font-size: 14px; color: #991b1b;">
+                                    <strong>Index ${err.index !== undefined ? err.index : 'N/A'}</strong> - ${err.orderId || 'Unknown'} - ${err.error || err.message || JSON.stringify(err)}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                errorElement.innerHTML = errorMessage;
+            }
+        } else {
+            // Simple error message
+            errorMessage = error.message || 'Upload failed. Please try again.';
+            errorElement.innerHTML = errorMessage;
+        }
+
+        errorElement.classList.add('show');
+    },
+
+    showErrorDetailsPage() {
+        if (!this.lastUploadErrors) return;
+
+        const errorDetailsPage = document.getElementById('error-details-page');
+        if (!errorDetailsPage) {
+            console.error('Error details page not found');
+            return;
+        }
+
+        // Hide all pages
+        document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
+        
+        // Show error details page
+        errorDetailsPage.classList.add('active');
+
+        // Populate error count badge
+        const errorCountBadge = document.getElementById('error-count-badge');
+        if (errorCountBadge) {
+            errorCountBadge.textContent = `${this.lastUploadErrors.errors.length} Error${this.lastUploadErrors.errors.length !== 1 ? 's' : ''}`;
+        }
+
+        // Populate JSON section
+        const jsonDisplay = document.getElementById('error-json-display');
+        if (jsonDisplay && this.lastUploadErrors.uploadedJson) {
+            jsonDisplay.textContent = JSON.stringify(this.lastUploadErrors.uploadedJson, null, 2);
+        }
+
+        // Populate errors list
+        const errorsList = document.getElementById('errors-list-display');
+        if (errorsList) {
+            errorsList.innerHTML = this.lastUploadErrors.errors.map((err) => `
+                <div style="margin-bottom: 12px; padding: 16px; background-color: #fef2f2; border-radius: 8px; border-left: 4px solid #ef4444; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <div style="font-size: 15px; color: #991b1b; font-weight: 600; margin-bottom: 6px;">
+                        Index ${err.index !== undefined ? err.index : 'N/A'} - Order ID: ${err.orderId || 'Unknown'}
+                    </div>
+                    <div style="font-size: 14px; color: #dc2626; line-height: 1.5;">
+                        ${err.error || err.message || JSON.stringify(err)}
+                    </div>
+                </div>
+            `).join('');
         }
     },
 

@@ -240,6 +240,21 @@
                 </div>
             </div>
 
+            <!-- Batch Details Modal -->
+            <div id="batch-details-modal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3>Batch Details</h3>
+                        <button class="modal-close" id="batch-details-modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div id="batch-details-content">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Validation Errors Modal -->
             <div id="validation-modal" class="modal">
                 <div class="modal-content">
@@ -263,6 +278,49 @@
                 <button class="btn btn-sm" id="batch-prev-page" disabled>Previous</button>
                 <span id="batch-page-info">Page 1 of 1</span>
                 <button class="btn btn-sm" id="batch-next-page" disabled>Next</button>
+            </div>
+        </div>
+
+        <!-- Error Details Page -->
+        <div id="error-details-page" class="page">
+            <div class="page-header">
+                <button class="btn btn-outline" id="back-from-errors-btn">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+                    </svg>
+                    Back to Upload
+                </button>
+                <h2>Upload Errors</h2>
+            </div>
+
+            <div class="error-details-container">
+                <!-- JSON Display Section -->
+                <div class="error-section">
+                    <div class="section-header">
+                        <h3>Uploaded JSON Data</h3>
+                        <button class="btn btn-sm btn-outline" id="copy-json-btn">
+                            <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/>
+                                <path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/>
+                            </svg>
+                            Copy
+                        </button>
+                    </div>
+                    <div class="json-display-wrapper">
+                        <pre id="error-json-display" class="json-display"></pre>
+                    </div>
+                </div>
+
+                <!-- Errors List Section -->
+                <div class="error-section">
+                    <div class="section-header">
+                        <h3>Error Details</h3>
+                        <span class="error-count" id="error-count-badge"></span>
+                    </div>
+                    <div id="errors-list-display" class="errors-list">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
             </div>
         </div>
     </main>

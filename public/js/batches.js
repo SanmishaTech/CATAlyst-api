@@ -8,6 +8,7 @@ const Batches = {
     init() {
         this.setupEventListeners();
         this.setupValidationModal();
+        this.setupBatchDetailsModal();
         
         // Load batches when page is shown
         window.addEventListener('pageLoad', (e) => {
@@ -188,18 +189,8 @@ const Batches = {
             const batch = await API.get(`/batches/${batchId}`);
             const orders = await API.get(`/batches/${batchId}/orders?limit=10`);
             
-            alert(`Batch Details:
-ID: ${batch.id}
-File: ${batch.fileName || 'N/A'}
-Status: ${batch.status}
-Total Orders: ${batch.totalOrders}
-Successful: ${batch.successfulOrders}
-Failed: ${batch.failedOrders}
-Success Rate: ${this.getSuccessRate(batch)}
-Duration: ${batch.duration ? batch.duration + 's' : 'N/A'}
-
-First 10 Orders:
-${orders.orders?.slice(0, 10).map(o => o.orderId).join(', ') || 'None'}`);
+            this.displayBatchDetails(batch, orders.orders || []);
+            this.openBatchDetailsModal();
         } catch (error) {
             alert('Failed to load batch details: ' + error.message);
         }
@@ -329,6 +320,100 @@ ${orders.orders?.slice(0, 10).map(o => o.orderId).join(', ') || 'None'}`);
 
     closeValidationModal() {
         const modal = document.getElementById('validation-modal');
+        if (modal) {
+            modal.classList.remove('active');
+        }
+    },
+
+    setupBatchDetailsModal() {
+        const modal = document.getElementById('batch-details-modal');
+        const closeBtn = document.getElementById('batch-details-modal-close');
+
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.closeBatchDetailsModal());
+        }
+
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    this.closeBatchDetailsModal();
+                }
+            });
+        }
+    },
+
+    displayBatchDetails(batch, orders) {
+        const container = document.getElementById('batch-details-content');
+        if (!container) return;
+
+        const validationStatus = batch.validation_1 === null ? 'Pending' : 
+                                 batch.validation_1 === true ? 'Passed' : 'Failed';
+
+        container.innerHTML = `
+            <div class="batch-details-grid">
+                <div class="batch-detail-row">
+                    <div class="batch-detail-label">ID:</div>
+                    <div class="batch-detail-value">${batch.id}</div>
+                </div>
+                <div class="batch-detail-row">
+                    <div class="batch-detail-label">File:</div>
+                    <div class="batch-detail-value">${batch.fileName || 'N/A'}</div>
+                </div>
+                <div class="batch-detail-row">
+                    <div class="batch-detail-label">Status:</div>
+                    <div class="batch-detail-value">${Utils.getStatusBadge(batch.status)}</div>
+                </div>
+                <div class="batch-detail-row">
+                    <div class="batch-detail-label">Total Orders:</div>
+                    <div class="batch-detail-value">${Utils.formatNumber(batch.totalOrders)}</div>
+                </div>
+                <div class="batch-detail-row">
+                    <div class="batch-detail-label">Successful:</div>
+                    <div class="batch-detail-value" style="color: var(--success-color); font-weight: 600;">${Utils.formatNumber(batch.successfulOrders)}</div>
+                </div>
+                <div class="batch-detail-row">
+                    <div class="batch-detail-label">Failed:</div>
+                    <div class="batch-detail-value" style="color: var(--danger-color); font-weight: 600;">${Utils.formatNumber(batch.failedOrders)}</div>
+                </div>
+                <div class="batch-detail-row">
+                    <div class="batch-detail-label">Success Rate:</div>
+                    <div class="batch-detail-value" style="font-weight: 600;">${this.getSuccessRate(batch)}</div>
+                </div>
+                <div class="batch-detail-row">
+                    <div class="batch-detail-label">Validation:</div>
+                    <div class="batch-detail-value">
+                        <span class="badge ${validationStatus === 'Passed' ? 'badge-success' : validationStatus === 'Failed' ? 'badge-danger' : 'badge-warning'}">
+                            ${validationStatus}
+                        </span>
+                    </div>
+                </div>
+                <div class="batch-detail-row">
+                    <div class="batch-detail-label">Duration:</div>
+                    <div class="batch-detail-value">${batch.duration ? batch.duration + 's' : 'N/A'}</div>
+                </div>
+                <div class="batch-detail-row">
+                    <div class="batch-detail-label">Imported At:</div>
+                    <div class="batch-detail-value">${Utils.formatDate(batch.importedAt)}</div>
+                </div>
+                ${batch.completedAt ? `
+                    <div class="batch-detail-row">
+                        <div class="batch-detail-label">Completed At:</div>
+                        <div class="batch-detail-value">${Utils.formatDate(batch.completedAt)}</div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    },
+
+    openBatchDetailsModal() {
+        const modal = document.getElementById('batch-details-modal');
+        if (modal) {
+            modal.classList.add('active');
+        }
+    },
+
+    closeBatchDetailsModal() {
+        const modal = document.getElementById('batch-details-modal');
         if (modal) {
             modal.classList.remove('active');
         }

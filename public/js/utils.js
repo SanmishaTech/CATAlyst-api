@@ -51,7 +51,9 @@ const API = {
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.error?.message || errorData.message || 'Request failed');
+                const error = new Error(errorData.error?.message || errorData.message || 'Request failed');
+                error.errorData = errorData.error || errorData;
+                throw error;
             }
 
             return await response.json();
@@ -102,7 +104,9 @@ const API = {
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error?.message || errorData.message || 'Upload failed');
+            const error = new Error(errorData.error?.message || errorData.message || 'Upload failed');
+            error.errorData = errorData.error || errorData;
+            throw error;
         }
 
         return await response.json();
