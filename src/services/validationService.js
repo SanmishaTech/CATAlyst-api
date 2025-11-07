@@ -137,7 +137,7 @@ const processBatchValidation = async (batchId) => {
       return;
     }
 
-    if (batch.validation_1) {
+    if (batch.validation_1 !== null) {
       console.log(`[Validation] Batch ${batchId} already validated`);
       return;
     }
@@ -197,16 +197,20 @@ const processBatchValidation = async (batchId) => {
       });
     }
 
-    // Mark batch as validated
-    await prisma.batch.update({
-      where: { id: batchId },
-      data: { validation_1: true },
-    });
-
     const successCount = validationResults.filter(r => r.success).length;
     const failCount = validationResults.filter(r => !r.success).length;
     
-    console.log(`[Validation] Batch ${batchId} completed: ${successCount} passed, ${failCount} failed`);
+    // Set validation_1 based on results:
+    // true (1) if all orders passed, false (0) if any failed
+    const allPassed = failCount === 0;
+    
+    // Mark batch as validated
+    await prisma.batch.update({
+      where: { id: batchId },
+      data: { validation_1: allPassed },
+    });
+    
+    console.log(`[Validation] Batch ${batchId} completed: ${successCount} passed, ${failCount} failed - Overall: ${allPassed ? 'PASSED' : 'FAILED'}`);
     
     return {
       batchId,

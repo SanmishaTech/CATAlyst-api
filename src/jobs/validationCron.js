@@ -17,10 +17,10 @@ const processValidationQueue = async () => {
     isRunning = true;
     console.log("[Validation Cron] Starting validation check...");
 
-    // Find all batches that need validation (validation_1 = false)
+    // Find all batches that need validation (validation_1 = null)
     const pendingBatches = await prisma.batch.findMany({
       where: {
-        validation_1: false,
+        validation_1: null,
       },
       orderBy: {
         id: "asc", // Process in order by ID

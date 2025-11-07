@@ -81,7 +81,7 @@ model Batch {
   failedOrders      Int       @default(0)
   status            String    @default("processing") // processing, completed, failed
   errorLog          String?   @db.Text
-  validation_1      Boolean   @default(false)
+  validation_1      Boolean?  // null = not validated, false = failed, true = passed
   importedAt        DateTime  @default(now())
   completedAt       DateTime?
   createdAt         DateTime  @default(now())
