@@ -56,11 +56,12 @@ const getUsers = async (req, res, next) => {
         clientId: true,
         active: true,
         lastLogin: true,
+        createdAt: true,
         client: {
           select: {
             id: true,
             name: true,
-            email: true,
+            contactEmailId: true,
           },
         },
       },
