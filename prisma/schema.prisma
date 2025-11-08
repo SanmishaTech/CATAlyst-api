@@ -231,3 +231,16 @@ model Order {
   @@map("orders")
 }
 
+model PasswordReset {
+  id        Int      @id @default(autoincrement())
+  email     String
+  otp       String
+  expiresAt DateTime
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([email])
+  @@index([otp])
+  @@map("password_resets")
+}

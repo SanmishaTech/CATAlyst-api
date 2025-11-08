@@ -142,4 +142,75 @@ router.post("/logout", (req, res) => {
   res.json({ message: "Logged out" });
 });
 
+/**
+ * @swagger
+ * /auth/request-reset:
+ *   post:
+ *     summary: Request password reset OTP
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Email address
+ *     responses:
+ *       200:
+ *         description: OTP sent to email
+ */
+router.post("/request-reset", authController.requestReset);
+
+/**
+ * @swagger
+ * /auth/verify-otp:
+ *   post:
+ *     summary: Verify OTP code
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               otp:
+ *                 type: string
+ *                 description: 6-digit OTP
+ *     responses:
+ *       200:
+ *         description: OTP verified
+ */
+router.post("/verify-otp", authController.verifyOtp);
+
+/**
+ * @swagger
+ * /auth/reset-password-otp:
+ *   post:
+ *     summary: Reset password with OTP
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *               otp:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password reset successful
+ */
+router.post("/reset-password-otp", authController.resetPasswordWithOtp);
+
 module.exports = router;

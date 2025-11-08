@@ -185,8 +185,155 @@ const resetPassword = async (req, res, next) => {
   }
 };
 
+// Request password reset - sends OTP to email
+const requestReset = async (req, res, next) => {
+  const schema = z.object({
+    email: z.string().email("Invalid email format").min(1, "Email is required"),
+  });
+
+  try {
+    await validateRequest(schema, req.body, res);
+    const { email } = req.body;
+
+    // Check if user exists
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      // Return success even if user doesn't exist (security best practice)
+      return res.json({ message: "If an account exists, an OTP has been sent to your email" });
+    }
+
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiryMinutes = parseInt(process.env.OTP_EXPIRY_MINUTES) || 10;
+    const expiresAt = new Date(Date.now() + expiryMinutes * 60 * 1000);
+
+    // Delete any existing OTP for this email
+    await prisma.passwordReset.deleteMany({ where: { email } });
+
+    // Store OTP in database
+    await prisma.passwordReset.create({
+      data: {
+        email,
+        otp,
+        expiresAt,
+      },
+    });
+
+    // Send OTP email
+    await emailService.sendEmail(
+      email,
+      "Password Reset OTP - Catalyst",
+      "otp-email",
+      { otp, expiryMinutes }
+    );
+
+    res.json({ 
+      message: "OTP sent to your email",
+      expiresIn: `${expiryMinutes} minutes`
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Verify OTP
+const verifyOtp = async (req, res, next) => {
+  const schema = z.object({
+    email: z.string().email("Invalid email format"),
+    otp: z.string().length(6, "OTP must be 6 digits"),
+  });
+
+  try {
+    await validateRequest(schema, req.body, res);
+    const { email, otp } = req.body;
+
+    // Find valid OTP
+    const resetRecord = await prisma.passwordReset.findFirst({
+      where: {
+        email,
+        otp,
+        expiresAt: { gt: new Date() },
+        verified: false,
+      },
+    });
+
+    if (!resetRecord) {
+      return res.status(400).json({ errors: { message: "Invalid or expired OTP" } });
+    }
+
+    // Mark OTP as verified
+    await prisma.passwordReset.update({
+      where: { id: resetRecord.id },
+      data: { verified: true },
+    });
+
+    res.json({ message: "OTP verified successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Reset password with verified OTP
+const resetPasswordWithOtp = async (req, res, next) => {
+  const schema = z.object({
+    email: z.string().email("Invalid email format"),
+    otp: z.string().length(6, "OTP must be 6 digits"),
+    newPassword: z.string().min(6, "Password must be at least 6 characters"),
+  });
+
+  try {
+    await validateRequest(schema, req.body, res);
+    const { email, otp, newPassword } = req.body;
+
+    // Find verified OTP
+    const resetRecord = await prisma.passwordReset.findFirst({
+      where: {
+        email,
+        otp,
+        expiresAt: { gt: new Date() },
+        verified: true,
+      },
+    });
+
+    if (!resetRecord) {
+      return res.status(400).json({ 
+        errors: { message: "Invalid or expired OTP. Please request a new one." } 
+      });
+    }
+
+    // Find user
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(404).json({ errors: { message: "User not found" } });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password and clear API key (force re-login)
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        apiKey: null,
+        apiKeyExpiry: null,
+      },
+    });
+
+    // Delete used OTP
+    await prisma.passwordReset.delete({ where: { id: resetRecord.id } });
+
+    res.json({ message: "Password reset successful. Please login with your new password." });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   login,
   forgotPassword,
   resetPassword,
+  requestReset,
+  verifyOtp,
+  resetPasswordWithOtp,
 };
