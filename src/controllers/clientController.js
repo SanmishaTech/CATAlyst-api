@@ -346,6 +346,54 @@ const setActiveStatus = async (req, res, next) => {
   }
 };
 
+const getValidationSchema = async (req, res, next) => {
+  try {
+    const client = await prisma.client.findUnique({
+      where: { id: parseInt(req.params.id) },
+      select: { validation_1: true },
+    });
+    
+    if (!client) {
+      return res.status(404).json({
+        errors: { message: "Client not found." },
+      });
+    }
+    
+    res.json({
+      schema: client.validation_1 || null,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const updateValidationSchema = async (req, res, next) => {
+  const schema = z.object({
+    schema: z.record(z.any()),
+  });
+
+  const validationErrors = await validateRequest(schema, req.body, res);
+
+  try {
+    const updatedClient = await prisma.client.update({
+      where: { id: parseInt(req.params.id) },
+      data: { validation_1: req.body.schema },
+    });
+    
+    res.json({
+      message: "Validation schema updated successfully",
+      schema: updatedClient.validation_1,
+    });
+  } catch (error) {
+    if (error.code === "P2025") {
+      return res.status(404).json({
+        errors: { message: "Client not found" },
+      });
+    }
+    next(error);
+  }
+};
+
 module.exports = {
   getClients,
   getClientById,
@@ -353,4 +401,6 @@ module.exports = {
   updateClient,
   deleteClient,
   setActiveStatus,
+  getValidationSchema,
+  updateValidationSchema,
 };

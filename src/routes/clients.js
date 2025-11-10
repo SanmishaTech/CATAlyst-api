@@ -362,4 +362,70 @@ router.delete("/:id", auth, clientController.deleteClient);
  */
 router.patch("/:id/status", auth, clientController.setActiveStatus);
 
+/**
+ * @swagger
+ * /clients/{id}/validation-schema:
+ *   get:
+ *     summary: Get client validation schema
+ *     tags: [Clients]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: Client ID
+ *     responses:
+ *       200:
+ *         description: Validation schema retrieved
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Client not found
+ */
+router.get("/:id/validation-schema", auth, clientController.getValidationSchema);
+
+/**
+ * @swagger
+ * /clients/{id}/validation-schema:
+ *   put:
+ *     summary: Update client validation schema
+ *     tags: [Clients]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: Client ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               schema:
+ *                 type: object
+ *                 description: Validation schema JSON object
+ *     responses:
+ *       200:
+ *         description: Validation schema updated
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Client not found
+ */
+router.put("/:id/validation-schema", auth, clientController.updateValidationSchema);
+
 module.exports = router;
