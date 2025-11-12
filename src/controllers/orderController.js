@@ -674,13 +674,34 @@ const uploadOrders = async (req, res, next) => {
 const getOrders = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { page = 1, limit = 50, orderId, orderStatus, batchId } = req.query;
+    const userRole = req.user.role;
+    const { page = 1, limit = 50, orderId, orderStatus, batchId, clientId } = req.query;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
 
-    const where = { userId };
+    // Build where clause based on user role and filters
+    const where = {};
 
+    // Role-based filtering
+    if (userRole === 'admin') {
+      // Admin can see all orders, optionally filtered by clientId
+      if (clientId) {
+        where.clientId = clientId;
+      }
+    } else if (userRole === 'client') {
+      // Client users can only see orders for their client
+      where.clientId = userId.toString();
+    } else {
+      // Regular users can only see their own orders
+      where.userId = userId;
+      // But if they have a clientId, also filter by that
+      if (req.user.clientId) {
+        where.clientId = req.user.clientId.toString();
+      }
+    }
+
+    // Additional filters
     if (orderId) {
       where.orderId = { contains: orderId };
     }

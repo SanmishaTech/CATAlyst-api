@@ -317,6 +317,18 @@ const updateUser = async (req, res, next) => {
   // Validate the request body using Zod
   const validationErrors = await validateRequest(schema, req.body, res);
   try {
+    // Check if the target user is an admin
+    const targetUser = await prisma.user.findUnique({
+      where: { id: parseInt(req.params.id) },
+      select: { role: true }
+    });
+
+    if (targetUser && targetUser.role === 'admin') {
+      return res.status(403).json({
+        errors: { message: "Admin users cannot be modified." }
+      });
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id: parseInt(req.params.id) },
       data: req.body,
@@ -334,6 +346,18 @@ const updateUser = async (req, res, next) => {
 
 const deleteUser = async (req, res, next) => {
   try {
+    // Check if the target user is an admin
+    const targetUser = await prisma.user.findUnique({
+      where: { id: parseInt(req.params.id) },
+      select: { role: true }
+    });
+
+    if (targetUser && targetUser.role === 'admin') {
+      return res.status(403).json({
+        errors: { message: "Admin users cannot be deleted." }
+      });
+    }
+    
     await prisma.user.delete({ where: { id: parseInt(req.params.id) } });
     res.json({ message: "User deleted" });
   } catch (error) {
