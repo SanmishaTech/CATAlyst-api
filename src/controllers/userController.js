@@ -224,14 +224,54 @@ const createUser = async (req, res, next) => {
 
   try {
     const hashedPassword = await bcrypt.hash(req.body.password, 10);
-    const user = await prisma.user.create({
-      data: {
-        ...req.body,
-        password: hashedPassword,
-      },
-    });
-    res.status(201).json(user);
+    
+    // If the role is 'client', we need to create a client record first
+    if (req.body.role === "client") {
+      // Use transaction to ensure both client and user are created or none
+      const result = await prisma.$transaction(async (tx) => {
+        // First create the client record
+        const client = await tx.client.create({
+          data: {
+            name: req.body.name,
+            // Set default values for the new client
+            contactEmailId: req.body.email,
+            contactPersonName: req.body.name,
+            active: true,
+          },
+        });
+
+        // Then create the user with the clientId
+        const user = await tx.user.create({
+          data: {
+            name: req.body.name,
+            email: req.body.email,
+            password: hashedPassword,
+            role: req.body.role,
+            clientId: client.id, // Link to the newly created client
+            active: req.body.active !== undefined ? req.body.active : true,
+          },
+        });
+
+        return { client, user };
+      });
+
+      // Return both client and user data in the response
+      return res.status(201).json({
+        ...result.user,
+        client: result.client,
+      });
+    } else {
+      // Regular user creation (not a client)
+      const user = await prisma.user.create({
+        data: {
+          ...req.body,
+          password: hashedPassword,
+        },
+      });
+      return res.status(201).json(user);
+    }
   } catch (error) {
+    console.error("Error creating user:", error);
     next(error);
   }
 };
