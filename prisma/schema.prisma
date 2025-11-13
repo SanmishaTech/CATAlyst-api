@@ -90,6 +90,7 @@ model Batch {
   // Relations
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   orders            Order[]
+  validations       Validation[]
   
   @@index([userId])
   @@map("batches")
@@ -98,14 +99,17 @@ model Batch {
 model Validation {
   id                Int       @id @default(autoincrement())
   orderId           Int
+  batchId           Int
   validation        Json?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   
   // Relations
   order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  batch             Batch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
   
   @@index([orderId])
+  @@index([batchId])
   @@map("validations")
 }
 

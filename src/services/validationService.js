@@ -183,6 +183,7 @@ const processBatchValidation = async (batchId) => {
       await prisma.validation.create({
         data: {
           orderId: order.id,
+          batchId: batchId, // Add the batch ID here
           validation: {
             success: validationResult.success,
             errors: validationResult.errors || [],
