@@ -26,25 +26,51 @@ const getBatches = async (req, res, next) => {
           _count: {
             select: { orders: true },
           },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          orders: {
+            take: 1,
+            include: {
+              validations: {
+                select: {
+                  validation: true,
+                },
+              },
+            },
+          },
         },
       }),
       prisma.batch.count({ where }),
     ]);
 
     // Calculate success rate for each batch
-    const batchesWithStats = batches.map((batch) => ({
-      ...batch,
-      actualOrderCount: batch._count.orders,
-      successRate:
-        batch.totalOrders > 0
-          ? ((batch.successfulOrders / batch.totalOrders) * 100).toFixed(2)
-          : 0,
-      duration: batch.completedAt
-        ? Math.round(
-            (new Date(batch.completedAt) - new Date(batch.importedAt)) / 1000
-          )
-        : null,
-    }));
+    const batchesWithStats = batches.map((batch) => {
+      // Get validation response from first order (if exists)
+      const validationResponse = batch.orders?.[0]?.validations?.[0]?.validation || null;
+      
+      return {
+        ...batch,
+        userName: batch.user?.name || null,
+        validationResponse,
+        actualOrderCount: batch._count.orders,
+        successRate:
+          batch.totalOrders > 0
+            ? ((batch.successfulOrders / batch.totalOrders) * 100).toFixed(2)
+            : 0,
+        duration: batch.completedAt
+          ? Math.round(
+              (new Date(batch.completedAt) - new Date(batch.importedAt)) / 1000
+            )
+          : null,
+        // Remove orders from response to keep it clean
+        orders: undefined,
+      };
+    });
 
     res.json({
       batches: batchesWithStats,
