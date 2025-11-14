@@ -40,7 +40,7 @@ const getUsers = async (req, res, next) => {
       roles.length > 0 ? { role: { in: roles } } : {}, // Filter by multiple roles
       active !== undefined ? { active } : {},
       // If user is client, only show their users
-      req.user.role === "client" ? { clientId: req.user.id } : {},
+      req.user.role === "client" ? { clientId: req.user.clientId || req.user.id } : {},
       // If filtering by clientId (admin viewing specific client's users)
       clientId !== undefined ? { clientId } : {},
     ],
