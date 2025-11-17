@@ -179,18 +179,29 @@ const processBatchValidation = async (batchId) => {
     for (const order of orders) {
       const validationResult = validateOrder(order, client.validation_1);
       
-      // Store validation result
-      await prisma.validation.create({
+      // Store validation result with individual error records
+      const validation = await prisma.validation.create({
         data: {
           orderId: order.id,
-          batchId: batchId, // Add the batch ID here
-          validation: {
-            success: validationResult.success,
-            errors: validationResult.errors || [],
-            validatedAt: new Date().toISOString(),
-          },
+          batchId: batchId,
+          success: validationResult.success,
+          validatedAt: new Date(),
         },
       });
+      
+      // Create individual error records if validation failed
+      if (!validationResult.success && validationResult.errors && validationResult.errors.length > 0) {
+        await prisma.validationError.createMany({
+          data: validationResult.errors.map(error => ({
+            validationId: validation.id,
+            field: error.field || 'unknown',
+            message: error.message || 'Validation failed',
+            code: error.code || 'validation_error',
+            batchId: batchId,
+            orderId: order.id,
+          })),
+        });
+      }
       
       validationResults.push({
         orderId: order.id,

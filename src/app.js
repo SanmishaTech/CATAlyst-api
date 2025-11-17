@@ -33,10 +33,43 @@ const allowedOrigins = allowedOriginsEnv
   : ["http://localhost:5173", "http://18.138.7.88"];
 
 
+// CORS configuration: Allow all origins without credentials, or specify origins with credentials
 const corsOptions = {
-  origin: "*", // Specify the origin of your frontend application
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Allow Swagger UI and any development/production origins
+    const allowedOrigins = [
+      "http://localhost:5000",
+      "http://localhost:3000",
+      "http://localhost:5173",
+      "http://18.138.7.88",
+      "https://catalyst.3.7.237.251.sslip.io"
+    ];
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      // Allow Swagger UI from any origin since it's a development tool
+      if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
+        callback(null, true);
+      } else {
+        console.log("CORS blocked origin:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    }
+  },
   credentials: true, // This allows cookies and credentials to be included in the requests
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  exposedHeaders: ["Content-Range", "X-Content-Range"],
+  optionsSuccessStatus: 204, // Some legacy browsers choke on 204
+  preflightContinue: false
 };
+
+// Add explicit OPTIONS handling for preflight requests
+app.options("*", cors(corsOptions));
 app.use(cors(corsOptions));
 
 app.use(express.json());

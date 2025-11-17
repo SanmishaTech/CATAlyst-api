@@ -33,14 +33,10 @@ const getBatches = async (req, res, next) => {
               email: true,
             },
           },
-          orders: {
+          validations: {
             take: 1,
             include: {
-              validations: {
-                select: {
-                  validation: true,
-                },
-              },
+              errors: true,
             },
           },
         },
@@ -50,8 +46,12 @@ const getBatches = async (req, res, next) => {
 
     // Calculate success rate for each batch
     const batchesWithStats = batches.map((batch) => {
-      // Get validation response from first order (if exists)
-      const validationResponse = batch.orders?.[0]?.validations?.[0]?.validation || null;
+      // Get validation data from first validation record (if exists)
+      const firstValidation = batch.validations?.[0];
+      const validationResponse = firstValidation ? {
+        success: firstValidation.success,
+        errors: firstValidation.errors || [],
+      } : null;
       
       return {
         ...batch,
@@ -67,8 +67,8 @@ const getBatches = async (req, res, next) => {
               (new Date(batch.completedAt) - new Date(batch.importedAt)) / 1000
             )
           : null,
-        // Remove orders from response to keep it clean
-        orders: undefined,
+        // Remove validations from response to keep it clean
+        validations: undefined,
       };
     });
 
@@ -138,7 +138,10 @@ const getBatchById = async (req, res, next) => {
             (new Date(batch.completedAt) - new Date(batch.importedAt)) / 1000
           )
         : null,
-      errorLog,
+      errorLog: errorLog ? {
+        ...errorLog,
+        batchId: batch.id,
+      } : null,
     };
 
     res.json(stats);
@@ -178,7 +181,11 @@ const getBatchOrders = async (req, res, next) => {
         take,
         orderBy: { createdAt: "desc" },
         include: {
-          validations: true,
+          validations: {
+            include: {
+              errors: true,
+            },
+          },
         },
       }),
       prisma.order.count({
@@ -237,6 +244,75 @@ const deleteBatch = async (req, res, next) => {
         id: batch.id,
         ordersDeleted: batch._count.orders,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Get validation errors for a specific batch
+const getBatchValidationErrors = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    // First verify batch belongs to user
+    const batch = await prisma.batch.findFirst({
+      where: {
+        id: parseInt(id),
+        userId,
+      },
+    });
+
+    if (!batch) {
+      return next(createError(404, "Batch not found"));
+    }
+
+    // Get all validation records with errors for this batch
+    const validations = await prisma.validation.findMany({
+      where: {
+        batchId: parseInt(id),
+        success: false, // Only get failed validations
+      },
+      include: {
+        errors: true,
+        order: {
+          select: {
+            id: true,
+            orderId: true,
+          },
+        },
+      },
+    });
+
+    // Get all errors for this batch (now with direct orderId and batchId)
+    const allErrors = await prisma.validationError.findMany({
+      where: {
+        batchId: parseInt(id),
+      },
+      include: {
+        order: {
+          select: {
+            id: true,
+            orderId: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      success: false,
+      batchId: batch.id,
+      totalValidations: validations.length,
+      totalErrors: allErrors.length,
+      errors: allErrors.map(error => ({
+        field: error.field,
+        message: error.message,
+        code: error.code,
+        orderId: error.order.orderId,
+        orderDbId: error.order.id,
+        batchId: error.batchId,
+      })),
     });
   } catch (error) {
     next(error);
@@ -325,4 +401,5 @@ module.exports = {
   getBatchOrders,
   deleteBatch,
   getBatchStats,
+  getBatchValidationErrors,
 };

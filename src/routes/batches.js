@@ -219,6 +219,55 @@ router.get("/:id/orders", auth, batchController.getBatchOrders);
 
 /**
  * @swagger
+ * /batches/{id}/validation-errors:
+ *   get:
+ *     summary: Get validation errors for a specific batch
+ *     tags: [Batches]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Batch ID
+ *     responses:
+ *       200:
+ *         description: Validation errors for the batch
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 batchId:
+ *                   type: integer
+ *                 totalErrors:
+ *                   type: integer
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       field:
+ *                         type: string
+ *                       message:
+ *                         type: string
+ *                       code:
+ *                         type: string
+ *                       orderId:
+ *                         type: string
+ *       404:
+ *         description: Batch not found
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/:id/validation-errors", auth, batchController.getBatchValidationErrors);
+
+/**
+ * @swagger
  * /batches/{id}:
  *   delete:
  *     summary: Delete batch and all its orders

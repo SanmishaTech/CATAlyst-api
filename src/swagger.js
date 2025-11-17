@@ -277,8 +277,8 @@ This section provides detailed documentation for:
     servers: [
       {
         url: process.env.NODE_ENV === "production"
-          ? `${process.env.API_URL || "https://CATAlystc.3.7.237.251.sslip.io"}/api`
-          : "http://localhost:3000/api",
+          ? `${process.env.API_URL || "https://catalyst.3.7.237.251.sslip.io"}/api`
+          : "http://localhost:5000/api",
         description: process.env.NODE_ENV === "production" ? "Production server" : "Development server",
       },
     ],
@@ -626,12 +626,25 @@ const swaggerUiOptions = {
     filter: true, // Enable search/filter bar
     defaultModelsExpandDepth: -1, // Hide schemas section
     docExpansion: "none", // Keep tag accordions closed by default (list,none & full)
+    persistAuthorization: true, // Keep authorization across page reloads
     requestInterceptor: (req) => {
       // Ensure content-type is properly set for file uploads
       if (req.body instanceof FormData) {
         req.headers["Content-Type"] = "multipart/form-data";
       }
+      // Add CORS headers
+      req.headers['Access-Control-Allow-Origin'] = '*';
+      req.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
+      req.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
       return req;
+    },
+    responseInterceptor: (res) => {
+      // Add CORS headers to responses
+      res.headers = res.headers || {};
+      res.headers['Access-Control-Allow-Origin'] = '*';
+      res.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS';
+      res.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization';
+      return res;
     },
   },
 };

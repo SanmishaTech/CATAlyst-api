@@ -91,6 +91,7 @@ model Batch {
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   orders            Order[]
   validations       Validation[]
+  validationErrors  ValidationError[]
   
   @@index([userId])
   @@map("batches")
@@ -100,17 +101,41 @@ model Validation {
   id                Int       @id @default(autoincrement())
   orderId           Int
   batchId           Int
-  validation        Json?
+  success           Boolean   @default(false)
+  validatedAt       DateTime  @default(now())
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   
   // Relations
   order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   batch             Batch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  errors            ValidationError[]
   
   @@index([orderId])
   @@index([batchId])
   @@map("validations")
+}
+
+model ValidationError {
+  id                Int       @id @default(autoincrement())
+  validationId      Int
+  batchId           Int
+  orderId           Int
+  field             String    @db.VarChar(255)
+  message           String    @db.Text
+  code              String    @db.VarChar(100)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  // Relations
+  validation        Validation @relation(fields: [validationId], references: [id], onDelete: Cascade)
+  batch             Batch      @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  order             Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  @@index([validationId])
+  @@index([batchId])
+  @@index([orderId])
+  @@map("validation_errors")
 }
 
 model Order {
@@ -228,6 +253,7 @@ model Order {
   user                            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   batch                           Batch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
   validations                     Validation[]
+  validationErrors                ValidationError[]
   
   @@index([userId])
   @@index([batchId])
