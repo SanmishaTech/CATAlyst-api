@@ -430,8 +430,9 @@ const parseExcelToJson = async (filePath) => {
 
   // Get headers from first row
   const headers = [];
-  worksheet.getRow(1).eachCell((cell) => {
-    headers.push(cell.value.toString().toLowerCase().trim());
+  worksheet.getRow(1).eachCell({ includeEmpty: true }, (cell) => {
+    const headerValue = cell.value ? cell.value.toString().toLowerCase().trim() : '';
+    headers.push(headerValue);
   });
 
   // Validate required fields
@@ -450,7 +451,8 @@ const parseExcelToJson = async (filePath) => {
 
     const orderData = {};
 
-    row.eachCell((cell, colNumber) => {
+    // Use eachCell with includeEmpty option to process all columns
+    row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
       const header = headers[colNumber - 1];
       const mappedField = fieldMapping[header];
 
@@ -462,10 +464,14 @@ const parseExcelToJson = async (filePath) => {
           [
             "orderIdVersion",
             "orderIdSession",
-            "orderCapacity",
-            "orderDestination",
-            "orderClientRef",
-            "orderClientRefDetails",
+            "orderExecutingEntity",
+            "orderBookingEntity",
+            "orderPositionAccount",
+            "orderInstrumentId",
+            "orderLinkedInstrumentId",
+            "orderExecutingAccount",
+            "orderClearingAccount",
+            "orderTradingOwner",
           ].includes(mappedField)
         ) {
           value = parseIntValue(value);
@@ -512,9 +518,15 @@ const parseExcelToJson = async (filePath) => {
       return;
     }
 
+    // Debug: log first order to see what's being parsed
+    if (orders.length === 0) {
+      console.log('First order parsed:', JSON.stringify(orderData, null, 2));
+    }
+    
     orders.push(orderData);
   });
 
+  console.log(`Parsed ${orders.length} orders from Excel`);
   return { orders, errors };
 };
 
@@ -590,10 +602,38 @@ const uploadOrders = async (req, res, next) => {
       }
     });
 
+    // Log validation summary
+    if (errors.length > 0) {
+      console.log(`[ORDER VALIDATION] Summary: ${validOrders.length} valid, ${errors.length} failed out of ${ordersArray.length} total`);
+      if (errors.length <= 10) {
+        // Show all errors if there are 10 or fewer
+        errors.forEach((err, idx) => {
+          console.error(`  [${idx + 1}] Row ${err.index + 2}, OrderID: ${err.orderId || 'N/A'} - ${err.error}`);
+        });
+      } else {
+        // Show first 5 and last 5 if more than 10 errors
+        console.error('  First 5 errors:');
+        errors.slice(0, 5).forEach((err, idx) => {
+          console.error(`    [${idx + 1}] Row ${err.index + 2}, OrderID: ${err.orderId || 'N/A'} - ${err.error}`);
+        });
+        console.error(`  ... ${errors.length - 10} more errors ...`);
+        console.error('  Last 5 errors:');
+        errors.slice(-5).forEach((err, idx) => {
+          console.error(`    [${errors.length - 5 + idx + 1}] Row ${err.index + 2}, OrderID: ${err.orderId || 'N/A'} - ${err.error}`);
+        });
+      }
+    }
+
     // If no valid orders, return error WITHOUT creating batch
     if (validOrders.length === 0) {
+      console.error('[ORDER VALIDATION] All orders failed validation:');
+      errors.forEach((err, idx) => {
+        console.error(`  [${idx + 1}] Row ${err.index + 2}, OrderID: ${err.orderId || 'N/A'} - ${err.error}`);
+      });
       return res.status(400).json({
         message: "No valid orders found. Batch not created.",
+        total: ordersArray.length,
+        failed: errors.length,
         errors,
       });
     }
