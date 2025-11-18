@@ -333,6 +333,10 @@ router.get("/template", auth, templateController.downloadOrderTemplate);
  *                 errors:
  *                   type: array
  *                   description: List of parsing errors if any
+ *                 errorFile:
+ *                   type: string
+ *                   description: URL to download Excel file with failed records (only if errors exist)
+ *                   example: /uploads/order-errors-1234567890.xlsx
  *       400:
  *         description: Bad request (invalid file or data)
  *       401:

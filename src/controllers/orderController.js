@@ -418,6 +418,96 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
   return order;
 };
 
+// Generate Excel file with error records
+const generateErrorExcel = async (ordersArray, errors) => {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Failed Orders');
+
+  // Group errors by index for easy lookup
+  const errorsByIndex = {};
+  errors.forEach(err => {
+    if (!errorsByIndex[err.index]) {
+      errorsByIndex[err.index] = [];
+    }
+    errorsByIndex[err.index].push(err.error);
+  });
+
+  // Get all unique field names from the orders with errors
+  const failedOrders = [];
+  const fieldSet = new Set();
+  
+  Object.keys(errorsByIndex).forEach(index => {
+    const order = ordersArray[parseInt(index)];
+    if (order) {
+      failedOrders.push({ ...order, _index: index });
+      Object.keys(order).forEach(key => fieldSet.add(key));
+    }
+  });
+
+  // Sort fields to have orderId first
+  const fields = Array.from(fieldSet).sort((a, b) => {
+    if (a === 'orderId') return -1;
+    if (b === 'orderId') return 1;
+    return a.localeCompare(b);
+  });
+
+  // Add headers (all order fields + Error column)
+  const headers = [...fields, 'Error'];
+  worksheet.addRow(headers);
+
+  // Style header row
+  const headerRow = worksheet.getRow(1);
+  headerRow.font = { bold: true };
+  headerRow.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFD3D3D3' }
+  };
+
+  // Add data rows with errors
+  failedOrders.forEach(order => {
+    const rowData = [];
+    fields.forEach(field => {
+      rowData.push(order[field] !== undefined && order[field] !== null ? order[field] : '');
+    });
+    
+    // Add error messages (joined if multiple errors)
+    const errorMessages = errorsByIndex[order._index].join('; ');
+    rowData.push(errorMessages);
+    
+    const row = worksheet.addRow(rowData);
+    
+    // Highlight error column in red
+    const errorCell = row.getCell(headers.length);
+    errorCell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFFFCCCC' }
+    };
+    errorCell.font = { color: { argb: 'FFCC0000' } };
+  });
+
+  // Auto-fit columns
+  worksheet.columns.forEach(column => {
+    let maxLength = 0;
+    column.eachCell({ includeEmpty: true }, cell => {
+      const cellValue = cell.value ? cell.value.toString() : '';
+      maxLength = Math.max(maxLength, cellValue.length);
+    });
+    column.width = Math.min(maxLength + 2, 50); // Cap at 50
+  });
+
+  // Generate unique filename
+  const timestamp = Date.now();
+  const filename = `order-errors-${timestamp}.xlsx`;
+  const filepath = path.join('uploads', filename);
+
+  // Save file
+  await workbook.xlsx.writeFile(filepath);
+  
+  return filename;
+};
+
 // Parse Excel file and convert to JSON array
 const parseExcelToJson = async (filePath) => {
   const workbook = new ExcelJS.Workbook();
@@ -630,11 +720,22 @@ const uploadOrders = async (req, res, next) => {
       errors.forEach((err, idx) => {
         console.error(`  [${idx + 1}] Row ${err.index + 2}, OrderID: ${err.orderId || 'N/A'} - ${err.error}`);
       });
+      
+      // Generate error Excel file
+      let errorFile = null;
+      try {
+        errorFile = await generateErrorExcel(ordersArray, errors);
+        console.log(`[ERROR EXCEL] Generated error file: ${errorFile}`);
+      } catch (excelError) {
+        console.error('[ERROR EXCEL] Failed to generate error Excel:', excelError);
+      }
+      
       return res.status(400).json({
         message: "No valid orders found. Batch not created.",
         total: ordersArray.length,
         failed: errors.length,
         errors,
+        errorFile: errorFile ? `/uploads/${errorFile}` : null,
       });
     }
 
@@ -670,6 +771,17 @@ const uploadOrders = async (req, res, next) => {
       },
     });
 
+    // Generate error Excel file if there are validation errors
+    let errorFile = null;
+    if (errors.length > 0) {
+      try {
+        errorFile = await generateErrorExcel(ordersArray, errors);
+        console.log(`[ERROR EXCEL] Generated error file for partial failures: ${errorFile}`);
+      } catch (excelError) {
+        console.error('[ERROR EXCEL] Failed to generate error Excel:', excelError);
+      }
+    }
+
     res.status(201).json({
       message: "Orders uploaded successfully",
       batchId: batch.id,
@@ -677,6 +789,7 @@ const uploadOrders = async (req, res, next) => {
       total: validOrders.length,
       failed: validOrders.length - result.count,
       errors: errors.length > 0 ? errors : undefined,
+      errorFile: errorFile ? `/uploads/${errorFile}` : null,
     });
   } catch (error) {
     console.error("Upload error:", error);
