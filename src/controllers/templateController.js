@@ -1,6 +1,8 @@
 const ExcelJS = require("exceljs");
 const createError = require("http-errors");
 
+const { OrderAction, OrderCapacity, OrderSide, OrderType } = require("../constants/orderEnums");
+
 // Download Excel template with headers
 const downloadOrderTemplate = async (req, res, next) => {
   try {
@@ -433,6 +435,261 @@ const downloadOrderTemplate = async (req, res, next) => {
   }
 };
 
+// Download LARGE Excel template with 3,000 rows (~600 invalid, rest valid)
+const downloadLargeOrderTemplate = async (req, res, next) => {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Orders");
+
+    // Define headers (same as small template)
+    const headers = [
+      "orderId",
+      "orderIdVersion",
+      "orderIdSession",
+      "orderIdInstance",
+      "parentOrderId",
+      "cancelreplaceOrderId",
+      "linkedOrderId",
+      "orderAction",
+      "orderStatus",
+      "orderCapacity",
+      "orderDestination",
+      "orderClientRef",
+      "orderClientRefDetails",
+      "orderExecutingEntity",
+      "orderBookingEntity",
+      "orderPositionAccount",
+      "orderSide",
+      "orderClientCapacity",
+      "orderManualIndicator",
+      "orderRequestTime",
+      "orderEventTime",
+      "orderManualTimestamp",
+      "orderOmsSource",
+      "orderPublishingTime",
+      "orderTradeDate",
+      "orderQuantity",
+      "orderPrice",
+      "orderType",
+      "orderTimeInforce",
+      "orderExecutionInstructions",
+      "orderAttributes",
+      "orderRestrictions",
+      "orderAuctionIndicator",
+      "orderSwapIndicator",
+      "orderOsi",
+      "orderInstrumentId",
+      "orderLinkedInstrumentId",
+      "orderCurrencyId",
+      "orderFlowType",
+      "orderAlgoInstruction",
+      "orderSymbol",
+      "orderInstrumentReference",
+      "orderInstrumentReferenceValue",
+      "orderOptionPutCall",
+      "orderOptionStrikePrice",
+      "orderOptionLegIndicator",
+      "orderComplianceId",
+      "orderEntityId",
+      "orderExecutingAccount",
+      "orderClearingAccount",
+      "orderClientOrderId",
+      "orderRoutedOrderId",
+      "orderTradingOwner",
+      "orderExtendedAttribute",
+      "orderQuoteId",
+      "orderRepresentOrderId",
+      "orderOnBehalfCompId",
+      "orderSpread",
+      "orderAmendReason",
+      "orderCancelRejectReason",
+      "orderBidSize",
+      "orderBidPrice",
+      "orderAskSize",
+      "orderAskPrice",
+      "orderBasketId",
+      "orderCumQty",
+      "orderLeavesQty",
+      "orderStopPrice",
+      "orderDiscretionPrice",
+      "orderExdestinationInstruction",
+      "orderExecutionParameter",
+      "orderInfobarrierId",
+      "orderLegRatio",
+      "orderLocateId",
+      "orderNegotiatedIndicator",
+      "orderOpenClose",
+      "orderParticipantPriorityCode",
+      "orderActionInitiated",
+      "orderPackageIndicator",
+      "orderPackageId",
+      "orderPackagePricetype",
+      "orderStrategyType",
+      "orderSecondaryOffering",
+      "orderStartTime",
+      "orderTifExpiration",
+      "orderParentChildType",
+      "orderMinimumQty",
+      "orderTradingSession",
+      "orderDisplayPrice",
+      "orderSeqNumber",
+      "atsDisplayIndicator",
+      "orderDisplayQty",
+      "orderWorkingPrice",
+      "atsOrderType",
+      "orderNbboSource",
+      "orderNbboTimestamp",
+      "orderSolicitationFlag",
+      "orderNetPrice",
+      "routeRejectedFlag",
+      "orderOriginationSystem",
+    ];
+
+    worksheet.addRow(headers);
+
+    // Style the header row
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4472C4" } };
+    headerRow.alignment = { vertical: "middle", horizontal: "center" };
+
+    // Set column widths
+    worksheet.columns = headers.map((header) => ({ width: Math.max(header.length + 2, 15) }));
+
+    // Prepare valid enum pools (use correct values from orderEnums)
+    const validActions = [
+      OrderAction.orderRequested,
+      OrderAction.orderReplaced,
+      OrderAction.orderCanceled,
+    ].filter(Boolean);
+
+    const validCapacities = [
+      OrderCapacity.agency,
+      OrderCapacity.principal,
+      OrderCapacity.risklessPrincipal,
+      OrderCapacity.individual,
+    ].filter(Boolean);
+
+    const validSides = [
+      OrderSide.buy,
+      OrderSide.sellLong,
+      OrderSide.sellShort,
+    ].filter(Boolean);
+
+    const validTypes = [
+      OrderType.market,
+      OrderType.limit,
+      OrderType.stopLoss,
+      OrderType.stopLimit,
+    ].filter(Boolean);
+
+    const symbols = ["AAPL", "MSFT", "GOOGL", "TSLA", "NVDA", "AMZN", "META", "NFLX", "ORCL", "INTC", "AMD"];
+
+    const TOTAL_ROWS = 3000;
+    const INVALID_EVERY = 5; // 1 in 5 -> ~600 invalid
+
+    let invalidCounter = 0;
+
+    for (let i = 1; i <= TOTAL_ROWS; i++) {
+      const rowData = new Array(headers.length).fill("");
+
+      // Common base fields
+      rowData[0] = `ORD-BULK-${i.toString().padStart(4, "0")}`; // orderId
+
+      const action = validActions[(i - 1) % validActions.length];
+      const capacity = validCapacities[(i - 1) % validCapacities.length];
+      const side = validSides[(i - 1) % validSides.length];
+      const type = validTypes[(i - 1) % validTypes.length];
+
+      const sym = symbols[(i - 1) % symbols.length];
+      const minute = 30 + ((i - 1) % 30); // 09:30..09:59
+      const timeStr = `2024-01-15T09:${minute.toString().padStart(2, "0")}:00`;
+
+      rowData[22] = `TradingSystem${((i - 1) % 3) + 1}`; // orderOmsSource
+      rowData[23] = timeStr; // orderPublishingTime
+      rowData[46] = `COMP-${i.toString().padStart(3, "0")}`; // orderComplianceId
+      rowData[99] = `OMS-SYSTEM-${((i - 1) % 3) + 1}`; // orderOriginationSystem
+      rowData[40] = sym; // orderSymbol
+      rowData[25] = 50 + ((i - 1) % 500); // orderQuantity
+      rowData[26] = 10 + ((i - 1) % 990) + 0.5; // orderPrice
+
+      const isInvalid = i % INVALID_EVERY === 0; // ~600 invalid rows
+
+      if (isInvalid) {
+        invalidCounter++;
+        // Start with valid values, then corrupt one required field
+        rowData[7] = action; // orderAction
+        rowData[9] = capacity; // orderCapacity
+        rowData[16] = side; // orderSide
+        rowData[27] = type; // orderType
+
+        const reason = invalidCounter % 4; // cycle missing/invalid field
+        if (reason === 0) {
+          // orderAction invalid or missing
+          rowData[7] = invalidCounter % 2 === 0 ? "" : "Invalid Action Value";
+        } else if (reason === 1) {
+          // orderCapacity invalid or missing
+          rowData[9] = invalidCounter % 2 === 0 ? "" : "Invalid Capacity";
+        } else if (reason === 2) {
+          // orderSide invalid or missing
+          rowData[16] = invalidCounter % 2 === 0 ? "" : "Wrong Side";
+        } else {
+          // orderType invalid or missing
+          rowData[27] = invalidCounter % 2 === 0 ? "" : "Wrong Type";
+        }
+
+        const row = worksheet.addRow(rowData);
+        row.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFFFCCCC" } };
+      } else {
+        // Valid row
+        rowData[7] = action; // orderAction
+        rowData[9] = capacity; // orderCapacity
+        rowData[16] = side; // orderSide
+        rowData[27] = type; // orderType
+
+        worksheet.addRow(rowData);
+      }
+    }
+
+    // Instructions sheet
+    const instructionsSheet = workbook.addWorksheet("Instructions");
+    instructionsSheet.getColumn(1).width = 50;
+    instructionsSheet.addRow(["Order Import Template - Large"]).font = { bold: true, size: 14 };
+    instructionsSheet.addRow([]);
+    instructionsSheet.addRow(["Template Information:"]);
+    instructionsSheet.addRow(["  • This template contains 101 order fields"]);
+    instructionsSheet.addRow(["  • 3,000 test rows included: ~2,400 VALID + ~600 INVALID (highlighted RED)"]);
+    instructionsSheet.addRow([]);
+    instructionsSheet.addRow(["Required Fields (5 minimum):"]);
+    instructionsSheet.addRow(["  1. orderId - Unique identifier (REQUIRED)"]);
+    instructionsSheet.addRow(["  2. orderAction - Use valid enum value (REQUIRED)"]);
+    instructionsSheet.addRow(["  3. orderCapacity - Use valid enum value (REQUIRED)"]);
+    instructionsSheet.addRow(["  4. orderSide - Use valid enum value (REQUIRED)"]);
+    instructionsSheet.addRow(["  5. orderType - Use valid enum value (REQUIRED)"]);
+    instructionsSheet.addRow([]);
+    instructionsSheet.addRow(["Notes:"]);
+    instructionsSheet.addRow(["  • Invalid rows are included to test failure handling in uploads"]);
+    instructionsSheet.addRow(["  • Keep header row as-is. Delete sample rows before real imports"]);
+
+    // Response headers
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="order_import_template_3000.xlsx"'
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    console.error("Large template generation error:", error);
+    next(error);
+  }
+};
+
 module.exports = {
   downloadOrderTemplate,
+  downloadLargeOrderTemplate,
 };

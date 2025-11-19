@@ -2,14 +2,23 @@ const express = require("express");
 const router = express.Router();
 const multer = require("multer");
 const path = require("path");
+const fs = require("fs");
 const auth = require("../middleware/auth");
 const orderController = require("../controllers/orderController");
 const templateController = require("../controllers/templateController");
 
 // Configure multer for file uploads
+// Ensure uploads directory exists and use absolute path
+const uploadDir = path.resolve(__dirname, "..", "uploads");
+try {
+  fs.mkdirSync(uploadDir, { recursive: true });
+} catch (e) {
+  console.error("Failed to ensure uploads directory:", e);
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/");
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -76,6 +85,31 @@ const upload = multer({
  *         description: Unauthorized
  */
 router.get("/template", auth, templateController.downloadOrderTemplate);
+
+/**
+ * @swagger
+ * /orders/template/large:
+ *   get:
+ *     summary: 📥 Download Large Excel Template (3000 rows)
+ *     tags: [Orders]
+ *     description: |
+ *       Download a large Excel template with 3,000 rows for bulk testing.
+ *       Approximately 2,400 rows are valid and ~600 rows are intentionally invalid (highlighted RED)
+ *       based on the same structure and enums as the standard template.
+ *     security:
+ *       - ApiKeyAuth: []
+ *     responses:
+ *       200:
+ *         description: Excel template file (order_import_template_3000.xlsx)
+ *         content:
+ *           application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/template/large", auth, templateController.downloadLargeOrderTemplate);
 
 /**
  * @swagger

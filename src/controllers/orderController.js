@@ -432,23 +432,117 @@ const generateErrorExcel = async (ordersArray, errors) => {
     errorsByIndex[err.index].push(err.error);
   });
 
-  // Get all unique field names from the orders with errors
-  const failedOrders = [];
-  const fieldSet = new Set();
+  // Define ALL order fields (matching template) - always show all columns
+  const fields = [
+    "orderId",
+    "orderIdVersion",
+    "orderIdSession",
+    "orderIdInstance",
+    "parentOrderId",
+    "cancelreplaceOrderId",
+    "linkedOrderId",
+    "orderAction",
+    "orderStatus",
+    "orderCapacity",
+    "orderDestination",
+    "orderClientRef",
+    "orderClientRefDetails",
+    "orderExecutingEntity",
+    "orderBookingEntity",
+    "orderPositionAccount",
+    "orderSide",
+    "orderClientCapacity",
+    "orderManualIndicator",
+    "orderRequestTime",
+    "orderEventTime",
+    "orderManualTimestamp",
+    "orderOmsSource",
+    "orderPublishingTime",
+    "orderTradeDate",
+    "orderQuantity",
+    "orderPrice",
+    "orderType",
+    "orderTimeInforce",
+    "orderExecutionInstructions",
+    "orderAttributes",
+    "orderRestrictions",
+    "orderAuctionIndicator",
+    "orderSwapIndicator",
+    "orderOsi",
+    "orderInstrumentId",
+    "orderLinkedInstrumentId",
+    "orderCurrencyId",
+    "orderFlowType",
+    "orderAlgoInstruction",
+    "orderSymbol",
+    "orderInstrumentReference",
+    "orderInstrumentReferenceValue",
+    "orderOptionPutCall",
+    "orderOptionStrikePrice",
+    "orderOptionLegIndicator",
+    "orderComplianceId",
+    "orderEntityId",
+    "orderExecutingAccount",
+    "orderClearingAccount",
+    "orderClientOrderId",
+    "orderRoutedOrderId",
+    "orderTradingOwner",
+    "orderExtendedAttribute",
+    "orderQuoteId",
+    "orderRepresentOrderId",
+    "orderOnBehalfCompId",
+    "orderSpread",
+    "orderAmendReason",
+    "orderCancelRejectReason",
+    "orderBidSize",
+    "orderBidPrice",
+    "orderAskSize",
+    "orderAskPrice",
+    "orderBasketId",
+    "orderCumQty",
+    "orderLeavesQty",
+    "orderStopPrice",
+    "orderDiscretionPrice",
+    "orderExdestinationInstruction",
+    "orderExecutionParameter",
+    "orderInfobarrierId",
+    "orderLegRatio",
+    "orderLocateId",
+    "orderNegotiatedIndicator",
+    "orderOpenClose",
+    "orderParticipantPriorityCode",
+    "orderActionInitiated",
+    "orderPackageIndicator",
+    "orderPackageId",
+    "orderPackagePricetype",
+    "orderStrategyType",
+    "orderSecondaryOffering",
+    "orderStartTime",
+    "orderTifExpiration",
+    "orderParentChildType",
+    "orderMinimumQty",
+    "orderTradingSession",
+    "orderDisplayPrice",
+    "orderSeqNumber",
+    "atsDisplayIndicator",
+    "orderDisplayQty",
+    "orderWorkingPrice",
+    "atsOrderType",
+    "orderNbboSource",
+    "orderNbboTimestamp",
+    "orderSolicitationFlag",
+    "orderNetPrice",
+    "routeRejectedFlag",
+    "orderOriginationSystem",
+  ];
   
+  // Get failed orders with their error index
+  const failedOrders = [];
   Object.keys(errorsByIndex).forEach(index => {
     const order = ordersArray[parseInt(index)];
     if (order) {
       failedOrders.push({ ...order, _index: index });
-      Object.keys(order).forEach(key => fieldSet.add(key));
     }
-  });
-
-  // Sort fields to have orderId first
-  const fields = Array.from(fieldSet).sort((a, b) => {
-    if (a === 'orderId') return -1;
-    if (b === 'orderId') return 1;
-    return a.localeCompare(b);
   });
 
   // Add headers (all order fields + Error column)
@@ -786,8 +880,8 @@ const uploadOrders = async (req, res, next) => {
       message: "Orders uploaded successfully",
       batchId: batch.id,
       imported: result.count,
-      total: validOrders.length,
-      failed: validOrders.length - result.count,
+      total: ordersArray.length, // Total input records (valid + invalid)
+      failed: errors.length, // All validation failures
       errors: errors.length > 0 ? errors : undefined,
       errorFile: errorFile ? `/uploads/${errorFile}` : null,
     });
