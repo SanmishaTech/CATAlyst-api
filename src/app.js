@@ -28,30 +28,39 @@ app.use(
 );
 
 const allowedOriginsEnv = process.env.ALLOWED_ORIGINS;
-const allowedOrigins = allowedOriginsEnv
-  ? allowedOriginsEnv.split(",")
-  : ["http://localhost:5173", "http://18.138.7.88"];
+// Consolidated allowlist (can be overridden by ALLOWED_ORIGINS env, comma-separated)
+const defaultAllowedOrigins = [
+  "http://localhost:5000",
+  "http://localhost:3000",
+  "http://localhost:5173",
+  // deployed hostnames
+  "https://catalyst.3.7.237.251.sslip.io",
+  "https://catalystc.3.7.237.251.sslip.io",
+  // raw IP if needed
+  "http://18.138.7.88"
+];
+
+const allowedOriginsList = Array.from(
+  new Set([
+    ...defaultAllowedOrigins,
+    ...((allowedOriginsEnv ? allowedOriginsEnv.split(",") : [])
+      .map((o) => o.trim())
+      .filter(Boolean)),
+  ])
+);
 
 
-// CORS configuration: Allow all origins without credentials, or specify origins with credentials
+// CORS configuration: Allow specific origins (with credentials if needed)
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    // Allow Swagger UI and any development/production origins
-    const allowedOrigins = [
-      "http://localhost:5000",
-      "http://localhost:3000",
-      "http://localhost:5173",
-      "http://18.138.7.88",
-      "https://catalyst.3.7.237.251.sslip.io"
-    ];
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    // Check env-driven allowlist first
+    if (allowedOriginsList.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
-      // Allow Swagger UI from any origin since it's a development tool
+      // Allow localhost variants in development
       if (origin.includes("localhost") || origin.includes("127.0.0.1")) {
         callback(null, true);
       } else {
