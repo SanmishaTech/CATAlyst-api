@@ -594,7 +594,15 @@ const generateErrorExcel = async (ordersArray, errors) => {
   // Generate unique filename
   const timestamp = Date.now();
   const filename = `order-errors-${timestamp}.xlsx`;
-  const filepath = path.join('uploads', filename);
+  const uploadsDir = path.resolve(__dirname, '..', '..', 'uploads', 'excelerrors');
+  const filepath = path.join(uploadsDir, filename);
+
+  // Ensure uploads/excelerrors directory exists
+  try {
+    await fs.mkdir(uploadsDir, { recursive: true });
+  } catch (err) {
+    console.error('Failed to create uploads/excelerrors directory:', err);
+  }
 
   // Save file
   await workbook.xlsx.writeFile(filepath);
@@ -732,11 +740,13 @@ const uploadOrders = async (req, res, next) => {
 
     let ordersArray = [];
     let errors = [];
+    let fileNameForBatch = 'json upload';
 
     // Check if this is a file upload (Excel) or JSON body
     if (req.file) {
       // Excel file upload
       filePath = req.file.path;
+      fileNameForBatch = req.file.originalname || req.file.filename || 'json upload';
 
       // Parse Excel to JSON
       const parseResult = await parseExcelToJson(filePath);
@@ -753,6 +763,8 @@ const uploadOrders = async (req, res, next) => {
       if (!Array.isArray(ordersArray) || ordersArray.length === 0) {
         return next(createError(400, "Request body must contain an 'orders' array"));
       }
+      // For JSON uploads, we standardize the filename label
+      fileNameForBatch = 'json upload';
     } else {
       return next(createError(400, "Either file upload or JSON body with 'orders' array is required"));
     }
@@ -829,7 +841,7 @@ const uploadOrders = async (req, res, next) => {
         total: ordersArray.length,
         failed: errors.length,
         errors,
-        errorFile: errorFile ? `/uploads/${errorFile}` : null,
+        errorFile: errorFile ? `/uploads/excelerrors/${errorFile}` : null,
       });
     }
 
@@ -838,6 +850,7 @@ const uploadOrders = async (req, res, next) => {
       data: {
         userId,
         status: "processing",
+        fileName: fileNameForBatch,
       },
     });
 
@@ -865,6 +878,52 @@ const uploadOrders = async (req, res, next) => {
       },
     });
 
+    // Save rejected orders to database
+    if (errors.length > 0) {
+      try {
+        // Determine upload type (excel vs json)
+        const uploadType = req.file ? 'excel' : 'json';
+        
+        // Group errors by index to handle multiple errors per order
+        const errorsByIndex = {};
+        errors.forEach(err => {
+          if (!errorsByIndex[err.index]) {
+            errorsByIndex[err.index] = [];
+          }
+          errorsByIndex[err.index].push(err.error);
+        });
+        
+        // Prepare rejected orders data
+        const rejectedOrdersData = Object.keys(errorsByIndex).map(index => {
+          const idx = parseInt(index);
+          const orderData = ordersArray[idx];
+          const errorMessages = errorsByIndex[index];
+          
+          return {
+            batchId: batch.id,
+            userId: userId,
+            rowNumber: uploadType === 'excel' ? idx + 2 : null, // Excel row number (header is row 1)
+            jsonIndex: uploadType === 'json' ? idx : null, // JSON array index
+            orderId: orderData?.orderId || null,
+            rawData: orderData || null,
+            validationErrors: errorMessages,
+            uploadType: uploadType,
+          };
+        });
+        
+        // Insert rejected orders into database
+        await prisma.rejectedOrder.createMany({
+          data: rejectedOrdersData,
+          skipDuplicates: false,
+        });
+        
+        console.log(`[REJECTED ORDERS] Saved ${rejectedOrdersData.length} rejected orders to database`);
+      } catch (dbError) {
+        console.error('[REJECTED ORDERS] Failed to save rejected orders to database:', dbError);
+        // Don't fail the entire request if we can't save rejected orders
+      }
+    }
+
     // Generate error Excel file if there are validation errors
     let errorFile = null;
     if (errors.length > 0) {
@@ -883,7 +942,7 @@ const uploadOrders = async (req, res, next) => {
       total: ordersArray.length, // Total input records (valid + invalid)
       failed: errors.length, // All validation failures
       errors: errors.length > 0 ? errors : undefined,
-      errorFile: errorFile ? `/uploads/${errorFile}` : null,
+      errorFile: errorFile ? `/uploads/excelerrors/${errorFile}` : null,
     });
   } catch (error) {
     console.error("Upload error:", error);
@@ -1033,10 +1092,66 @@ const deleteOrder = async (req, res, next) => {
   }
 };
 
+// Get rejected orders for a batch
+const getRejectedOrders = async (req, res, next) => {
+  try {
+    const { batchId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const { page = 1, limit = 50 } = req.query;
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const take = parseInt(limit);
+
+    // Build where clause based on user role
+    const where = {
+      batchId: parseInt(batchId),
+    };
+
+    // Role-based filtering
+    if (userRole !== 'admin') {
+      // Non-admin users can only see their own rejected orders
+      where.userId = userId;
+    }
+
+    const [rejectedOrders, total] = await Promise.all([
+      prisma.rejectedOrder.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { createdAt: "desc" },
+        include: {
+          batch: {
+            select: {
+              id: true,
+              fileName: true,
+              createdAt: true,
+            },
+          },
+        },
+      }),
+      prisma.rejectedOrder.count({ where }),
+    ]);
+
+    res.json({
+      rejectedOrders,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / parseInt(limit)),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 module.exports = {
   uploadOrders,
   getOrders,
   getOrderById,
   deleteOrder,
+  getRejectedOrders,
 };

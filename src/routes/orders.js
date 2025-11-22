@@ -445,6 +445,79 @@ router.get("/", auth, orderController.getOrders);
 
 /**
  * @swagger
+ * /orders/rejected/{batchId}:
+ *   get:
+ *     summary: Get rejected orders for a batch
+ *     tags: [Orders]
+ *     description: |
+ *       Retrieve all rejected orders for a specific batch.
+ *       Shows row numbers (Excel) or JSON indexes with validation errors.
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: batchId
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Batch ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: Items per page
+ *     responses:
+ *       200:
+ *         description: List of rejected orders
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 rejectedOrders:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       batchId:
+ *                         type: integer
+ *                       rowNumber:
+ *                         type: integer
+ *                         description: Excel row number (if Excel upload)
+ *                       jsonIndex:
+ *                         type: integer
+ *                         description: JSON array index (if JSON upload)
+ *                       orderId:
+ *                         type: string
+ *                       rawData:
+ *                         type: object
+ *                         description: Raw order data that failed
+ *                       validationErrors:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         description: Array of validation error messages
+ *                       uploadType:
+ *                         type: string
+ *                         enum: [excel, json]
+ *                 pagination:
+ *                   type: object
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/rejected/:batchId", auth, orderController.getRejectedOrders);
+
+/**
+ * @swagger
  * /orders/{id}:
  *   get:
  *     summary: Get order by ID

@@ -80,6 +80,7 @@ model Batch {
   successfulOrders  Int       @default(0)
   failedOrders      Int       @default(0)
   status            String    @default("processing") // processing, completed, failed
+  fileName          String?   @db.VarChar(255)
   errorLog          String?   @db.Text
   validation_1      Boolean?  // null = not validated, false = failed, true = passed
   importedAt        DateTime  @default(now())
@@ -92,6 +93,7 @@ model Batch {
   orders            Order[]
   validations       Validation[]
   validationErrors  ValidationError[]
+  rejectedOrders    RejectedOrder[]
   
   @@index([userId])
   @@map("batches")
@@ -273,4 +275,26 @@ model PasswordReset {
   @@index([email])
   @@index([otp])
   @@map("password_resets")
+}
+
+model RejectedOrder {
+  id                Int      @id @default(autoincrement())
+  batchId           Int
+  userId            Int
+  rowNumber         Int?     // For Excel uploads - row number in Excel
+  jsonIndex         Int?     // For JSON uploads - index in JSON array
+  orderId           String?  @db.VarChar(128) // If available from failed data
+  rawData           Json?    // Store the raw order data that failed
+  validationErrors  Json     // Store validation error messages as JSON array
+  uploadType        String   @db.VarChar(10) // 'excel' or 'json'
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  // Relations
+  batch             Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  
+  @@index([batchId])
+  @@index([userId])
+  @@index([orderId])
+  @@map("rejected_orders")
 }
