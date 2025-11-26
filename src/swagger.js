@@ -1,6 +1,5 @@
 const swaggerJsdoc = require("swagger-jsdoc");
 const swaggerUi = require("swagger-ui-express");
-const { apiReference } = require("@scalar/express-api-reference");
 const express = require("express");
 
 const router = express.Router();
@@ -655,17 +654,21 @@ router.use(
   swaggerUi.setup(specs, swaggerUiOptions)
 );
 
-// Scalar API documentation
-router.use(
-  "/api-scalar",
-  apiReference({
-    spec: {
-      content: specs,
-    },
-    theme: "purple",
-    layout: "modern",
-    darkMode: true,
-  })
-);
+// Scalar API documentation (dynamic import to support ESM-only package)
+router.use("/api-scalar", async (req, res, next) => {
+  try {
+    const { apiReference } = await import("@scalar/express-api-reference");
+    return apiReference({
+      spec: {
+        content: specs,
+      },
+      theme: "purple",
+      layout: "modern",
+      darkMode: true,
+    })(req, res, next);
+  } catch (err) {
+    next(err);
+  }
+});
 
 module.exports = router;
