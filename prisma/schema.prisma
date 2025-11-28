@@ -260,6 +260,14 @@ model Order {
   @@index([userId])
   @@index([batchId])
   @@index([orderId])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([batchId, createdAt(sort: Desc)])
+  @@index([clientId, createdAt(sort: Desc)])
+  @@index([orderSymbol])
+  @@index([orderStatus])
+  @@index([orderSide])
+  @@index([userId, orderStatus])
+  @@index([clientId])
   @@map("orders")
 }
 

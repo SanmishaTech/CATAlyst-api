@@ -257,7 +257,7 @@ const parseIntValue = (value) => {
 // Helper function to validate and normalize order data using JSON validation logic
 const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
   const validationErrors = [];
-  
+
   // Validate enum fields and store normalized values
   const validatedEnumValues = {};
   const enumValidations = [
@@ -286,7 +286,7 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
     { field: 'orderInstrumentReference', enum: OrderInstrumentReference, name: 'Order_Instrument_Reference' },
     { field: 'orderActionInitiated', enum: OrderActionInitiated, name: 'Order_Action_Initiated' }
   ];
-  
+
   // Validate each enum field and store validated value
   enumValidations.forEach(({ field, enum: enumObj, name, required }) => {
     const value = orderData[field];
@@ -294,7 +294,7 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
       validationErrors.push(`${name} is required`);
       return;
     }
-    
+
     const validation = validateEnum(enumObj, value, name);
     if (!validation.valid) {
       validationErrors.push(validation.error);
@@ -303,12 +303,12 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
       validatedEnumValues[field] = validation.value;
     }
   });
-  
+
   // If validation errors exist, throw them
   if (validationErrors.length > 0) {
     throw new Error(validationErrors.join('; '));
   }
-  
+
   const order = {
     userId,
     batchId,
@@ -414,7 +414,7 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
     routeRejectedFlag: validatedEnumValues.routeRejectedFlag || null,
     orderOriginationSystem: orderData.orderOriginationSystem || null,
   };
-  
+
   return order;
 };
 
@@ -535,7 +535,7 @@ const generateErrorExcel = async (ordersArray, errors) => {
     "routeRejectedFlag",
     "orderOriginationSystem",
   ];
-  
+
   // Get failed orders with their error index
   const failedOrders = [];
   Object.keys(errorsByIndex).forEach(index => {
@@ -564,13 +564,13 @@ const generateErrorExcel = async (ordersArray, errors) => {
     fields.forEach(field => {
       rowData.push(order[field] !== undefined && order[field] !== null ? order[field] : '');
     });
-    
+
     // Add error messages (joined if multiple errors)
     const errorMessages = errorsByIndex[order._index].join('; ');
     rowData.push(errorMessages);
-    
+
     const row = worksheet.addRow(rowData);
-    
+
     // Highlight error column in red
     const errorCell = row.getCell(headers.length);
     errorCell.fill = {
@@ -606,7 +606,7 @@ const generateErrorExcel = async (ordersArray, errors) => {
 
   // Save file
   await workbook.xlsx.writeFile(filepath);
-  
+
   return filename;
 };
 
@@ -627,9 +627,10 @@ const parseExcelToJson = async (filePath) => {
     headers.push(headerValue);
   });
 
-  // Validate required fields
-  if (!headers.includes("orderid")) {
-    throw new Error("Excel file must contain 'orderid' column");
+  // Validate required fields - accept both camelCase and snake_case
+  const hasOrderId = headers.includes("orderid") || headers.includes("order_id");
+  if (!hasOrderId) {
+    throw new Error("Excel file must contain 'orderId' or 'order_id' column");
   }
 
   const orders = [];
@@ -714,7 +715,7 @@ const parseExcelToJson = async (filePath) => {
     if (orders.length === 0) {
       console.log('First order parsed:', JSON.stringify(orderData, null, 2));
     }
-    
+
     orders.push(orderData);
   });
 
@@ -726,10 +727,10 @@ const parseExcelToJson = async (filePath) => {
 const uploadOrders = async (req, res, next) => {
   let batch = null;
   let filePath = null;
-  
+
   try {
     const userId = req.user.id;
-    
+
     // Determine clientId based on user role
     let clientId = null;
     if (req.user.role === 'client') {
@@ -759,7 +760,7 @@ const uploadOrders = async (req, res, next) => {
     } else if (req.body.orders) {
       // Direct JSON upload
       ordersArray = req.body.orders;
-      
+
       if (!Array.isArray(ordersArray) || ordersArray.length === 0) {
         return next(createError(400, "Request body must contain an 'orders' array"));
       }
@@ -826,7 +827,7 @@ const uploadOrders = async (req, res, next) => {
       errors.forEach((err, idx) => {
         console.error(`  [${idx + 1}] Row ${err.index + 2}, OrderID: ${err.orderId || 'N/A'} - ${err.error}`);
       });
-      
+
       // Generate error Excel file
       let errorFile = null;
       try {
@@ -835,7 +836,7 @@ const uploadOrders = async (req, res, next) => {
       } catch (excelError) {
         console.error('[ERROR EXCEL] Failed to generate error Excel:', excelError);
       }
-      
+
       return res.status(400).json({
         message: "No valid orders found. Batch not created.",
         total: ordersArray.length,
@@ -883,7 +884,7 @@ const uploadOrders = async (req, res, next) => {
       try {
         // Determine upload type (excel vs json)
         const uploadType = req.file ? 'excel' : 'json';
-        
+
         // Group errors by index to handle multiple errors per order
         const errorsByIndex = {};
         errors.forEach(err => {
@@ -892,13 +893,13 @@ const uploadOrders = async (req, res, next) => {
           }
           errorsByIndex[err.index].push(err.error);
         });
-        
+
         // Prepare rejected orders data
         const rejectedOrdersData = Object.keys(errorsByIndex).map(index => {
           const idx = parseInt(index);
           const orderData = ordersArray[idx];
           const errorMessages = errorsByIndex[index];
-          
+
           return {
             batchId: batch.id,
             userId: userId,
@@ -910,13 +911,13 @@ const uploadOrders = async (req, res, next) => {
             uploadType: uploadType,
           };
         });
-        
+
         // Insert rejected orders into database
         await prisma.rejectedOrder.createMany({
           data: rejectedOrdersData,
           skipDuplicates: false,
         });
-        
+
         console.log(`[REJECTED ORDERS] Saved ${rejectedOrdersData.length} rejected orders to database`);
       } catch (dbError) {
         console.error('[REJECTED ORDERS] Failed to save rejected orders to database:', dbError);
@@ -946,7 +947,7 @@ const uploadOrders = async (req, res, next) => {
     });
   } catch (error) {
     console.error("Upload error:", error);
-    
+
     // Update batch as failed if it was created
     if (batch) {
       try {
@@ -962,7 +963,7 @@ const uploadOrders = async (req, res, next) => {
         console.error("Failed to update batch:", updateError);
       }
     }
-    
+
     // Clean up file if it exists
     if (filePath) {
       try {
@@ -971,20 +972,33 @@ const uploadOrders = async (req, res, next) => {
         console.error("Failed to delete file:", unlinkError);
       }
     }
-    
+
     next(error);
   }
 };
 
-// Get all orders for the authenticated user
+// Get all orders for the authenticated user - Optimized for millions of records
 const getOrders = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const userRole = req.user.role;
-    const { page = 1, limit = 50, orderId, orderStatus, batchId, clientId } = req.query;
+    const {
+      page = 1,
+      limit = 50,
+      cursor,
+      orderId,
+      orderStatus,
+      orderSymbol,
+      orderSide,
+      batchId,
+      clientId,
+      sortBy = 'createdAt',
+      sortOrder = 'desc'
+    } = req.query;
 
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const take = parseInt(limit);
+    // Cap limit to prevent abuse
+    const take = Math.min(parseInt(limit), 100);
+    const skip = cursor ? 0 : (parseInt(page) - 1) * take;
 
     // Build where clause based on user role and filters
     const where = {};
@@ -1014,29 +1028,79 @@ const getOrders = async (req, res, next) => {
     if (orderStatus) {
       where.orderStatus = orderStatus;
     }
+    if (orderSymbol) {
+      where.orderSymbol = { contains: orderSymbol };
+    }
+    if (orderSide) {
+      where.orderSide = orderSide;
+    }
     if (batchId) {
       where.batchId = parseInt(batchId);
     }
 
-    const [orders, total] = await Promise.all([
-      prisma.order.findMany({
-        where,
-        skip,
-        take,
-        orderBy: { createdAt: "desc" },
-      }),
-      prisma.order.count({ where }),
-    ]);
+    // Build orderBy clause (support multiple fields)
+    const orderBy = {};
+    const validSortFields = [
+      'id', 'createdAt', 'orderId', 'orderSymbol', 'orderStatus',
+      'orderSide', 'orderPrice', 'orderQuantity', 'orderType', 'batchId'
+    ];
 
-    res.json({
+    if (validSortFields.includes(sortBy)) {
+      orderBy[sortBy] = sortOrder === 'asc' ? 'asc' : 'desc';
+    } else {
+      orderBy.createdAt = 'desc';
+    }
+
+    // Cursor-based pagination for better performance
+    const queryOptions = {
+      where,
+      take: take + 1, // Fetch one extra to check if there's a next page
+      orderBy,
+    };
+
+    // Add cursor if provided (for infinite scroll)
+    if (cursor) {
+      queryOptions.cursor = {
+        id: parseInt(cursor)
+      };
+      queryOptions.skip = 1; // Skip the cursor
+    } else {
+      queryOptions.skip = skip;
+    }
+
+    // Execute query
+    const orders = await prisma.order.findMany(queryOptions);
+
+    // Check if there's a next page
+    const hasMore = orders.length > take;
+    if (hasMore) {
+      orders.pop(); // Remove the extra record
+    }
+
+    // Get total count only on first page (expensive operation)
+    let total = null;
+    if (!cursor && page === 1) {
+      total = await prisma.order.count({ where });
+    }
+
+    // Response with cursor pagination support
+    const response = {
       orders,
       pagination: {
         page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit)),
+        limit: take,
+        hasMore,
+        nextCursor: hasMore && orders.length > 0 ? orders[orders.length - 1].id : null,
       },
-    });
+    };
+
+    // Add total only if available
+    if (total !== null) {
+      response.pagination.total = total;
+      response.pagination.pages = Math.ceil(total / take);
+    }
+
+    res.json(response);
   } catch (error) {
     next(error);
   }
