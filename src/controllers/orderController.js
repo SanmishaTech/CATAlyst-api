@@ -52,6 +52,8 @@ const fieldMapping = {
   cancelreplace_order_id: "cancelreplaceOrderId",
   linkedorderid: "linkedOrderId",
   linked_order_id: "linkedOrderId",
+  linkordertype: "linkOrderType",
+  link_order_type: "linkOrderType",
   orderaction: "orderAction",
   order_action: "orderAction",
   orderstatus: "orderStatus",
@@ -304,6 +306,11 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
     }
   });
 
+  // Validate conditional field: linkOrderType is required when linkedOrderId is present
+  if ((orderData.linkedOrderId || null) !== null && (orderData.linkOrderType === undefined || orderData.linkOrderType === null || orderData.linkOrderType === '')) {
+    validationErrors.push('Link_Order_Type is required when Linked_Order_ID is provided');
+  }
+
   // If validation errors exist, throw them
   if (validationErrors.length > 0) {
     throw new Error(validationErrors.join('; '));
@@ -320,6 +327,7 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
     parentOrderId: orderData.parentOrderId || null,
     cancelreplaceOrderId: orderData.cancelreplaceOrderId || orderData.cancelReplaceOrderId || null,
     linkedOrderId: orderData.linkedOrderId || null,
+    linkOrderType: orderData.linkOrderType || null,
     orderAction: validatedEnumValues.orderAction || null,
     orderStatus: validatedEnumValues.orderStatus || null,
     orderCapacity: validatedEnumValues.orderCapacity || null,
@@ -441,6 +449,7 @@ const generateErrorExcel = async (ordersArray, errors) => {
     "parentOrderId",
     "cancelreplaceOrderId",
     "linkedOrderId",
+    "linkOrderType",
     "orderAction",
     "orderStatus",
     "orderCapacity",
@@ -534,6 +543,7 @@ const generateErrorExcel = async (ordersArray, errors) => {
     "orderNetPrice",
     "routeRejectedFlag",
     "orderOriginationSystem",
+    "linkOrderType",
   ];
 
   // Get failed orders with their error index
@@ -855,9 +865,34 @@ const uploadOrders = async (req, res, next) => {
       },
     });
 
-    // Add batchId to all valid orders
+    // List of enum fields that need to be converted to strings
+    const enumFields = [
+      'orderAction', 'orderStatus', 'orderCapacity', 'orderClientCapacity', 
+      'orderSide', 'orderManualIndicator', 'orderType', 'orderTimeInforce',
+      'orderExecutionInstructions', 'orderAttributes', 'orderRestrictions',
+      'orderAuctionIndicator', 'orderSwapIndicator', 'orderOptionPutCall',
+      'orderOptionLegIndicator', 'orderNegotiatedIndicator', 'orderOpenClose',
+      'orderPackageIndicator', 'orderSecondaryOffering', 'orderParentChildType',
+      'orderTradingSession', 'orderInstrumentReference', 'orderActionInitiated',
+      'orderFlowType', 'atsDisplayIndicator', 'orderSolicitationFlag',
+      'routeRejectedFlag'
+    ];
+
+    // Add batchId to all valid orders, convert enum fields to strings, and convert orderIdSession to string
     validOrders.forEach(order => {
       order.batchId = batch.id;
+      
+      // Convert all enum fields from integers to strings
+      enumFields.forEach(field => {
+        if (order[field] !== null && order[field] !== undefined && order[field] !== '') {
+          order[field] = String(order[field]);
+        }
+      });
+      
+      // Convert orderIdSession to string (accept both int and string, max 16 chars)
+      if (order.orderIdSession !== null && order.orderIdSession !== undefined) {
+        order.orderIdSession = String(order.orderIdSession).substring(0, 16);
+      }
     });
 
     // Insert orders into database

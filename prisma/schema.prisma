@@ -27,6 +27,7 @@ model User {
   client            Client?   @relation("ClientUsers", fields: [clientId], references: [id], onDelete: Cascade)
   batches           Batch[]
   orders            Order[]
+  executions        Execution[]
   
   @@index([clientId])
   @@map("users")
@@ -91,6 +92,7 @@ model Batch {
   // Relations
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   orders            Order[]
+  executions        Execution[]
   validations       Validation[]
   validationErrors  ValidationError[]
   rejectedOrders    RejectedOrder[]
@@ -154,6 +156,7 @@ model Order {
   parentOrderId                   String?   @db.VarChar(128)
   cancelreplaceOrderId            String?   @db.VarChar(128)
   linkedOrderId                   String?   @db.VarChar(128)
+  linkOrderType                   String?   @db.VarChar(128)  // Link Identifier - conditional (required when linkedOrderId is not null)
   orderAction                     String    @db.VarChar(50)
   orderStatus                     String?   @db.VarChar(48)
   orderCapacity                   String    @db.VarChar(48)
@@ -305,4 +308,103 @@ model RejectedOrder {
   @@index([userId])
   @@index([orderId])
   @@map("rejected_orders")
+}
+
+model Execution {
+  id                              Int       @id @default(autoincrement())
+  userId                          Int
+  batchId                         Int
+  clientId                        String?
+  
+  // Execution fields (72 total)
+  executionId                     String?   @db.VarChar(128)
+  previousExecutionId             String?   @db.VarChar(128)
+  executionEntityId               String    @db.VarChar(128)
+  executionVersion                Int?
+  executionSeqNumber              String    @db.VarChar(128)
+  externalExecutionId             String?   @db.VarChar(128)
+  executionSide                   String?   @db.VarChar(50)
+  executionPostingSide            String?   @db.VarChar(50)
+  executionAllocationSide         String?   @db.VarChar(50)
+  executionBrokerCapacity         String    @db.VarChar(50)
+  executionCapacity               String?   @db.VarChar(50)
+  executionEventTime              String?   @db.VarChar(50)
+  executionTime                   String?   @db.VarChar(50)
+  executionManualIndicator        String    @db.VarChar(50)
+  executionManualEventTime        String?   @db.VarChar(50)
+  isMarketExecution               String    @db.VarChar(50)
+  executionLastMarket             String?   @db.VarChar(48)
+  executionAccount                Int?
+  executionBookingAccount         Int?
+  executionBookingEntity          Int?
+  executionTradingEntity          Int?
+  executionDeskId                 String?   @db.VarChar(48)
+  executionOsi                    String?   @db.VarChar(128)
+  executionInstrumentId           Int?
+  executionLinkedInstrumentId     Int?
+  executionSymbol                 String    @db.VarChar(64)
+  executionInstrumentReference    String?   @db.VarChar(24)
+  executionInstrumentReferenceValue String? @db.VarChar(64)
+  executionLastPrice              Decimal?  @db.Decimal(18, 6)
+  executionLastQuantity           Decimal?  @db.Decimal(18, 6)
+  executionContraBroker           String    @db.VarChar(48)
+  linkedExecutionId               String?   @db.VarChar(128)
+  executionTransactionType        String    @db.VarChar(50)
+  executionIdInstance             String    @db.VarChar(64)
+  executionSession                String?   @db.VarChar(16)
+  executionOrderIdInstance        String?   @db.VarChar(64)
+  executionOrderIdSession         String?   @db.VarChar(16)
+  executonOrderId                 String    @db.VarChar(128)
+  executionOrderIdVersion         Int?
+  executionTradeExecutionSystem   String    @db.VarChar(64)
+  executionOmsSource              String?   @db.VarChar(64)
+  executionBookingEligiblity      String?   @db.VarChar(50)
+  executionTradeDate              String    @db.VarChar(50)
+  executionCurrencyId             String    @db.VarChar(32)
+  executionPositionId             Int?
+  executionSwapIndicator          String?   @db.VarChar(50)
+  executionSettleDate             String?   @db.VarChar(50)
+  executionCommisionFee           Decimal?  @db.Decimal(18, 6)
+  executionRollupId               String?   @db.VarChar(128)
+  executionSecondaryOffering      String    @db.VarChar(50)
+  executionCumQuantity            Decimal?  @db.Decimal(18, 6)
+  executionTradeFactors           Decimal?  @db.Decimal(18, 6)
+  executionRiskDate               String?   @db.VarChar(50)
+  executionOrderComplianceId      String?   @db.VarChar(128)
+  executionInfoBarrierId          String?   @db.VarChar(128)
+  executonSessionActual           String    @db.VarChar(50)
+  executionStrategy               String?   @db.VarChar(64)
+  executionLastLiquidityIndicator String?   @db.VarChar(50)
+  executionWaiverIndicator        String?   @db.VarChar(50)
+  executionLifecycleType          String?   @db.VarChar(50)
+  executionPackageIndicator       String?   @db.VarChar(50)
+  executionRawLiquidityIndicator  String?   @db.VarChar(50)
+  executionPackageId              String?   @db.VarChar(128)
+  executionQuoteId                String?   @db.VarChar(128)
+  executionYield                  Decimal?  @db.Decimal(18, 6)
+  executionSpread                 Decimal?  @db.Decimal(18, 6)
+  executionNegotiatedIndicator    String?   @db.VarChar(50)
+  executionOpenCloseIndicator     String?   @db.VarChar(50)
+  exchangeExecId                  String?   @db.VarChar(128)
+  executionAction                 String?   @db.VarChar(50)
+  executionCrossId                String?   @db.VarChar(128)
+  executionExecutingEntity        Int?
+  
+  createdAt                       DateTime  @default(now())
+  updatedAt                       DateTime  @updatedAt
+  
+  // Relations
+  user                            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  batch                           Batch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([batchId])
+  @@index([executionEntityId])
+  @@index([executionSeqNumber])
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([batchId, createdAt(sort: Desc)])
+  @@index([clientId, createdAt(sort: Desc)])
+  @@index([executionSymbol])
+  @@index([clientId])
+  @@map("executions")
 }

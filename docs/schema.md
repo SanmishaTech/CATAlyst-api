@@ -32,15 +32,15 @@
   },
   "orderAction": {
     "type": "enum",
-    "values": ["Order Requested", "Order Request Accepted", "Order Internal Route", "Order Internal Route Acknowledged", "Order External Route", "Order External Route Acknowledged", "Order Canceled", "Order Replaced", "Order Replace - Client Requested", "Order Replace - Client Request Accepted", "Order Cancel - Client Requested", "Order Cancel - Client Request Accepted", "Order Expired", "Order External Route", "Order Externally Routed Accepted", "Order Rejected", "Order Suspended", "Done for day"]
+    "values": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
   },
   "orderStatus": {
     "type": "enum",
-    "values": ["Open", "Canceled", "Replaced", "Done for day", "Expired", "Rejected", "Partially filled", "Filled"]
+    "values": [1, 2, 3, 4, 5, 6, 7, 8]
   },
   "orderCapacity": {
     "type": "enum",
-    "values": ["Agency", "Proprietary", "Individual", "Principal", "Riskless Principal", "Agent for Other Member"]
+    "values": [1, 2, 3, 4, 5, 6]
   },
   "orderDestination": {
     "type": "string",
@@ -70,15 +70,15 @@
   },
   "orderSide": {
     "type": "enum",
-    "values": ["Buy", "Sell Long", "Buy Minus", "Sell Plus", "Sell Short", "Sell Short Exempt"]
+    "values": [1, 2, 3, 4, 5, 6]
   },
   "orderClientCapacity": {
     "type": "enum",
-    "values": ["Agency", "Proprietary", "Individual", "Principal", "Riskless Principal", "Agent for Other Member"]
+    "values": [1, 2, 3, 4, 5, 6]
   },
   "orderManualIndicator": {
     "type": "enum",
-    "values": ["Manual", "Electronic"]
+    "values": [1, 2]
   },
   "orderRequestTime": {
     "type": "date"
@@ -112,11 +112,11 @@
   },
   "orderType": {
     "type": "enum",
-    "values": ["Market", "Limit", "Stop Loss", "Stop Limit", "Market On Close", "Pegged", "Forex Swap"]
+    "values": [1, 2, 3, 4, 5, 6, 7]
   },
   "orderTimeInforce": {
     "type": "enum",
-    "values": ["Day", "Good Till Cancel", "At the Opening", "Immediate Or Cancel", "Fill Or Kill", "Good Till Crossing", "Good Till Date", "At the Close"]
+    "values": [1, 2, 3, 4, 5, 6, 7, 8]
   },
   "orderExecutionInstructions": {
     "type": "string",
@@ -135,7 +135,7 @@
   },
   "orderAuctionIndicator": {
     "type": "enum",
-    "values": ["None", "AOK", "APCM", "AUC"],
+    "values": [1, 2, 3, 4],
     "optional": true,
     "nullable": true
   },
@@ -166,7 +166,7 @@
   },
   "orderFlowType": {
     "type": "enum",
-    "values": ["DMA", "Algo", "Sponsored Access"]
+    "values": [1, 2, 3]
   },
   "orderAlgoInstruction": {
     "type": "string",
@@ -189,7 +189,7 @@
   },
   "orderOptionPutCall": {
     "type": "enum",
-    "values": ["Call", "Put"],
+    "values": [1, 2, 3],
     "optional": true,
     "nullable": true
   },
@@ -200,7 +200,7 @@
   },
   "orderOptionLegIndicator": {
     "type": "enum",
-    "values": ["None", "Package", "Leg"],
+    "values": [1, 2, 3],
     "optional": true,
     "nullable": true
   },
@@ -356,13 +356,13 @@
   },
   "orderActionInitiated": {
     "type": "enum",
-    "values": ["Firm", "Exchange", "Client", "Broker"],
+    "values": [1, 2, 3, 4],
     "optional": true,
     "nullable": true
   },
   "orderPackageIndicator": {
     "type": "enum",
-    "values": ["None", "Package", "Leg"],
+    "values": [1, 2, 3],
     "optional": true,
     "nullable": true
   },
@@ -383,7 +383,7 @@
   },
   "orderSecondaryOffering": {
     "type": "enum",
-    "values": ["None", "PREIPO", "POSTIPO", "IPO"],
+    "values": [1, 2, 3, 4],
     "optional": true,
     "nullable": true
   },
@@ -409,7 +409,7 @@
   },
   "orderTradingSession": {
     "type": "enum",
-    "values": ["PRE-OPEN", "AFTER-HOURS", "CROSS_2", "TOSTNET", "TOSTNET2", "ALL", "DAY", "PRE-SESSION", "POST-SESSION"],
+    "values": [1, 2, 3, 4, 5, 6, 7, 8, 9],
     "optional": true,
     "nullable": true
   },

@@ -4,269 +4,269 @@
  */
 
 const OrderAction = {
-  orderRequested: "Order Requested",
-  orderRequestAccepted: "Order Request Accepted",
-  orderInternalRoute: "Order Internal Route",
-  orderInternalRouteAcknowledged: "Order Internal Route Acknowledged",
-  orderExternalRoute: "Order External Route",
-  orderExternalRouteAcknowledged: "Order External Route Acknowledged",
-  orderCanceled: "Order Canceled",
-  orderReplaced: "Order Replaced",
-  orderReplaceClientRequested: "Order Replace - Client Requested",
-  orderReplaceClientRequestAccepted: "Order Replace - Client Request Accepted",
-  orderCancelClientRequested: "Order Cancel - Client Requested",
-  orderCancelClientRequestAccepted: "Order Cancel - Client Request Accepted",
-  orderExpired: "Order Expired",
-  orderExternalRoute2: "Order External Route",
-  orderExternallyRoutedAccepted: "Order Externally Routed Accepted",
-  orderRejected: "Order Rejected",
-  orderSuspended: "Order Suspended",
-  doneForDay: "Done for day"
+  1: "Order Requested",
+  2: "Order Request Accepted",
+  3: "Order Internal Route",
+  4: "Order Internal Route Acknowledged",
+  5: "Order External Route",
+  6: "Order External Route Acknowledged",
+  7: "Order Canceled",
+  8: "Order Replaced",
+  9: "Order Replace - Client Requested",
+  10: "Order Replace - Client Request Accepted",
+  11: "Order Cancel - Client Requested",
+  12: "Order Cancel - Client Request Accepted",
+  13: "Order Expired",
+  14: "Order External Route",
+  15: "Order Externally Routed Accepted",
+  16: "Order Rejected",
+  17: "Order Suspended",
+  18: "Done for day"
 };
 
 const OrderStatus = {
-  open: "Open",
-  canceled: "Canceled",
-  replaced: "Replaced",
-  doneForDay: "Done for day",
-  expired: "Expired",
-  rejected: "Rejected",
-  partiallyFilled: "Partially filled",
-  filled: "Filled"
+  1: "Open",
+  2: "Canceled",
+  3: "Replaced",
+  4: "Done for day",
+  5: "Expired",
+  6: "Rejected",
+  7: "Partially filled",
+  8: "Filled"
 };
 
 const OrderCapacity = {
-  agency: "Agency",
-  proprietary: "Proprietary",
-  individual: "Individual",
-  principal: "Principal",
-  risklessPrincipal: "Riskless Principal",
-  agentForOtherMember: "Agent for Other Member"
+  1: "Agency",
+  2: "Proprietary",
+  3: "Individual",
+  4: "Principal",
+  5: "Riskless Principal",
+  6: "Agent for Other Member"
 };
 
 const OrderClientCapacity = {
-  agency: "Agency",
-  proprietary: "Proprietary",
-  individual: "Individual",
-  principal: "Principal",
-  risklessPrincipal: "Riskless Principal",
-  agentForOtherMember: "Agent for Other Member"
+  1: "Agency",
+  2: "Proprietary",
+  3: "Individual",
+  4: "Principal",
+  5: "Riskless Principal",
+  6: "Agent for Other Member"
 };
 
 const OrderSide = {
-  buy: "Buy",
-  sellLong: "Sell Long",
-  buyMinus: "Buy Minus",
-  sellPlus: "Sell Plus",
-  sellShort: "Sell Short",
-  sellShortExempt: "Sell Short Exempt"
+  1: "Buy",
+  2: "Sell Long",
+  3: "Buy Minus",
+  4: "Sell Plus",
+  5: "Sell Short",
+  6: "Sell Short Exempt"
 };
 
 const OrderManualIndicator = {
-  manual: "Manual",
-  electronic: "Electronic"
+  1: "Manual",
+  2: "Electronic"
 };
 
 const OrderType = {
-  market: "Market",
-  limit: "Limit",
-  stopLoss: "Stop Loss",
-  stopLimit: "Stop Limit",
-  marketOnClose: "Market On Close",
-  pegged: "Pegged",
-  forexSwap: "Forex Swap"
+  1: "Market",
+  2: "Limit",
+  3: "Stop Loss",
+  4: "Stop Limit",
+  5: "Market On Close",
+  6: "Pegged",
+  7: "Forex Swap"
 };
 
 const OrderTimeInforce = {
-  day: "Day",
-  goodTillCancel: "Good Till Cancel",
-  atTheOpening: "At the Opening",
-  immediateOrCancel: "Immediate Or Cancel",
-  fillOrKill: "Fill Or Kill",
-  goodTillCrossing: "Good Till Crossing",
-  goodTillDate: "Good Till Date",
-  atTheClose: "At the Close"
+  1: "Day",
+  2: "Good Till Cancel",
+  3: "At the Opening",
+  4: "Immediate Or Cancel",
+  5: "Fill Or Kill",
+  6: "Good Till Crossing",
+  7: "Good Till Date",
+  8: "At the Close"
 };
 
 const OrderAuctionIndicator = {
-  none: "None",
-  aok: "AOK",
-  apcm: "APCM",
-  auc: "AUC"
+  1: "None",
+  2: "AOK",
+  3: "APCM",
+  4: "AUC"
 };
 
 const OrderSwapIndicator = {
-  none: "None",
-  cash: "Cash",
-  swap: "Swap"
+  1: "None",
+  2: "Cash",
+  3: "Swap"
 };
 
 const OrderOptionPutCall = {
-  none: "None",
-  put: "Put",
-  call: "Call"
+  1: "None",
+  2: "Put",
+  3: "Call"
 };
 
 const OrderOptionLegIndicator = {
-  none: "None",
-  package: "Package",
-  leg: "Leg"
+  1: "None",
+  2: "Package",
+  3: "Leg"
 };
 
 const OrderNegotiatedIndicator = {
-  y: "Y",
-  n: "N"
+  1: "Y",
+  2: "N"
 };
 
 const OrderOpenClose = {
-  none: "None",
-  open: "Open",
-  close: "Close"
+  1: "None",
+  2: "Open",
+  3: "Close"
 };
 
 const OrderPackageIndicator = {
-  none: "None",
-  package: "Package",
-  leg: "Leg"
+  1: "None",
+  2: "Package",
+  3: "Leg"
 };
 
 const OrderSecondaryOffering = {
-  none: "None",
-  preipo: "PREIPO",
-  postipo: "POSTIPO",
-  ipo: "IPO"
+  1: "None",
+  2: "PREIPO",
+  3: "POSTIPO",
+  4: "IPO"
 };
 
 const OrderParentChildType = {
-  p: "P",
-  c: "C",
-  n: "N"
+  1: "P",
+  2: "C",
+  3: "N"
 };
 
 const OrderTradingSession = {
-  preOpen: "PRE-OPEN",
-  afterHours: "AFTER-HOURS",
-  cross2: "CROSS_2",
-  tostnet: "TOSTNET",
-  tostnet2: "TOSTNET2",
-  all: "ALL",
-  day: "DAY",
-  preSession: "PRE-SESSION",
-  postSession: "POST-SESSION"
+  1: "PRE-OPEN",
+  2: "AFTER-HOURS",
+  3: "CROSS_2",
+  4: "TOSTNET",
+  5: "TOSTNET2",
+  6: "ALL",
+  7: "DAY",
+  8: "PRE-SESSION",
+  9: "POST-SESSION"
 };
 
 const AtsDisplayIndicator = {
-  y: "Y",
-  n: "N"
+  1: "Y",
+  2: "N"
 };
 
 const OrderSolicitationFlag = {
-  y: "Y",
-  n: "N"
+  1: "Y",
+  2: "N"
 };
 
 const RouteRejectedFlag = {
-  none: "None",
-  y: "Y",
-  n: "N"
+  1: "None",
+  2: "Y",
+  3: "N"
 };
 
 const ExecutionSide = {
-  buy: "Buy",
-  sellLong: "Sell Long",
-  buyMinus: "Buy Minus",
-  sellPlus: "Sell Plus",
-  sellShort: "Sell Short",
-  sellShortExempt: "Sell Short Exempt"
+  1: "Buy",
+  2: "Sell Long",
+  3: "Buy Minus",
+  4: "Sell Plus",
+  5: "Sell Short",
+  6: "Sell Short Exempt"
 };
 
 const OrderExecutionInstructions = {
-  stayOnOfferSide: "Stay on offer side",
-  notHeld: "Not Held",
-  work: "Work",
-  goAlong: "Go along",
-  overTheDay: "Over the day",
-  held: "Held",
-  participateDoNtInitiate: "Participate do nt initiate",
-  strictScale: "Strict scale",
-  tryToScale: "Try to scale",
-  stayOnBidSide: "Stay on bid side",
-  noCross: "No cross",
-  okToCross: "OK to cross",
-  callFirst: "Call first",
-  percentOfVolume: "Percent of volume",
-  doNotIncrease: "Do not increase",
-  doNotReduce: "Do not reduce",
-  allOrNone: "All or none",
-  reinstateOnSystemFailue: "Reinstate on System Failue",
-  institutionsOnly: "Institutions only",
-  reinstateOnTradingHalt: "Reinstate on Trading Halt",
-  cancelOnTradingHalt: "Cancel on Trading Halt",
-  nonNegotiable: "Non-negotiable",
-  cancelOnSystemFailure: "Cancel on system failure",
-  suspend: "Suspend",
-  customerDisplayInstruction: "Customer Display Instruction",
-  netting: "Netting",
-  tradeAlong: "Trade Along",
-  tryToStop: "Try To Stop",
-  cancelIfNotBest: "Cancel if not best",
-  strictLimit: "Strict Limit",
-  ignorePriceValidityChecks: "Ignore Price Validity Checks",
-  workToTargetStrategy: "Work to Target Strategy",
-  intermarketSweep: "Intermarket Sweep",
-  externalRoutingAllowed: "External Routing Allowed",
-  externalRoutingNotAllowed: "External Routing Not Allowed",
-  imbalanceOnly: "Imbalance Only",
-  singleExecutionRequestedForBlockTrade: "Single execution requested for block trade",
-  bestExecution: "Best Execution"
+  1: "Stay on offer side",
+  2: "Not Held",
+  3: "Work",
+  4: "Go along",
+  5: "Over the day",
+  6: "Held",
+  7: "Participate do nt initiate",
+  8: "Strict scale",
+  9: "Try to scale",
+  10: "Stay on bid side",
+  11: "No cross",
+  12: "OK to cross",
+  13: "Call first",
+  14: "Percent of volume",
+  15: "Do not increase",
+  16: "Do not reduce",
+  17: "All or none",
+  18: "Reinstate on System Failue",
+  19: "Institutions only",
+  20: "Reinstate on Trading Halt",
+  21: "Cancel on Trading Halt",
+  22: "Non-negotiable",
+  23: "Cancel on system failure",
+  24: "Suspend",
+  25: "Customer Display Instruction",
+  26: "Netting",
+  27: "Trade Along",
+  28: "Try To Stop",
+  29: "Cancel if not best",
+  30: "Strict Limit",
+  31: "Ignore Price Validity Checks",
+  32: "Work to Target Strategy",
+  33: "Intermarket Sweep",
+  34: "External Routing Allowed",
+  35: "External Routing Not Allowed",
+  36: "Imbalance Only",
+  37: "Single execution requested for block trade",
+  38: "Best Execution"
 };
 
 const OrderAttributes = {
-  aggregatedOrder: "Aggregated order",
-  orderPendingAllocation: "Order pending allocation",
-  liquidityProvisionActivityOrder: "Liquidity provision activity order",
-  riskReductionOrder: "Risk reduction order",
-  algorithmicOrder: "Algorithmic order",
-  systemicInternaliserOrder: "Systemic internaliser order",
-  allExecutionsForTheOrderAreToBeSubmittedToAnApa: "All executions for the order are to be submitted to an APA",
-  orderExecutionInstructedByClient: "Order execution instructed by client",
-  largeInScaleOrder: "Large in scale order",
-  hiddenOrder: "Hidden order",
-  subjectToEuShareTradingObligation: "Subject to EU share trading obligation",
-  subjectToUkShareTradingObligationRepresentativeOrder: "Subject to UK share trading obligation Representative order",
-  orderWasOriginatedToRepresentAnOrderReceivedByTheBrokerFromACustomerClient: "Order was originated to represent an order received by the broker from a customer/client",
-  linkageType: "Linkage type",
-  exemptFromShareTradingObligation: "Exempt from share trading obligation"
+  1: "Aggregated order",
+  2: "Order pending allocation",
+  3: "Liquidity provision activity order",
+  4: "Risk reduction order",
+  5: "Algorithmic order",
+  6: "Systemic internaliser order",
+  7: "All executions for the order are to be submitted to an APA",
+  8: "Order execution instructed by client",
+  9: "Large in scale order",
+  10: "Hidden order",
+  11: "Subject to EU share trading obligation",
+  12: "Subject to UK share trading obligation Representative order",
+  13: "Order was originated to represent an order received by the broker from a customer/client",
+  14: "Linkage type",
+  15: "Exempt from share trading obligation"
 };
 
 const OrderRestrictions = {
-  programTrade: "Program Trade",
-  indexArbitrage: "Index Arbitrage",
-  nonIndexArbitrage: "Non-Index Arbitrage",
-  marketMaker: "Market Maker",
-  foreignEntity: "Foreign Entity",
-  externalMarketParticipant: "External Market Participant",
-  risklessArbitrage: "Riskless Arbitrage"
+  1: "Program Trade",
+  2: "Index Arbitrage",
+  3: "Non-Index Arbitrage",
+  4: "Market Maker",
+  5: "Foreign Entity",
+  6: "External Market Participant",
+  7: "Riskless Arbitrage"
 };
 
 const OrderInstrumentReference = {
-  cusip: "CUSIP",
-  sedol: "SEDOL",
-  isin: "ISIN",
-  ricCode: "RIC Code"
+  1: "CUSIP",
+  2: "SEDOL",
+  3: "ISIN",
+  4: "RIC Code"
 };
 
 const OrderActionInitiated = {
-  firm: "Firm",
-  exchange: "Exchange",
-  client: "Client",
-  broker: "Broker"
+  1: "Firm",
+  2: "Exchange",
+  3: "Client",
+  4: "Broker"
 };
 
 const OrderFlowType = {
-  dma: "DMA",
-  algo: "Algo",
-  sponsoredAccess: "Sponsored Access"
+  1: "DMA",
+  2: "Algo",
+  3: "Sponsored Access"
 };
 
 // Helper function to validate enum value
@@ -275,21 +275,26 @@ const validateEnum = (enumObj, value, enumName) => {
     return { valid: true, value: null };
   }
 
-  // Convert to string for comparison
-  const strValue = value.toString().trim();
-  
-  // Check if value matches an enum name (case-insensitive)
-  const validValues = Object.values(enumObj);
-  for (const validValue of validValues) {
-    if (validValue.toLowerCase() === strValue.toLowerCase()) {
-      return { valid: true, value: validValue };
+  // Convert to number if it's a string that looks like a number
+  let numValue = value;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = parseInt(value.trim(), 10);
+    if (!isNaN(parsed)) {
+      numValue = parsed;
     }
+  }
+  
+  // Check if value matches an enum key (numeric)
+  const validKeys = Object.keys(enumObj).map(k => parseInt(k, 10));
+  if (validKeys.includes(numValue)) {
+    return { valid: true, value: numValue };
   }
 
   // Invalid value - return error with valid options
+  const validOptions = validKeys.join(", ");
   return { 
     valid: false, 
-    error: `Invalid ${enumName} value: "${value}". Must be one of: ${validValues.join(", ")}`
+    error: `Invalid ${enumName} value: "${value}". Must be one of: ${validOptions}`
   };
 };
 

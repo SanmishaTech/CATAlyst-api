@@ -12,6 +12,7 @@ const clientRoutes = require("./routes/clients");
 const authRoutes = require("./routes/auth");
 const orderRoutes = require("./routes/orders");
 const batchRoutes = require("./routes/batches");
+const executionRoutes = require("./routes/executions");
 const enumRoutes = require("./routes/enums");
 const swaggerRouter = require("./swagger");
 
@@ -122,6 +123,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/clients", clientRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/batches", batchRoutes);
+app.use("/api/executions", executionRoutes);
 app.use("/api/enums", enumRoutes);
 app.use(swaggerRouter);
 
