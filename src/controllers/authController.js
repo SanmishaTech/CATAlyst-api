@@ -203,7 +203,7 @@ const requestReset = async (req, res, next) => {
     }
 
     // Generate 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = Math.floor(100 + Math.random() * 900000).toString();
     const expiryMinutes = parseInt(process.env.OTP_EXPIRY_MINUTES) || 10;
     const expiresAt = new Date(Date.now() + expiryMinutes * 60 * 1000);
 

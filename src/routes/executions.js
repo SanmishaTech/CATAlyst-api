@@ -134,7 +134,7 @@ router.post("/upload", auth, upload.single("file"), executionController.uploadEx
  *         name: limit
  *         schema:
  *           type: integer
- *           default: 100000
+ *           default: 100
  *         description: Maximum number of executions to return
  *     responses:
  *       200:

@@ -1028,7 +1028,8 @@ const getOrders = async (req, res, next) => {
       batchId,
       clientId,
       sortBy = 'createdAt',
-      sortOrder = 'desc'
+      sortOrder = 'desc',
+      includeTotal,
     } = req.query;
 
     // Cap limit to prevent abuse
@@ -1112,9 +1113,12 @@ const getOrders = async (req, res, next) => {
       orders.pop(); // Remove the extra record
     }
 
-    // Get total count only on first page (expensive operation)
+    // Decide whether to compute total count (can be very expensive for large tables)
+    const shouldIncludeTotal =
+      includeTotal !== 'false' && includeTotal !== '0' && includeTotal !== 'no';
+
     let total = null;
-    if (!cursor && page === 1) {
+    if (shouldIncludeTotal && !cursor && parseInt(page) === 1) {
       total = await prisma.order.count({ where });
     }
 

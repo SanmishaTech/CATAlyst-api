@@ -347,7 +347,7 @@ const validateAndNormalizeExecution = (executionData, userId, batchId, clientId)
  */
 const getExecutions = async (req, res, next) => {
   try {
-    const { batchId, clientId, limit = 100000 } = req.query;
+    const { batchId, clientId, limit = 100 } = req.query;
     const userId = req.user.id;
     const userRole = req.user.role;
 
@@ -379,7 +379,7 @@ const getExecutions = async (req, res, next) => {
       where.batchId = parseInt(batchId);
     }
 
-    const take = Math.min(parseInt(limit), 100000);
+    const take = Math.min(parseInt(limit), 100);
 
     // Fetch executions from database
     const executions = await prisma.execution.findMany({
