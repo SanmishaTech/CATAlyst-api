@@ -711,18 +711,9 @@ const parseExcelToJson = async (filePath) => {
       }
     });
 
-    // Validate required field
-    if (!orderData.orderId) {
-      errors.push({
-        index: rowNumber - 2, // Convert back to 0-based index
-        orderId: null,
-        error: "Missing required field: orderId",
-      });
-      return;
-    }
-
-    // Debug: log first order to see what's being parsed
+    // Do not filter out rows without orderId here; they will be validated in the next stage
     if (orders.length === 0) {
+      // Debug: log first parsed row
       console.log('First order parsed:', JSON.stringify(orderData, null, 2));
     }
 
@@ -905,9 +896,9 @@ const uploadOrders = async (req, res, next) => {
     await prisma.batch.update({
       where: { id: batch.id },
       data: {
-        totalOrders: validOrders.length,
+        totalOrders: ordersArray.length,
         successfulOrders: result.count,
-        failedOrders: validOrders.length - result.count,
+        failedOrders: errors.length,
         status: "completed",
         errorLog: errors.length > 0 ? JSON.stringify(errors) : null,
         completedAt: new Date(),

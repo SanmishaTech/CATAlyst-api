@@ -646,9 +646,9 @@ const uploadExecutions = async (req, res, next) => {
     await prisma.batch.update({
       where: { id: batch.id },
       data: {
-        totalOrders: validExecutions.length,
+        totalOrders: executionsArray.length,
         successfulOrders: result.count,
-        failedOrders: validExecutions.length - result.count,
+        failedOrders: errors.length,
         status: "completed",
         errorLog: errors.length > 0 ? JSON.stringify(errors) : null,
         completedAt: new Date(),
