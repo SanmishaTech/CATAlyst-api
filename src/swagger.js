@@ -3,14 +3,16 @@ const swaggerUi = require("swagger-ui-express");
 const express = require("express");
 
 const router = express.Router();
+const config = require("./config/config");
+const APP_NAME = config.appName;
 //yash
 const options = {
   definition: {
     openapi: "3.0.0",
     info: {
-      title: "Catalyst API",
+      title: `${APP_NAME} API`,
       version: "1.0.0",
-      description: `# Catalyst API Documentation
+      description: `# ${APP_NAME} API Documentation
 
 > A comprehensive Node.js REST API for order management and batch processing.
 
@@ -404,8 +406,8 @@ This section provides detailed documentation for:
             },
             status: {
               type: "string",
-              enum: ["processing", "completed", "failed"],
-              default: "processing",
+              enum: ["pending", "in_progress", "completed"],
+              default: "pending",
               description: "Current batch processing status",
             },
             errorLog: {
@@ -620,7 +622,7 @@ This section provides detailed documentation for:
 const specs = swaggerJsdoc(options);
 
 const swaggerUiOptions = {
-  customSiteTitle: "Catalyst API Engine",
+  customSiteTitle: `${APP_NAME} API Engine`,
   swaggerOptions: {
     filter: true, // Enable search/filter bar
     defaultModelsExpandDepth: -1, // Hide schemas section

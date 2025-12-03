@@ -328,14 +328,14 @@ const getBatchStats = async (req, res, next) => {
       totalBatches,
       completedBatches,
       failedBatches,
-      processingBatches,
+      inProgressBatches,
       totalOrdersImported,
       recentBatches,
     ] = await Promise.all([
       prisma.batch.count({ where: { userId } }),
       prisma.batch.count({ where: { userId, status: "completed" } }),
-      prisma.batch.count({ where: { userId, status: "failed" } }),
-      prisma.batch.count({ where: { userId, status: "processing" } }),
+      prisma.batch.count({ where: { userId, status: "completed", failedOrders: { gt: 0 } } }),
+      prisma.batch.count({ where: { userId, status: "in_progress" } }),
       prisma.batch.aggregate({
         where: { userId, status: "completed" },
         _sum: { successfulOrders: true },
@@ -379,7 +379,7 @@ const getBatchStats = async (req, res, next) => {
       totalBatches,
       completedBatches,
       failedBatches,
-      processingBatches,
+      inProgressBatches,
       totalOrdersImported: totalOrdersImported._sum.successfulOrders || 0,
       averageSuccessRate: parseFloat(averageSuccessRate),
       recentBatches: recentBatches.map((batch) => ({

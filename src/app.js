@@ -14,6 +14,7 @@ const orderRoutes = require("./routes/orders");
 const batchRoutes = require("./routes/batches");
 const executionRoutes = require("./routes/executions");
 const enumRoutes = require("./routes/enums");
+const qualityRoutes = require("./routes/quality");
 const swaggerRouter = require("./swagger");
 
 const app = express();
@@ -125,6 +126,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/batches", batchRoutes);
 app.use("/api/executions", executionRoutes);
 app.use("/api/enums", enumRoutes);
+app.use("/api/quality", qualityRoutes);
 app.use(swaggerRouter);
 
 app.get("*", (req, res, next) => {

@@ -851,8 +851,10 @@ const uploadOrders = async (req, res, next) => {
     batch = await prisma.batch.create({
       data: {
         userId,
-        status: "processing",
+        status: "in_progress",
         fileName: fileNameForBatch,
+        tradeDate: req.body.tradeDate ? new Date(req.body.tradeDate) : null,
+        fileType: req.body.fileType || null,
       },
     });
 
@@ -980,7 +982,7 @@ const uploadOrders = async (req, res, next) => {
         await prisma.batch.update({
           where: { id: batch.id },
           data: {
-            status: "failed",
+            status: "completed",
             errorLog: error.message,
             completedAt: new Date(),
           },

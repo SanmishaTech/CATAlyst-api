@@ -222,9 +222,9 @@ const requestReset = async (req, res, next) => {
     // Send OTP email
     await emailService.sendEmail(
       email,
-      "Password Reset OTP - Catalyst",
+      `Password Reset OTP - ${config.appName}`,
       "otp-email",
-      { otp, expiryMinutes }
+      { otp, expiryMinutes, appName: config.appName }
     );
 
     res.json({ 

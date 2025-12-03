@@ -80,8 +80,10 @@ model Batch {
   totalOrders       Int       @default(0)
   successfulOrders  Int       @default(0)
   failedOrders      Int       @default(0)
-  status            String    @default("processing") // processing, completed, failed
+  status            String    @default("pending") // pending, in_progress, completed
   fileName          String?   @db.VarChar(255)
+  tradeDate         DateTime?
+  fileType          String?
   errorLog          String?   @db.Text
   validation_1      Boolean?  // null = not validated, false = failed, true = passed
   importedAt        DateTime  @default(now())

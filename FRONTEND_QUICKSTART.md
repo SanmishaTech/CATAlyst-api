@@ -2,7 +2,7 @@
 
 ## ✅ What's Been Created
 
-A complete frontend application has been added to your Catalyst API project:
+A complete frontend application has been added to your RegZone API project:
 
 ```
 public/
