@@ -5,7 +5,7 @@ const createError = require("http-errors");
 const getBatches = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { page = 1, limit = 20, status } = req.query;
+    const { page = 1, limit = 10, status, search } = req.query;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
@@ -14,6 +14,17 @@ const getBatches = async (req, res, next) => {
 
     if (status) {
       where.status = status;
+    }
+
+    // Add search filter if provided
+    if (search) {
+      const searchLower = search.toLowerCase();
+      where.OR = [
+        { id: isNaN(parseInt(search)) ? undefined : parseInt(search) },
+        { fileName: { contains: searchLower, mode: 'insensitive' } },
+        { status: { contains: searchLower.replace(' ', '_'), mode: 'insensitive' } },
+        { user: { name: { contains: searchLower, mode: 'insensitive' } } },
+      ].filter(condition => Object.values(condition)[0] !== undefined);
     }
 
     const [batches, total] = await Promise.all([

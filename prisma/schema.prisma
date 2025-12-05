@@ -127,6 +127,7 @@ model ValidationError {
   validationId      Int
   batchId           Int
   orderId           Int
+  validationCode    String    @db.VarChar(100)
   field             String    @db.VarChar(255)
   message           String    @db.Text
   code              String    @db.VarChar(100)

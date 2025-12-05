@@ -1020,8 +1020,8 @@ const getOrders = async (req, res, next) => {
       orderSide,
       batchId,
       clientId,
-      sortBy = 'createdAt',
-      sortOrder = 'desc',
+      sortBy = 'id',
+      sortOrder = 'asc',
       includeTotal,
     } = req.query;
 
@@ -1077,7 +1077,7 @@ const getOrders = async (req, res, next) => {
     if (validSortFields.includes(sortBy)) {
       orderBy[sortBy] = sortOrder === 'asc' ? 'asc' : 'desc';
     } else {
-      orderBy.createdAt = 'desc';
+      orderBy.id = 'asc'; // default
     }
 
     // Cursor-based pagination for better performance

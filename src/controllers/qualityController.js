@@ -4,15 +4,20 @@ const asyncHandler = require('../middleware/asyncHandler');
 const prisma = new PrismaClient();
 
 /**
- * @desc    Get all data quality issues (validation errors)
- * @route   GET /api/quality/issues
+ * @desc    Get all data quality issues (validation errors) with pagination
+ * @route   GET /api/quality/issues?page=1&limit=10
  * @access  Private
  */
 exports.getQualityIssues = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const userRole = req.user.role;
   
-  console.log('[Quality Issues] Fetching issues for user:', userId, 'role:', userRole);
+  // Pagination parameters
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  const skip = (page - 1) * limit;
+  
+  console.log('[Quality Issues] Fetching issues for user:', userId, 'role:', userRole, 'page:', page, 'limit:', limit);
 
   // Build query based on user role
   let whereClause = {};
@@ -45,7 +50,12 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
     }
   }
 
-  // Fetch validation errors with batch and order information
+  // Get total count for pagination
+  const totalCount = await prisma.validationError.count({
+    where: whereClause
+  });
+
+  // Fetch validation errors with batch and order information (paginated)
   const validationErrors = await prisma.validationError.findMany({
     where: whereClause,
     include: {
@@ -64,10 +74,12 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
     },
     orderBy: {
       createdAt: 'desc'
-    }
+    },
+    skip: skip,
+    take: limit
   });
 
-  console.log('[Quality Issues] Found', validationErrors.length, 'validation errors');
+  console.log('[Quality Issues] Found', validationErrors.length, 'validation errors on page', page);
   
   // Transform validation errors into quality issues format
   const issues = validationErrors.map(error => {
@@ -86,6 +98,7 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
 
     return {
       id: error.id,
+      validationCode: error.validationCode,
       category: category,
       message: error.message,
       batchId: error.batchId,
@@ -94,5 +107,16 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
     };
   });
 
-  res.json({ issues });
+  // Calculate pagination metadata
+  const totalPages = Math.ceil(totalCount / limit);
+
+  res.json({ 
+    issues,
+    pagination: {
+      page,
+      limit,
+      total: totalCount,
+      pages: totalPages
+    }
+  });
 });

@@ -1,5 +1,6 @@
 const prisma = require("../config/db");
 const { z } = require("zod");
+const { getValidationCode } = require("../constants/validationCodes");
 
 /**
  * Validates orders against client's validation schema
@@ -192,14 +193,34 @@ const processBatchValidation = async (batchId) => {
       // Create individual error records if validation failed
       if (!validationResult.success && validationResult.errors && validationResult.errors.length > 0) {
         await prisma.validationError.createMany({
-          data: validationResult.errors.map(error => ({
-            validationId: validation.id,
-            field: error.field || 'unknown',
-            message: error.message || 'Validation failed',
-            code: error.code || 'validation_error',
-            batchId: batchId,
-            orderId: order.id,
-          })),
+          data: validationResult.errors.map(error => {
+            // Determine validation code based on error type
+            let validationCodeKey = 'CTX_INVALID_COMBINATION'; // default
+            
+            if (error.message?.toLowerCase().includes('required')) {
+              validationCodeKey = 'REQ_MISSING_FIELD';
+            } else if (error.message?.toLowerCase().includes('format') || error.message?.toLowerCase().includes('invalid')) {
+              validationCodeKey = 'FMT_INVALID_FORMAT';
+            } else if (error.message?.toLowerCase().includes('duplicate')) {
+              validationCodeKey = 'DUP_DUPLICATE_RECORD';
+            } else if (error.message?.toLowerCase().includes('range') || error.message?.toLowerCase().includes('out of')) {
+              validationCodeKey = 'RNG_VALUE_OUT_OF_RANGE';
+            } else if (error.message?.toLowerCase().includes('enum') || error.message?.toLowerCase().includes('allowed')) {
+              validationCodeKey = 'REF_INVALID_ENUM';
+            }
+            
+            const validationCodeObj = getValidationCode(validationCodeKey);
+            
+            return {
+              validationId: validation.id,
+              validationCode: validationCodeObj.code,
+              field: error.field || 'unknown',
+              message: error.message || 'Validation failed',
+              code: error.code || 'validation_error',
+              batchId: batchId,
+              orderId: order.id,
+            };
+          }),
         });
       }
       
