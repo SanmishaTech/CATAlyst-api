@@ -383,7 +383,7 @@ router.post("/upload", auth, upload.single("file"), orderController.uploadOrders
  * @swagger
  * /orders:
  *   get:
- *     summary: Get all orders for authenticated user
+ *     summary: Get all orders for authenticated user with server-side sorting, grouping, and pagination
  *     tags: [Orders]
  *     security:
  *       - ApiKeyAuth: []
@@ -399,7 +399,27 @@ router.post("/upload", auth, upload.single("file"), orderController.uploadOrders
  *         schema:
  *           type: integer
  *           default: 50
- *         description: Items per page
+ *         description: Items per page (max 100)
+ *       - in: query
+ *         name: sortBy
+ *         schema:
+ *           type: string
+ *           enum: [id, createdAt, orderId, orderSymbol, orderStatus, orderSide, orderPrice, orderQuantity, orderType, batchId, tradeDate]
+ *           default: id
+ *         description: Field to sort by
+ *       - in: query
+ *         name: sortOrder
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: asc
+ *         description: Sort order (ascending or descending)
+ *       - in: query
+ *         name: groupBy
+ *         schema:
+ *           type: string
+ *           enum: [orderId, orderSymbol, orderStatus, orderSide, orderType, batchId, tradeDate]
+ *         description: Field to group by (optional). When set, results are grouped by this field first
  *       - in: query
  *         name: orderId
  *         schema:
@@ -411,13 +431,24 @@ router.post("/upload", auth, upload.single("file"), orderController.uploadOrders
  *           type: string
  *         description: Filter by order status
  *       - in: query
+ *         name: orderSymbol
+ *         schema:
+ *           type: string
+ *         description: Filter by order symbol (partial match)
+ *       - in: query
+ *         name: orderSide
+ *         schema:
+ *           type: string
+ *           enum: [BUY, SELL]
+ *         description: Filter by order side
+ *       - in: query
  *         name: batchId
  *         schema:
  *           type: integer
  *         description: Filter by batch ID
  *     responses:
  *       200:
- *         description: List of orders
+ *         description: List of orders with server-side sorting and grouping
  *         content:
  *           application/json:
  *             schema:
@@ -437,6 +468,10 @@ router.post("/upload", auth, upload.single("file"), orderController.uploadOrders
  *                     total:
  *                       type: integer
  *                     pages:
+ *                       type: integer
+ *                     hasMore:
+ *                       type: boolean
+ *                     nextCursor:
  *                       type: integer
  *       401:
  *         description: Unauthorized

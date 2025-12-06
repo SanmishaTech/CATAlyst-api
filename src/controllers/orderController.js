@@ -620,15 +620,46 @@ const generateErrorExcel = async (ordersArray, errors) => {
   return filename;
 };
 
+// Import enum mappings
+const {
+  OrderStatusMapping,
+  OrderActionMapping,
+  OrderCapacityMapping,
+  OrderSideMapping,
+  OrderTypeMapping,
+  OrderTimeInforceMapping,
+  OrderClientCapacityMapping,
+  OrderManualIndicatorMapping,
+  OrderAuctionIndicatorMapping,
+  OrderSwapIndicatorMapping,
+  OrderOptionPutCallMapping,
+  OrderOptionLegIndicatorMapping,
+  OrderNegotiatedIndicatorMapping,
+  OrderOpenCloseMapping,
+  OrderPackageIndicatorMapping,
+  OrderSecondaryOfferingMapping,
+  OrderParentChildTypeMapping,
+  OrderTradingSessionMapping,
+  AtsDisplayIndicatorMapping,
+  OrderSolicitationFlagMapping,
+  RouteRejectedFlagMapping,
+  OrderFlowTypeMapping,
+  OrderInstrumentReferenceMapping,
+  OrderActionInitiatedMapping,
+  convertStringToEnum,
+} = require('../constants/enumMappings');
+
 // Parse Excel file and convert to JSON array
 const parseExcelToJson = async (filePath) => {
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.readFile(filePath);
-  const worksheet = workbook.getWorksheet(1);
+  let workbook = null;
+  try {
+    workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(filePath);
+    const worksheet = workbook.getWorksheet(1);
 
-  if (!worksheet) {
-    throw new Error("Excel file is empty or invalid");
-  }
+    if (!worksheet) {
+      throw new Error("Excel file is empty or invalid");
+    }
 
   // Get headers from first row
   const headers = [];
@@ -702,6 +733,68 @@ const parseExcelToJson = async (filePath) => {
         ) {
           value = parseDecimal(value);
         }
+        // Handle enum fields - convert string values to numeric codes
+        else if (
+          [
+            "orderStatus",
+            "orderAction",
+            "orderCapacity",
+            "orderSide",
+            "orderType",
+            "orderTimeInforce",
+            "orderClientCapacity",
+            "orderManualIndicator",
+            "orderAuctionIndicator",
+            "orderSwapIndicator",
+            "orderOptionPutCall",
+            "orderOptionLegIndicator",
+            "orderNegotiatedIndicator",
+            "orderOpenClose",
+            "orderPackageIndicator",
+            "orderSecondaryOffering",
+            "orderParentChildType",
+            "orderTradingSession",
+            "atsDisplayIndicator",
+            "orderSolicitationFlag",
+            "routeRejectedFlag",
+            "orderFlowType",
+            "orderInstrumentReference",
+            "orderActionInitiated",
+          ].includes(mappedField)
+        ) {
+          // Map string values to numeric enum codes
+          const enumMappings = {
+            orderStatus: OrderStatusMapping,
+            orderAction: OrderActionMapping,
+            orderCapacity: OrderCapacityMapping,
+            orderSide: OrderSideMapping,
+            orderType: OrderTypeMapping,
+            orderTimeInforce: OrderTimeInforceMapping,
+            orderClientCapacity: OrderClientCapacityMapping,
+            orderManualIndicator: OrderManualIndicatorMapping,
+            orderAuctionIndicator: OrderAuctionIndicatorMapping,
+            orderSwapIndicator: OrderSwapIndicatorMapping,
+            orderOptionPutCall: OrderOptionPutCallMapping,
+            orderOptionLegIndicator: OrderOptionLegIndicatorMapping,
+            orderNegotiatedIndicator: OrderNegotiatedIndicatorMapping,
+            orderOpenClose: OrderOpenCloseMapping,
+            orderPackageIndicator: OrderPackageIndicatorMapping,
+            orderSecondaryOffering: OrderSecondaryOfferingMapping,
+            orderParentChildType: OrderParentChildTypeMapping,
+            orderTradingSession: OrderTradingSessionMapping,
+            atsDisplayIndicator: AtsDisplayIndicatorMapping,
+            orderSolicitationFlag: OrderSolicitationFlagMapping,
+            routeRejectedFlag: RouteRejectedFlagMapping,
+            orderFlowType: OrderFlowTypeMapping,
+            orderInstrumentReference: OrderInstrumentReferenceMapping,
+            orderActionInitiated: OrderActionInitiatedMapping,
+          };
+          
+          const mapping = enumMappings[mappedField];
+          if (mapping && value !== null && value !== undefined && value !== '') {
+            value = convertStringToEnum(value, mapping);
+          }
+        }
         // All other fields (including dates) are stored as strings
         else if (value !== null && value !== undefined) {
           value = value.toString();
@@ -721,7 +814,11 @@ const parseExcelToJson = async (filePath) => {
   });
 
   console.log(`Parsed ${orders.length} orders from Excel`);
+  
   return { orders, errors };
+  } catch (err) {
+    throw err;
+  }
 };
 
 // Unified upload handler for both JSON and Excel
@@ -731,6 +828,14 @@ const uploadOrders = async (req, res, next) => {
 
   try {
     const userId = req.user.id;
+    
+    console.log('[UPLOAD] Request received:');
+    console.log('  User ID:', userId);
+    console.log('  Has file:', !!req.file);
+    console.log('  File name:', req.file?.originalname);
+    console.log('  Trade date:', req.body.tradeDate);
+    console.log('  File type:', req.body.fileType);
+    console.log('  Body keys:', Object.keys(req.body));
 
     // Determine clientId based on user role
     let clientId = null;
@@ -749,15 +854,27 @@ const uploadOrders = async (req, res, next) => {
       // Excel file upload
       filePath = req.file.path;
       fileNameForBatch = req.file.originalname || req.file.filename || 'json upload';
+      
+      console.log('[UPLOAD] Processing Excel file:', fileNameForBatch);
 
       // Parse Excel to JSON
       const parseResult = await parseExcelToJson(filePath);
       ordersArray = parseResult.orders;
       errors = parseResult.errors;
+      
+      console.log('[UPLOAD] Parsed', ordersArray.length, 'orders from Excel');
 
-      // Clean up file after parsing
-      await fs.unlink(filePath);
-      filePath = null;
+      // Clean up file after parsing - add small delay to ensure file is released
+      try {
+        // Wait a bit for file handles to be released
+        await new Promise(resolve => setTimeout(resolve, 100));
+        await fs.unlink(filePath);
+        filePath = null;
+      } catch (unlinkError) {
+        console.warn('[UPLOAD] Warning: Could not delete uploaded file:', unlinkError.message);
+        // Don't fail the upload if we can't delete the file
+        filePath = null;
+      }
     } else if (req.body.orders) {
       // Direct JSON upload
       ordersArray = req.body.orders;
@@ -767,7 +884,11 @@ const uploadOrders = async (req, res, next) => {
       }
       // For JSON uploads, we standardize the filename label
       fileNameForBatch = 'json upload';
+      console.log('[UPLOAD] Processing JSON with', ordersArray.length, 'orders');
     } else {
+      console.error('[UPLOAD] No file or orders array provided');
+      console.error('[UPLOAD] req.file:', req.file);
+      console.error('[UPLOAD] req.body:', req.body);
       return next(createError(400, "Either file upload or JSON body with 'orders' array is required"));
     }
 
@@ -871,7 +992,7 @@ const uploadOrders = async (req, res, next) => {
       'routeRejectedFlag'
     ];
 
-    // Add batchId to all valid orders, convert enum fields to strings, and convert orderIdSession to string
+    // Add batchId to all valid orders and ensure all fields are properly typed
     validOrders.forEach(order => {
       order.batchId = batch.id;
       
@@ -886,6 +1007,47 @@ const uploadOrders = async (req, res, next) => {
       if (order.orderIdSession !== null && order.orderIdSession !== undefined) {
         order.orderIdSession = String(order.orderIdSession).substring(0, 16);
       }
+      
+      // Set default values for required fields that might be missing
+      if (!order.orderOmsSource) {
+        order.orderOmsSource = 'UNKNOWN';
+      }
+      if (!order.orderPublishingTime) {
+        order.orderPublishingTime = order.orderEventTime || new Date().toISOString();
+      }
+      
+      // Ensure null values are explicitly set for optional fields
+      // This prevents Prisma from complaining about missing required fields
+      const optionalFields = [
+        'orderRequestTime', 'orderEventTime',
+        'orderDestination', 'orderClientRefDetails', 'orderManualTimestamp',
+        'orderAttributes', 'orderRestrictions', 'orderAuctionIndicator',
+        'orderSwapIndicator', 'orderOsi', 'orderLinkedInstrumentId', 'orderCurrencyId',
+        'orderFlowType', 'orderAlgoInstruction', 'orderOptionPutCall', 'orderOptionStrikePrice',
+        'orderOptionLegIndicator', 'orderExtendedAttribute', 'orderQuoteId',
+        'orderRepresentOrderId', 'orderOnBehalfCompId', 'orderSpread', 'orderAmendReason',
+        'orderCancelRejectReason', 'orderBidPrice', 'orderBasketId', 'orderStopPrice',
+        'orderDiscretionPrice', 'orderExdestinationInstruction', 'orderExecutionParameter',
+        'orderInfobarrierId', 'orderLegRatio', 'orderLocateId', 'orderOpenClose',
+        'orderParticipantPriorityCode', 'orderPackageId', 'orderPackagePricetype',
+        'orderStrategyType', 'orderStartTime', 'orderTifExpiration', 'orderDisplayPrice',
+        'orderSeqNumber', 'orderDisplayQty', 'orderWorkingPrice', 'atsOrderType',
+        'orderNbboSource', 'orderNbboTimestamp', 'orderNetPrice', 'orderRoutedOrderId',
+        'orderTradingOwner', 'orderClientOrderId', 'orderExecutingAccount', 'orderClearingAccount',
+        'orderInstrumentId', 'orderPositionAccount', 'orderBookingEntity', 'orderExecutingEntity',
+        'orderClientRef', 'parentOrderId', 'cancelreplaceOrderId', 'linkedOrderId', 'linkOrderType',
+        'orderIdVersion', 'orderIdInstance', 'orderIdSession', 'orderPrice', 'orderQuantity',
+        'orderCumQty', 'orderLeavesQty', 'orderBidSize', 'orderAskSize', 'orderAskPrice',
+        'orderMinimumQty', 'orderComplianceId', 'orderEntityId', 'orderTradeDate',
+        'orderStatus', 'orderTimeInforce', 'orderExecutionInstructions', 'orderType',
+        'orderManualIndicator', 'orderClientCapacity'
+      ];
+      
+      optionalFields.forEach(field => {
+        if (!(field in order)) {
+          order[field] = null;
+        }
+      });
     });
 
     // Insert orders into database
@@ -1022,6 +1184,7 @@ const getOrders = async (req, res, next) => {
       clientId,
       sortBy = 'id',
       sortOrder = 'asc',
+      groupBy,
       includeTotal,
     } = req.query;
 
@@ -1068,23 +1231,29 @@ const getOrders = async (req, res, next) => {
     }
 
     // Build orderBy clause (support multiple fields)
-    const orderBy = {};
+    const orderBy = [];
     const validSortFields = [
       'id', 'createdAt', 'orderId', 'orderSymbol', 'orderStatus',
-      'orderSide', 'orderPrice', 'orderQuantity', 'orderType', 'batchId'
+      'orderSide', 'orderPrice', 'orderQuantity', 'orderType', 'batchId', 'tradeDate'
     ];
 
+    // If grouping is enabled, sort by group field first
+    if (groupBy && validSortFields.includes(groupBy)) {
+      orderBy.push({ [groupBy]: 'asc' });
+    }
+
+    // Then add the primary sort field
     if (validSortFields.includes(sortBy)) {
-      orderBy[sortBy] = sortOrder === 'asc' ? 'asc' : 'desc';
+      orderBy.push({ [sortBy]: sortOrder === 'asc' ? 'asc' : 'desc' });
     } else {
-      orderBy.id = 'asc'; // default
+      orderBy.push({ id: 'asc' }); // default
     }
 
     // Cursor-based pagination for better performance
     const queryOptions = {
       where,
       take: take + 1, // Fetch one extra to check if there's a next page
-      orderBy,
+      orderBy: orderBy.length > 0 ? orderBy : { id: 'asc' },
     };
 
     // Add cursor if provided (for infinite scroll)
@@ -1106,31 +1275,21 @@ const getOrders = async (req, res, next) => {
       orders.pop(); // Remove the extra record
     }
 
-    // Decide whether to compute total count (can be very expensive for large tables)
-    const shouldIncludeTotal =
-      includeTotal !== 'false' && includeTotal !== '0' && includeTotal !== 'no';
+    // Always compute total count for pagination info
+    const total = await prisma.order.count({ where });
 
-    let total = null;
-    if (shouldIncludeTotal && !cursor && parseInt(page) === 1) {
-      total = await prisma.order.count({ where });
-    }
-
-    // Response with cursor pagination support
+    // Response with offset-based pagination support
     const response = {
       orders,
       pagination: {
         page: parseInt(page),
         limit: take,
+        total,
+        pages: Math.ceil(total / take),
         hasMore,
         nextCursor: hasMore && orders.length > 0 ? orders[orders.length - 1].id : null,
       },
     };
-
-    // Add total only if available
-    if (total !== null) {
-      response.pagination.total = total;
-      response.pagination.pages = Math.ceil(total / take);
-    }
 
     res.json(response);
   } catch (error) {
