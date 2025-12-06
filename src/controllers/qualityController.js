@@ -21,8 +21,9 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
   const sortBy = req.query.sortBy || 'createdAt';
   const sortOrder = req.query.sortOrder === 'asc' ? 'asc' : 'desc';
   
-  // Date filter parameter (YYYY-MM-DD format)
-  const dateFilter = req.query.date;
+  // Date range filter parameters (YYYY-MM-DD format)
+  const fromDate = req.query.fromDate;
+  const toDate = req.query.toDate;
   
   // Search parameter for global search
   const searchFilter = req.query.search;
@@ -31,7 +32,7 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
   const allowedSortFields = ['validationCode', 'category', 'message', 'fileName', 'createdAt', 'batchId'];
   const validSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
   
-  console.log('[Quality Issues] Fetching issues for user:', userId, 'role:', userRole, 'page:', page, 'limit:', limit, 'sortBy:', validSortBy, 'sortOrder:', sortOrder, 'date:', dateFilter, 'search:', searchFilter);
+  console.log('[Quality Issues] Fetching issues for user:', userId, 'role:', userRole, 'page:', page, 'limit:', limit, 'sortBy:', validSortBy, 'sortOrder:', sortOrder, 'fromDate:', fromDate, 'toDate:', toDate, 'search:', searchFilter);
 
   // Build query based on user role - optimize with single query
   let whereClause = {};
@@ -58,16 +59,20 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
     }
   }
 
-  // Add date filter if provided (YYYY-MM-DD format)
-  if (dateFilter) {
-    const startDate = new Date(dateFilter);
-    const endDate = new Date(dateFilter);
-    endDate.setDate(endDate.getDate() + 1); // Include entire day
+  // Add date range filter if provided (YYYY-MM-DD format)
+  if (fromDate || toDate) {
+    whereClause.createdAt = {};
     
-    whereClause.createdAt = {
-      gte: startDate,
-      lt: endDate
-    };
+    if (fromDate) {
+      const startDate = new Date(fromDate);
+      whereClause.createdAt.gte = startDate;
+    }
+    
+    if (toDate) {
+      const endDate = new Date(toDate);
+      endDate.setDate(endDate.getDate() + 1); // Include entire day
+      whereClause.createdAt.lt = endDate;
+    }
   }
 
   // Add search filter if provided - search across message, validationCode, and batch fileName
