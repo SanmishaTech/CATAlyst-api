@@ -142,6 +142,9 @@ model ValidationError {
   @@index([validationId])
   @@index([batchId])
   @@index([orderId])
+  @@index([batchId, createdAt(sort: Desc)])
+  @@index([code])
+  @@index([validationCode])
   @@map("validation_errors")
 }
 

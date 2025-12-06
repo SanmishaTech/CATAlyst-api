@@ -4,8 +4,8 @@ const asyncHandler = require('../middleware/asyncHandler');
 const prisma = new PrismaClient();
 
 /**
- * @desc    Get all data quality issues (validation errors) with pagination
- * @route   GET /api/quality/issues?page=1&limit=10
+ * @desc    Get all data quality issues (validation errors) with pagination and sorting
+ * @route   GET /api/quality/issues?page=1&limit=10&sortBy=createdAt&sortOrder=desc
  * @access  Private
  */
 exports.getQualityIssues = asyncHandler(async (req, res) => {
@@ -17,9 +17,23 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
   
-  console.log('[Quality Issues] Fetching issues for user:', userId, 'role:', userRole, 'page:', page, 'limit:', limit);
+  // Sorting parameters
+  const sortBy = req.query.sortBy || 'createdAt';
+  const sortOrder = req.query.sortOrder === 'asc' ? 'asc' : 'desc';
+  
+  // Date filter parameter (YYYY-MM-DD format)
+  const dateFilter = req.query.date;
+  
+  // Search parameter for global search
+  const searchFilter = req.query.search;
+  
+  // Validate sortBy to prevent injection
+  const allowedSortFields = ['validationCode', 'category', 'message', 'fileName', 'createdAt', 'batchId'];
+  const validSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
+  
+  console.log('[Quality Issues] Fetching issues for user:', userId, 'role:', userRole, 'page:', page, 'limit:', limit, 'sortBy:', validSortBy, 'sortOrder:', sortOrder, 'date:', dateFilter, 'search:', searchFilter);
 
-  // Build query based on user role
+  // Build query based on user role - optimize with single query
   let whereClause = {};
   
   // If not admin, filter by user's clientId
@@ -30,17 +44,11 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
     });
 
     if (user && user.clientId) {
-      // Get all users from the same client
-      const clientUsers = await prisma.user.findMany({
-        where: { clientId: user.clientId },
-        select: { id: true }
-      });
-      
-      const clientUserIds = clientUsers.map(u => u.id);
-      
-      // Filter batches by client users
+      // Optimize: Use direct clientId filter instead of fetching all users
       whereClause.batch = {
-        userId: { in: clientUserIds }
+        user: {
+          clientId: user.clientId
+        }
       };
     } else {
       // If user has no clientId, only show their own data
@@ -50,49 +58,109 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
     }
   }
 
-  // Get total count for pagination
+  // Add date filter if provided (YYYY-MM-DD format)
+  if (dateFilter) {
+    const startDate = new Date(dateFilter);
+    const endDate = new Date(dateFilter);
+    endDate.setDate(endDate.getDate() + 1); // Include entire day
+    
+    whereClause.createdAt = {
+      gte: startDate,
+      lt: endDate
+    };
+  }
+
+  // Add search filter if provided - search across message, validationCode, and batch fileName
+  if (searchFilter) {
+    whereClause.OR = [
+      { message: { contains: searchFilter, mode: 'insensitive' } },
+      { validationCode: { contains: searchFilter, mode: 'insensitive' } },
+      { batch: { fileName: { contains: searchFilter, mode: 'insensitive' } } }
+    ];
+  }
+
+  // Get total count for pagination - use efficient count query
   const totalCount = await prisma.validationError.count({
     where: whereClause
   });
 
-  // Fetch validation errors with batch and order information (paginated)
+  // Get category counts for accurate totals across all pages
+  const categoryCounts = await prisma.validationError.groupBy({
+    by: ['code'],
+    where: whereClause,
+    _count: true
+  });
+
+  // Map code prefixes to categories and sum counts
+  const categoryTotals = { duplicate: 0, syntax: 0, context: 0 };
+  for (const item of categoryCounts) {
+    const code = item.code?.toLowerCase() || '';
+    if (code.includes('dup')) {
+      categoryTotals.duplicate += item._count;
+    } else if (code.includes('fmt') || code.includes('syntax') || code.includes('invalid')) {
+      categoryTotals.syntax += item._count;
+    } else {
+      categoryTotals.context += item._count;
+    }
+  }
+
+  // Build orderBy clause based on sortBy parameter
+  // Note: category and fileName are computed fields, so we sort by related fields
+  let orderByClause = {};
+  
+  if (validSortBy === 'fileName') {
+    orderByClause = { batch: { fileName: sortOrder } };
+  } else if (validSortBy === 'batchId') {
+    orderByClause = { batchId: sortOrder };
+  } else if (validSortBy === 'validationCode') {
+    orderByClause = { validationCode: sortOrder };
+  } else if (validSortBy === 'message') {
+    orderByClause = { message: sortOrder };
+  } else if (validSortBy === 'category') {
+    // For category, sort by code since category is derived from code
+    orderByClause = { code: sortOrder };
+  } else {
+    // Default to createdAt
+    orderByClause = { createdAt: sortOrder };
+  }
+
+  // Fetch validation errors with batch information (paginated)
+  // Optimized: Only fetch necessary fields and use select instead of include for better performance
   const validationErrors = await prisma.validationError.findMany({
     where: whereClause,
-    include: {
+    select: {
+      id: true,
+      validationCode: true,
+      code: true,
+      message: true,
+      field: true,
+      batchId: true,
+      createdAt: true,
       batch: {
         select: {
           id: true,
           fileName: true,
           createdAt: true
         }
-      },
-      order: {
-        select: {
-          orderId: true
-        }
       }
     },
-    orderBy: {
-      createdAt: 'desc'
-    },
+    orderBy: orderByClause,
     skip: skip,
     take: limit
   });
 
   console.log('[Quality Issues] Found', validationErrors.length, 'validation errors on page', page);
   
-  // Transform validation errors into quality issues format
+  // Transform validation errors into quality issues format - optimized categorization
   const issues = validationErrors.map(error => {
-    // Categorize errors based on code or message
+    // Categorize errors based on code (faster than checking message)
     let category = 'context'; // default category
     
     const code = error.code?.toLowerCase() || '';
-    const message = error.message?.toLowerCase() || '';
     
-    if (code.includes('duplicate') || message.includes('duplicate')) {
+    if (code.includes('dup')) {
       category = 'duplicate';
-    } else if (code.includes('syntax') || code.includes('format') || code.includes('invalid') || 
-               message.includes('syntax') || message.includes('format') || message.includes('invalid')) {
+    } else if (code.includes('fmt') || code.includes('syntax') || code.includes('invalid')) {
       category = 'syntax';
     }
 
@@ -103,6 +171,7 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
       message: error.message,
       batchId: error.batchId,
       fileName: error.batch.fileName || 'Unknown',
+      fieldName: error.field || 'Unknown',
       createdAt: error.createdAt
     };
   });
@@ -117,6 +186,7 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
       limit,
       total: totalCount,
       pages: totalPages
-    }
+    },
+    categoryTotals
   });
 });
