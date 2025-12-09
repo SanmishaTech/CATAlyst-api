@@ -3,6 +3,7 @@ const prisma = require("../config/db");
 const createError = require("http-errors");
 const path = require("path");
 const fs = require("fs").promises;
+const crypto = require("crypto");
 const {
   OrderAction,
   OrderStatus,
@@ -316,10 +317,19 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
     throw new Error(validationErrors.join('; '));
   }
 
+  // Generate uniqueID from orderId + orderIdInstance
+  // Create a hash-based short ID (8 characters) for better readability
+  const combinedString = `${orderData.orderId || ''}${orderData.orderIdInstance || ''}`;
+  const hash = crypto.createHash('md5').update(combinedString).digest('hex').substring(0, 8).toUpperCase();
+  const uniqueID = hash;
+  
   const order = {
     userId,
     batchId,
     clientId,
+    uniqueID,
+    id_deduped: 0,  // New records start with 0 (not deduped)
+    is_validated: 0, // Will be set to 1 after validation passes
     orderId: orderData.orderId || null,
     orderIdVersion: orderData.orderIdVersion || null,
     orderIdSession: orderData.orderIdSession || null,
@@ -1055,6 +1065,32 @@ const uploadOrders = async (req, res, next) => {
       data: validOrders,
       skipDuplicates: false,
     });
+
+    // Handle deduplication: Mark old records with same uniqueID as deduped
+    // Get all unique IDs from the newly inserted orders
+    const uniqueIDs = validOrders.map(order => order.uniqueID);
+    
+    if (uniqueIDs.length > 0) {
+      // Find all existing orders with these uniqueIDs that are NOT from this batch
+      const existingOrders = await prisma.order.findMany({
+        where: {
+          uniqueID: { in: uniqueIDs },
+          batchId: { not: batch.id }, // Exclude orders from current batch
+        },
+        select: { id: true, uniqueID: true },
+      });
+
+      // Mark old records as deduped (id_deduped = 1)
+      if (existingOrders.length > 0) {
+        await prisma.order.updateMany({
+          where: {
+            id: { in: existingOrders.map(o => o.id) },
+          },
+          data: { id_deduped: 1 },
+        });
+        console.log(`[DEDUPLICATION] Marked ${existingOrders.length} old records as deduped`);
+      }
+    }
 
     // Update batch with success statistics
     await prisma.batch.update({

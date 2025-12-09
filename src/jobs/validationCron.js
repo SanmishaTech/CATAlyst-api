@@ -55,16 +55,28 @@ const processValidationQueue = async () => {
 
 /**
  * Initialize the validation cron job
- * Runs every 1 minute
+ * Runs at interval specified by CRON_INTERVAL_MINUTES env variable (default: 5 minutes)
  */
 const initValidationCron = () => {
-  // Run every 1 minute: "* * * * *"
-  const job = cron.schedule("* * * * *", processValidationQueue, {
+  const intervalMinutes = parseInt(process.env.CRON_INTERVAL_MINUTES) || 5;
+  
+  // Build cron expression based on interval
+  // For intervals <= 30 minutes, use: */N * * * * (every N minutes)
+  // For intervals > 30 minutes, use: 0 */N * * * (every N hours)
+  let cronExpression;
+  if (intervalMinutes <= 30) {
+    cronExpression = `*/${intervalMinutes} * * * *`;
+  } else {
+    const hours = Math.ceil(intervalMinutes / 60);
+    cronExpression = `0 */${hours} * * *`;
+  }
+  
+  const job = cron.schedule(cronExpression, processValidationQueue, {
     scheduled: true,
     timezone: "UTC",
   });
 
-  console.log("[Validation Cron] Validation cronjob initialized (runs every 1 minute)");
+  console.log(`[Validation Cron] Validation cronjob initialized (runs every ${intervalMinutes} minutes)`);
 
   return job;
 };

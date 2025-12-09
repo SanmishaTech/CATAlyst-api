@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  log      = ["query", "error", "warn", "info"]
 }
 
 datasource db {
@@ -100,6 +101,7 @@ model Batch {
   rejectedOrders    RejectedOrder[]
   
   @@index([userId])
+  @@index([validation_1])
   @@map("batches")
 }
 
@@ -145,6 +147,7 @@ model ValidationError {
   @@index([batchId, createdAt(sort: Desc)])
   @@index([code])
   @@index([validationCode])
+  @@index([createdAt])
   @@map("validation_errors")
 }
 
@@ -153,6 +156,11 @@ model Order {
   userId                          Int
   batchId                         Int
   clientId                        String?
+  
+  // Deduplication and validation tracking
+  uniqueID                        String    @db.VarChar(256)  // Combination of orderId + orderIdInstance
+  id_deduped                      Int       @default(0)       // 0 = not deduped, 1 = deduped (old record)
+  is_validated                    Int       @default(0)       // 0 = not validated, 1 = validated
   
   // Excel fields (101 total)
   orderId                         String    @db.VarChar(128)
@@ -269,6 +277,9 @@ model Order {
   @@index([userId])
   @@index([batchId])
   @@index([orderId])
+  @@index([uniqueID])
+  @@index([id_deduped])
+  @@index([is_validated])
   @@index([userId, createdAt(sort: Desc)])
   @@index([batchId, createdAt(sort: Desc)])
   @@index([clientId, createdAt(sort: Desc)])
@@ -277,6 +288,7 @@ model Order {
   @@index([orderSide])
   @@index([userId, orderStatus])
   @@index([clientId])
+  @@index([batchId, id])
   @@map("orders")
 }
 

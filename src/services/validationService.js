@@ -237,6 +237,14 @@ const processBatchValidation = async (batchId) => {
     // true (1) if all orders passed, false (0) if any failed
     const allPassed = failCount === 0;
     
+    // Update is_validated flag for each order based on validation result
+    for (const result of validationResults) {
+      await prisma.order.update({
+        where: { id: result.orderId },
+        data: { is_validated: result.success ? 1 : 0 },
+      });
+    }
+    
     // Mark batch as validated
     await prisma.batch.update({
       where: { id: batchId },
