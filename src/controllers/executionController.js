@@ -644,13 +644,17 @@ const uploadExecutions = async (req, res, next) => {
       skipDuplicates: false,
     });
 
+    // Count unique rejected executions (not error messages)
+    const uniqueRejectedExecutionIndices = new Set(errors.map(err => err.index));
+    const rejectedExecutionsCount = uniqueRejectedExecutionIndices.size;
+
     // Update batch with success statistics
     await prisma.batch.update({
       where: { id: batch.id },
       data: {
         totalOrders: executionsArray.length,
         successfulOrders: result.count,
-        failedOrders: errors.length,
+        failedOrders: rejectedExecutionsCount,
         status: "completed",
         errorLog: errors.length > 0 ? JSON.stringify(errors) : null,
         completedAt: new Date(),
