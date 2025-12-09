@@ -21,9 +21,15 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
   const sortBy = req.query.sortBy || 'createdAt';
   const sortOrder = req.query.sortOrder === 'asc' ? 'asc' : 'desc';
   
-  // Date range filter parameters (YYYY-MM-DD format)
-  const fromDate = req.query.fromDate;
-  const toDate = req.query.toDate;
+  // Trade date range filter parameters (YYYY-MM-DD format)
+  const fromDate = req.query.fromDate;      // orderTradeDate >= fromDate
+  const toDate = req.query.toDate;          // orderTradeDate <= toDate
+  
+  // Additional order-level filters
+  const executingEntity = req.query.executingEntity;   // orderExecutingEntity exact match
+  const clientRef = req.query.clientRef;               // orderClientRef LIKE match
+  const exDestination = req.query.exDestination;       // orderDestination LIKE match
+  const orderSymbol = req.query.orderSymbol;           // orderSymbol LIKE match
   
   // Search parameter for global search
   const searchFilter = req.query.search;
@@ -59,21 +65,7 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
     }
   }
 
-  // Add date range filter if provided (YYYY-MM-DD format)
-  if (fromDate || toDate) {
-    whereClause.createdAt = {};
-    
-    if (fromDate) {
-      const startDate = new Date(fromDate);
-      whereClause.createdAt.gte = startDate;
-    }
-    
-    if (toDate) {
-      const endDate = new Date(toDate);
-      endDate.setDate(endDate.getDate() + 1); // Include entire day
-      whereClause.createdAt.lt = endDate;
-    }
-  }
+  // NOTE: We no longer filter by ve.createdAt date range. Trade-date filtering is handled in raw SQL below.
 
   // Add search filter if provided - search across message, validationCode, and batch fileName
   if (searchFilter) {
@@ -84,28 +76,94 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
     ];
   }
 
-  // Get total count for pagination - use efficient count query
-  const totalCount = await prisma.validationError.count({
-    where: whereClause
-  });
+    // ------------------
+  // Build dynamic WHERE conditions
+  // ------------------
+  const baseConditions = [];
+  const orderConditions = [];
 
-  // Get category counts for accurate totals across all pages
-  const categoryCounts = await prisma.validationError.groupBy({
-    by: ['code'],
-    where: whereClause,
-    _count: true
-  });
+  // User-scope filters (client or specific user)
+  if (whereClause.batch?.user?.clientId) {
+    baseConditions.push(`u.clientId = ${whereClause.batch.user.clientId}`);
+  }
+  if (whereClause.batch?.userId) {
+    baseConditions.push(`b.userId = ${whereClause.batch.userId}`);
+  }
+
+  // Global search filter (message, validationCode, batch.fileName)
+  if (searchFilter) {
+    const safeSearch = String(searchFilter).replace(/'/g, "''");
+    baseConditions.push(`(ve.message LIKE '%${safeSearch}%' OR ve.validationCode LIKE '%${safeSearch}%' OR b.fileName LIKE '%${safeSearch}%')`);
+  }
+
+  // Order-level filters (need orders alias)
+  if (fromDate) {
+    // Keep YYYY-MM-DD format as stored in database
+    orderConditions.push(`o.\`orderTradeDate\` >= '${fromDate}'`);
+  }
+  if (toDate) {
+    // Keep YYYY-MM-DD format as stored in database
+    orderConditions.push(`o.\`orderTradeDate\` <= '${toDate}'`);
+  }
+  if (executingEntity) {
+    orderConditions.push(`o.orderExecutingEntity = ${parseInt(executingEntity, 10)}`);
+  }
+  if (clientRef) {
+    const safeClientRef = String(clientRef).replace(/'/g, "''");
+    orderConditions.push(`o.orderClientRef LIKE '%${safeClientRef}%'`);
+  }
+  if (exDestination) {
+    const safeDest = String(exDestination).replace(/'/g, "''");
+    orderConditions.push(`o.orderDestination LIKE '%${safeDest}%'`);
+  }
+  if (orderSymbol) {
+    const safeSymbol = String(orderSymbol).replace(/'/g, "''");
+    orderConditions.push(`o.orderSymbol LIKE '%${safeSymbol}%'`);
+  }
+
+  // Build WHERE clauses for different parts of the query
+  const whereSQLInner = baseConditions.length ? 'WHERE ' + baseConditions.join(' AND ') : '';
+  const allConditions = [...baseConditions, ...orderConditions];
+  const whereSQLAll = allConditions.length ? 'WHERE ' + allConditions.join(' AND ') : '';
+  
+  // For subquery: include all conditions (base + order) so pagination is correct
+  const whereSQLSubquery = allConditions.length ? 'WHERE ' + allConditions.join(' AND ') : '';
+
+
+  // ------------------
+  // Obtain total count & category counts via raw SQL (ensures same filters as main query)
+  // ------------------
+  const totalCountRes = await prisma.$queryRawUnsafe(`
+    SELECT COUNT(*) AS total
+    FROM validation_errors ve
+    LEFT JOIN batches b ON ve.batchId = b.id
+    LEFT JOIN users u ON b.userId = u.id
+    LEFT JOIN orders o ON ve.orderId = o.id
+    ${whereSQLAll}
+  `);
+  const totalCount = Number(totalCountRes[0]?.total || 0);
+
+  const categoryCounts = await prisma.$queryRawUnsafe(`
+    SELECT ve.code, COUNT(*) AS _count
+    FROM validation_errors ve
+    LEFT JOIN batches b ON ve.batchId = b.id
+    LEFT JOIN users u ON b.userId = u.id
+    LEFT JOIN orders o ON ve.orderId = o.id
+    ${whereSQLAll}
+    GROUP BY ve.code
+  `);
 
   // Map code prefixes to categories and sum counts
   const categoryTotals = { duplicate: 0, syntax: 0, context: 0 };
   for (const item of categoryCounts) {
     const code = item.code?.toLowerCase() || '';
+    const count = Number(item._count || 0);
     if (code.includes('dup')) {
-      categoryTotals.duplicate += item._count;
+      categoryTotals.duplicate += count;
     } else if (code.includes('fmt') || code.includes('syntax') || code.includes('invalid')) {
-      categoryTotals.syntax += item._count;
+      categoryTotals.syntax += count;
     } else {
-      categoryTotals.context += item._count;
+      categoryTotals.context += count;
     }
   }
 
@@ -143,22 +201,8 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
     orderByField = 've.code';
   }
 
-  // Build WHERE clause conditions
-  let whereConditions = [];
-  const startDate = whereClause.createdAt?.gte || new Date('2000-01-01');
-  const endDate = whereClause.createdAt?.lt || new Date('2099-12-31');
-  
-  whereConditions.push(`ve.createdAt >= '${startDate.toISOString()}'`);
-  whereConditions.push(`ve.createdAt < '${endDate.toISOString()}'`);
-  
-  if (whereClause.batch?.user?.clientId) {
-    whereConditions.push(`u.clientId = ${whereClause.batch.user.clientId}`);
-  }
-  if (whereClause.batch?.userId) {
-    whereConditions.push(`b.userId = ${whereClause.batch.userId}`);
-  }
-
-  const whereSQL = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
+  // NOTE: whereSQL now constructed earlier with additional filters, no longer based on ve.createdAt.
+  // (see dynamic whereConditions section above)
 
   // Fetch validation errors with batch and order information using raw SQL for better performance
   // Use subquery to filter validation_errors first, then join with batch and orders
@@ -287,7 +331,8 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
       SELECT ve.* FROM validation_errors ve
       LEFT JOIN batches b ON ve.batchId = b.id
       LEFT JOIN users u ON b.userId = u.id
-      ${whereSQL}
+      LEFT JOIN orders o ON ve.orderId = o.id
+      ${whereSQLSubquery}
       ORDER BY ${orderByField} ${sortOrder.toUpperCase()}
       LIMIT ${limit} OFFSET ${skip}
     ) ve

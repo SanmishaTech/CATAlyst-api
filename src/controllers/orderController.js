@@ -257,6 +257,69 @@ const parseIntValue = (value) => {
   return isNaN(parsed) ? null : parsed;
 };
 
+// Helper function to parse timestamp fields
+// Handles formats: "20250526:12:38:04:123426" (full) and "20250526" (date only)
+const parseTimestampField = (value) => {
+  if (!value || value === null || value === undefined || value === "") {
+    return null;
+  }
+
+  const strValue = String(value).trim();
+  
+  // Check if it's a full timestamp format: YYYYMMDD:HH:MM:SS:microseconds
+  if (strValue.includes(':')) {
+    try {
+      const parts = strValue.split(':');
+      if (parts.length >= 1) {
+        const datePart = parts[0]; // YYYYMMDD
+        const timePart = parts.slice(1).join(':'); // HH:MM:SS:microseconds
+        
+        // Parse date: YYYYMMDD
+        if (datePart.length === 8) {
+          const year = parseInt(datePart.substring(0, 4), 10);
+          const month = parseInt(datePart.substring(4, 6), 10);
+          const day = parseInt(datePart.substring(6, 8), 10);
+          
+          // Parse time if available
+          let hour = 0, minute = 0, second = 0, ms = 0;
+          if (parts.length > 1) {
+            hour = parseInt(parts[1], 10) || 0;
+            minute = parseInt(parts[2], 10) || 0;
+            second = parseInt(parts[3], 10) || 0;
+            // Convert microseconds to milliseconds if present
+            if (parts[4]) {
+              ms = Math.floor(parseInt(parts[4], 10) / 1000) || 0;
+            }
+          }
+          
+          // Create ISO string
+          const date = new Date(year, month - 1, day, hour, minute, second, ms);
+          return date.toISOString();
+        }
+      }
+    } catch (e) {
+      // Fallback to original value if parsing fails
+      return strValue;
+    }
+  }
+  
+  // Check if it's date-only format: YYYYMMDD
+  if (strValue.length === 8 && /^\d{8}$/.test(strValue)) {
+    try {
+      const year = strValue.substring(0, 4);
+      const month = strValue.substring(4, 6);
+      const day = strValue.substring(6, 8);
+      // Return date-only in YYYY-MM-DD format as plain string (no time component)
+      return `${year}-${month}-${day}`;
+    } catch (e) {
+      return strValue;
+    }
+  }
+  
+  // Return original value if it doesn't match expected formats
+  return strValue;
+};
+
 // Helper function to validate and normalize order data using JSON validation logic
 const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
   const validationErrors = [];
@@ -350,12 +413,12 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
     orderSide: validatedEnumValues.orderSide || null,
     orderClientCapacity: validatedEnumValues.orderClientCapacity || null,
     orderManualIndicator: validatedEnumValues.orderManualIndicator || null,
-    orderRequestTime: orderData.orderRequestTime || null,
-    orderEventTime: orderData.orderEventTime || null,
-    orderManualTimestamp: orderData.orderManualTimestamp || null,
+    orderRequestTime: parseTimestampField(orderData.orderRequestTime),
+    orderEventTime: parseTimestampField(orderData.orderEventTime),
+    orderManualTimestamp: parseTimestampField(orderData.orderManualTimestamp),
     orderOmsSource: orderData.orderOmsSource || null,
-    orderPublishingTime: orderData.orderPublishingTime || null,
-    orderTradeDate: orderData.orderTradeDate || null,
+    orderPublishingTime: parseTimestampField(orderData.orderPublishingTime),
+    orderTradeDate: parseTimestampField(orderData.orderTradeDate),
     orderQuantity: orderData.orderQuantity || null,
     orderPrice: orderData.orderPrice || null,
     orderType: validatedEnumValues.orderType || null,
@@ -414,8 +477,8 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
     orderPackagePricetype: orderData.orderPackagePricetype || null,
     orderStrategyType: orderData.orderStrategyType || null,
     orderSecondaryOffering: validatedEnumValues.orderSecondaryOffering || null,
-    orderStartTime: orderData.orderStartTime || null,
-    orderTifExpiration: orderData.orderTifExpiration || null,
+    orderStartTime: parseTimestampField(orderData.orderStartTime),
+    orderTifExpiration: parseTimestampField(orderData.orderTifExpiration),
     orderParentChildType: validatedEnumValues.orderParentChildType || null,
     orderMinimumQty: orderData.orderMinimumQty || null,
     orderTradingSession: validatedEnumValues.orderTradingSession || null,
@@ -426,7 +489,7 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
     orderWorkingPrice: orderData.orderWorkingPrice || null,
     atsOrderType: orderData.atsOrderType || null,
     orderNbboSource: orderData.orderNbboSource || null,
-    orderNbboTimestamp: orderData.orderNbboTimestamp || null,
+    orderNbboTimestamp: parseTimestampField(orderData.orderNbboTimestamp),
     orderSolicitationFlag: validatedEnumValues.orderSolicitationFlag || null,
     orderNetPrice: orderData.orderNetPrice || null,
     routeRejectedFlag: validatedEnumValues.routeRejectedFlag || null,
