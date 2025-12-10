@@ -25,10 +25,13 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
   const fromDate = req.query.fromDate;      // orderTradeDate >= fromDate
   const toDate = req.query.toDate;          // orderTradeDate <= toDate
   
+  // Additional record-level filters
+  const source = req.query.source || 'orders'; // 'orders' | 'execution'
+  const isExecution = source === 'execution';
   // Additional order-level filters
-  const executingEntity = req.query.executingEntity;   // orderExecutingEntity exact match
+  const executingEntity = req.query.executingEntity;   // orderExecutingEntity / executionExecutingEntity exact match
   const clientRef = req.query.clientRef;               // orderClientRef LIKE match
-  const exDestination = req.query.exDestination;       // orderDestination LIKE match
+  const exDestination = req.query.exDestination;       // orderDestination LIKE match (orders only)
   const orderSymbol = req.query.orderSymbol;           // orderSymbol LIKE match
   
   // Search parameter for global search
@@ -96,29 +99,31 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
     baseConditions.push(`(ve.message LIKE '%${safeSearch}%' OR ve.validationCode LIKE '%${safeSearch}%' OR b.fileName LIKE '%${safeSearch}%')`);
   }
 
-  // Order-level filters (need orders alias)
+  // Record-level filters (orders alias 'o', executions alias 'e')
+  const dateCol = isExecution ? 'e.`executionTradeDate`' : 'o.`orderTradeDate`';
   if (fromDate) {
-    // Keep YYYY-MM-DD format as stored in database
-    orderConditions.push(`o.\`orderTradeDate\` >= '${fromDate}'`);
+    orderConditions.push(`${dateCol} >= '${fromDate}'`);
   }
   if (toDate) {
-    // Keep YYYY-MM-DD format as stored in database
-    orderConditions.push(`o.\`orderTradeDate\` <= '${toDate}'`);
+    orderConditions.push(`${dateCol} <= '${toDate}'`);
   }
   if (executingEntity) {
-    orderConditions.push(`o.orderExecutingEntity = ${parseInt(executingEntity, 10)}`);
+    const execCol = isExecution ? 'e.executionExecutingEntity' : 'o.orderExecutingEntity';
+    orderConditions.push(`${execCol} = ${parseInt(executingEntity, 10)}`);
   }
-  if (clientRef) {
-    const safeClientRef = String(clientRef).replace(/'/g, "''");
-    orderConditions.push(`o.orderClientRef LIKE '%${safeClientRef}%'`);
-  }
-  if (exDestination) {
-    const safeDest = String(exDestination).replace(/'/g, "''");
-    orderConditions.push(`o.orderDestination LIKE '%${safeDest}%'`);
+  if (!isExecution) {
+    if (clientRef) {
+      const safeClientRef = String(clientRef).replace(/'/g, "''");
+      orderConditions.push(`o.orderClientRef LIKE '%${safeClientRef}%'`);
+    }
+    if (exDestination) {
+      const safeDest = String(exDestination).replace(/'/g, "''");
+      orderConditions.push(`o.orderDestination LIKE '%${safeDest}%'`);
+    }
   }
   if (orderSymbol) {
     const safeSymbol = String(orderSymbol).replace(/'/g, "''");
-    orderConditions.push(`o.orderSymbol LIKE '%${safeSymbol}%'`);
+    orderConditions.push(`${isExecution ? 'e.executionSymbol' : 'o.orderSymbol'} LIKE '%${safeSymbol}%'`);
   }
 
   // Build WHERE clauses for different parts of the query
@@ -139,6 +144,7 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
     LEFT JOIN batches b ON ve.batchId = b.id
     LEFT JOIN users u ON b.userId = u.id
     LEFT JOIN orders o ON ve.orderId = o.id
+LEFT JOIN executions e ON ve.executionId = e.id
     ${whereSQLAll}
   `);
   const totalCount = Number(totalCountRes[0]?.total || 0);
@@ -149,6 +155,7 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
     LEFT JOIN batches b ON ve.batchId = b.id
     LEFT JOIN users u ON b.userId = u.id
     LEFT JOIN orders o ON ve.orderId = o.id
+LEFT JOIN executions e ON ve.executionId = e.id
     ${whereSQLAll}
     GROUP BY ve.code
   `);
@@ -216,6 +223,8 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
       ve.field,
       ve.batchId,
       ve.orderId,
+      ve.is_deduped,
+      ve.is_validated,
       ve.createdAt,
       b.id as batch_id,
       b.fileName,
@@ -223,9 +232,7 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
       b.tradeDate,
       o.id as order_id,
       o.orderId as order_orderId,
-      o.uniqueID,
-      o.id_deduped,
-      o.is_validated,
+      COALESCE(o.uniqueID, e.uniqueID) as uniqueID,
       o.orderIdVersion,
       o.orderIdSession,
       o.orderIdInstance,
@@ -326,18 +333,38 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
       o.orderOriginationSystem,
       o.orderTradeDate,
       o.createdAt as order_createdAt,
-      o.updatedAt
+      o.updatedAt,
+      e.id as execution_id,
+      e.executionId as execution_executionId,
+      e.executionEntityId,
+      e.executionSeqNumber,
+      e.executionSide,
+      e.executionBrokerCapacity,
+      e.executionCapacity,
+      e.executionEventTime,
+      e.executionTime,
+      e.executionManualEventTime,
+      e.executionTradeDate,
+      e.executionSettleDate,
+      e.executionRiskDate,
+      e.executionSymbol,
+      e.executionExecutingEntity,
+      e.executionCurrencyId,
+      e.executionLastPrice,
+      e.executionLastQuantity
     FROM (
       SELECT ve.* FROM validation_errors ve
       LEFT JOIN batches b ON ve.batchId = b.id
       LEFT JOIN users u ON b.userId = u.id
       LEFT JOIN orders o ON ve.orderId = o.id
+LEFT JOIN executions e ON ve.executionId = e.id
       ${whereSQLSubquery}
       ORDER BY ${orderByField} ${sortOrder.toUpperCase()}
       LIMIT ${limit} OFFSET ${skip}
     ) ve
     LEFT JOIN batches b ON ve.batchId = b.id
     LEFT JOIN orders o ON ve.orderId = o.id
+LEFT JOIN executions e ON ve.executionId = e.id
   `);
 
   console.log('[Quality Issues] Found', validationErrors.length, 'validation errors on page', page);
@@ -366,11 +393,33 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
       createdAt: error.createdAt,
       orderId: error.orderId,
       batchTradeDate: error.tradeDate,
+      uniqueID: error.uniqueID || null,
+      executionDetails: error.execution_id ? {
+        id: error.execution_id,
+        executionId: error.execution_executionId,
+        uniqueID: error.uniqueID,
+        executionEntityId: error.executionEntityId,
+        executionSeqNumber: error.executionSeqNumber,
+        executionSide: error.executionSide,
+        executionBrokerCapacity: error.executionBrokerCapacity,
+        executionCapacity: error.executionCapacity,
+        executionEventTime: error.executionEventTime,
+        executionTime: error.executionTime,
+        executionManualEventTime: error.executionManualEventTime,
+        executionTradeDate: error.executionTradeDate,
+        executionSettleDate: error.executionSettleDate,
+        executionRiskDate: error.executionRiskDate,
+        executionSymbol: error.executionSymbol,
+        executionExecutingEntity: error.executionExecutingEntity,
+        executionCurrencyId: error.executionCurrencyId,
+        executionLastPrice: error.executionLastPrice,
+        executionLastQuantity: error.executionLastQuantity,
+      } : null,
       orderDetails: error.order_id ? {
         id: error.order_id,
         orderId: error.order_orderId,
         uniqueID: error.uniqueID,
-        id_deduped: error.id_deduped,
+        is_deduped: error.is_deduped,
         is_validated: error.is_validated,
         orderIdVersion: error.orderIdVersion,
         orderIdSession: error.orderIdSession,

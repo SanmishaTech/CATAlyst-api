@@ -3,6 +3,7 @@ const prisma = require("../config/db");
 const createError = require("http-errors");
 const path = require("path");
 const fs = require("fs").promises;
+const crypto = require("crypto");
 const {
   ExecutionSide,
   ExecutionPostingSide,
@@ -190,6 +191,49 @@ const parseIntValue = (value) => {
   return isNaN(parsed) ? null : parsed;
 };
 
+// Helper function to parse timestamp fields
+// Handles formats: "20250526:12:38:04:123426" (full) and "20250526" (date only)
+const parseTimestampField = (value) => {
+  if (!value || value === null || value === undefined || value === "") {
+    return null;
+  }
+  const strValue = String(value).trim();
+  // Full timestamp: YYYYMMDD:HH:MM:SS:microseconds
+  if (strValue.includes(":")) {
+    try {
+      const parts = strValue.split(":");
+      const datePart = parts[0]; // YYYYMMDD
+      const timeParts = parts.slice(1);
+      if (datePart.length === 8) {
+        const year = parseInt(datePart.slice(0,4),10);
+        const month = parseInt(datePart.slice(4,6),10);
+        const day = parseInt(datePart.slice(6,8),10);
+        let hour=0, minute=0, second=0, ms=0;
+        if (timeParts.length>0) {
+          hour   = parseInt(timeParts[0],10) || 0;
+          minute = parseInt(timeParts[1],10) || 0;
+          second = parseInt(timeParts[2],10) || 0;
+          if (timeParts[3]) {
+            ms = Math.floor(parseInt(timeParts[3],10)/1000) || 0;
+          }
+        }
+        const d = new Date(year, month-1, day, hour, minute, second, ms);
+        return d.toISOString();
+      }
+    } catch(err) {
+      return strValue;
+    }
+  }
+  // Date only: YYYYMMDD
+  if (/^\d{8}$/.test(strValue)) {
+    const year = strValue.slice(0,4);
+    const month = strValue.slice(4,6);
+    const day = strValue.slice(6,8);
+    return `${year}-${month}-${day}`;
+  }
+  return strValue;
+};
+
 // Helper function to validate and normalize execution data
 const validateAndNormalizeExecution = (executionData, userId, batchId, clientId) => {
   const validationErrors = [];
@@ -259,10 +303,17 @@ const validateAndNormalizeExecution = (executionData, userId, batchId, clientId)
     throw new Error(validationErrors.join('; '));
   }
 
+  // Generate uniqueID from executionId + executionIdInstance
+  // Create a hash-based short ID (8 characters) for better readability
+  const combinedString = `${executionData.executionId || ''}${executionData.executionIdInstance || ''}`;
+  const hash = crypto.createHash('md5').update(combinedString).digest('hex').substring(0, 8).toUpperCase();
+  const uniqueID = hash;
+
   const execution = {
     userId,
     batchId,
     clientId,
+    uniqueID,
     executionId: executionData.executionId || null,
     previousExecutionId: executionData.previousExecutionId || null,
     executionEntityId: executionData.executionEntityId || null,
@@ -274,10 +325,10 @@ const validateAndNormalizeExecution = (executionData, userId, batchId, clientId)
     executionAllocationSide: validatedEnumValues.executionAllocationSide || null,
     executionBrokerCapacity: validatedEnumValues.executionBrokerCapacity || null,
     executionCapacity: validatedEnumValues.executionCapacity || null,
-    executionEventTime: executionData.executionEventTime || null,
-    executionTime: executionData.executionTime || null,
+    executionEventTime: parseTimestampField(executionData.executionEventTime),
+    executionTime: parseTimestampField(executionData.executionTime),
     executionManualIndicator: validatedEnumValues.executionManualIndicator || null,
-    executionManualEventTime: executionData.executionManualEventTime || null,
+    executionManualEventTime: parseTimestampField(executionData.executionManualEventTime),
     isMarketExecution: validatedEnumValues.isMarketExecution || null,
     executionLastMarket: executionData.executionLastMarket || null,
     executionAccount: executionData.executionAccount || null,
@@ -305,17 +356,17 @@ const validateAndNormalizeExecution = (executionData, userId, batchId, clientId)
     executionTradeExecutionSystem: executionData.executionTradeExecutionSystem || null,
     executionOmsSource: executionData.executionOmsSource || null,
     executionBookingEligiblity: validatedEnumValues.executionBookingEligiblity || null,
-    executionTradeDate: executionData.executionTradeDate || null,
+    executionTradeDate: parseTimestampField(executionData.executionTradeDate),
     executionCurrencyId: executionData.executionCurrencyId || null,
     executionPositionId: executionData.executionPositionId || null,
     executionSwapIndicator: validatedEnumValues.executionSwapIndicator || null,
-    executionSettleDate: executionData.executionSettleDate || null,
+    executionSettleDate: parseTimestampField(executionData.executionSettleDate),
     executionCommisionFee: executionData.executionCommisionFee || null,
     executionRollupId: executionData.executionRollupId || null,
     executionSecondaryOffering: validatedEnumValues.executionSecondaryOffering || null,
     executionCumQuantity: executionData.executionCumQuantity || null,
     executionTradeFactors: executionData.executionTradeFactors || null,
-    executionRiskDate: executionData.executionRiskDate || null,
+    executionRiskDate: parseTimestampField(executionData.executionRiskDate),
     executionOrderComplianceId: executionData.executionOrderComplianceId || null,
     executionInfoBarrierId: executionData.executionInfoBarrierId || null,
     executonSessionActual: validatedEnumValues.executonSessionActual || null,

@@ -391,8 +391,6 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
     batchId,
     clientId,
     uniqueID,
-    id_deduped: 0,  // New records start with 0 (not deduped)
-    is_validated: 0, // Will be set to 1 after validation passes
     orderId: orderData.orderId || null,
     orderIdVersion: orderData.orderIdVersion || null,
     orderIdSession: orderData.orderIdSession || null,
@@ -1128,32 +1126,6 @@ const uploadOrders = async (req, res, next) => {
       data: validOrders,
       skipDuplicates: false,
     });
-
-    // Handle deduplication: Mark old records with same uniqueID as deduped
-    // Get all unique IDs from the newly inserted orders
-    const uniqueIDs = validOrders.map(order => order.uniqueID);
-    
-    if (uniqueIDs.length > 0) {
-      // Find all existing orders with these uniqueIDs that are NOT from this batch
-      const existingOrders = await prisma.order.findMany({
-        where: {
-          uniqueID: { in: uniqueIDs },
-          batchId: { not: batch.id }, // Exclude orders from current batch
-        },
-        select: { id: true, uniqueID: true },
-      });
-
-      // Mark old records as deduped (id_deduped = 1)
-      if (existingOrders.length > 0) {
-        await prisma.order.updateMany({
-          where: {
-            id: { in: existingOrders.map(o => o.id) },
-          },
-          data: { id_deduped: 1 },
-        });
-        console.log(`[DEDUPLICATION] Marked ${existingOrders.length} old records as deduped`);
-      }
-    }
 
     // Count unique rejected orders (not error messages)
     const uniqueRejectedOrderIndices = new Set(errors.map(err => err.index));

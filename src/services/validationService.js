@@ -235,6 +235,8 @@ const processBatchValidation = async (batchId) => {
               code: error.code || 'validation_error',
               batchId: batchId,
               orderId: order.id,
+              is_deduped: 0,  // New validation errors start as not deduped
+              is_validated: validationResult.success ? 1 : 0,  // Set based on validation result
             };
           }),
         });
@@ -331,6 +333,53 @@ const processExecutionBatchValidation = async (batchId, batch = null) => {
 
     for (const exe of executions) {
       const result = validateExecution(exe, client.exe_validation_1);
+
+      // Persist validation result for each execution
+      const validation = await prisma.validation.create({
+        data: {
+          executionId: exe.id,
+          batchId: batchId,
+          success: result.success,
+          validatedAt: new Date(),
+        },
+      });
+
+      // Persist individual error records when validation fails
+      if (!result.success && result.errors && result.errors.length > 0) {
+        await prisma.validationError.createMany({
+          data: result.errors.map((error) => {
+            // Determine validation code based on error message patterns (same mapping logic as order validation)
+            let validationCodeKey = 'CTX_INVALID_COMBINATION';
+            const msg = error.message?.toLowerCase() || '';
+            if (msg.includes('required')) {
+              validationCodeKey = 'REQ_MISSING_FIELD';
+            } else if (msg.includes('format') || msg.includes('invalid')) {
+              validationCodeKey = 'FMT_INVALID_FORMAT';
+            } else if (msg.includes('duplicate')) {
+              validationCodeKey = 'DUP_DUPLICATE_RECORD';
+            } else if (msg.includes('range') || msg.includes('out of')) {
+              validationCodeKey = 'RNG_VALUE_OUT_OF_RANGE';
+            } else if (msg.includes('enum') || msg.includes('allowed')) {
+              validationCodeKey = 'REF_INVALID_ENUM';
+            }
+
+            const validationCodeObj = getValidationCode(validationCodeKey);
+
+            return {
+              validationId: validation.id,
+              validationCode: validationCodeObj.code,
+              field: error.field || 'unknown',
+              message: error.message || 'Validation failed',
+              code: error.code || 'validation_error',
+              batchId: batchId,
+              executionId: exe.id,
+              is_deduped: 0,  // New validation errors start as not deduped
+              is_validated: result.success ? 1 : 0,  // Set based on validation result
+            };
+          }),
+        });
+      }
+
       if (result.success) {
         successCount++;
       } else {

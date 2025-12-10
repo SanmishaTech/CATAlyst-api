@@ -308,6 +308,13 @@ const getBatchValidationErrors = async (req, res, next) => {
             orderId: true,
           },
         },
+        execution: {
+          select: {
+            id: true,
+            executionId: true,
+            executionSeqNumber: true,
+          },
+        },
       },
     });
 
@@ -316,12 +323,14 @@ const getBatchValidationErrors = async (req, res, next) => {
       batchId: batch.id,
       totalValidations: validations.length,
       totalErrors: allErrors.length,
+      fileType: batch.fileType || null,
       errors: allErrors.map(error => ({
         field: error.field,
         message: error.message,
         code: error.code,
-        orderId: error.order.orderId,
-        orderDbId: error.order.id,
+        referenceId: error.order?.orderId || error.execution?.executionId || error.execution?.executionSeqNumber || null,
+        orderDbId: error.order?.id || null,
+        executionDbId: error.execution?.id || null,
         batchId: error.batchId,
       })),
     });

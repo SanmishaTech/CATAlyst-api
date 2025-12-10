@@ -109,7 +109,8 @@ model Batch {
 
 model Validation {
   id          Int      @id @default(autoincrement())
-  orderId     Int
+  orderId     Int?
+  executionId Int?
   batchId     Int
   success     Boolean  @default(false)
   validatedAt DateTime @default(now())
@@ -117,11 +118,13 @@ model Validation {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  order  Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  batch  Batch             @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  errors ValidationError[]
+  order      Order?     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  execution  Execution? @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  batch      Batch      @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  errors     ValidationError[]
 
   @@index([orderId])
+  @@index([executionId])
   @@index([batchId])
   @@map("validations")
 }
@@ -130,26 +133,36 @@ model ValidationError {
   id             Int      @id @default(autoincrement())
   validationId   Int
   batchId        Int
-  orderId        Int
+  orderId        Int?
+  executionId    Int?
   validationCode String   @db.VarChar(100)
   field          String   @db.VarChar(255)
   message        String   @db.Text
   code           String   @db.VarChar(100)
+  
+  // Deduplication and validation tracking
+  is_deduped     Int      @default(0) // 0 = not deduped, 1 = deduped (old record)
+  is_validated   Int      @default(0) // 0 = not validated, 1 = validated
+  
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   // Relations
   validation Validation @relation(fields: [validationId], references: [id], onDelete: Cascade)
   batch      Batch      @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  order      Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order      Order?     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  execution  Execution? @relation(fields: [executionId], references: [id], onDelete: Cascade)
 
   @@index([validationId])
   @@index([batchId])
   @@index([orderId])
+  @@index([executionId])
   @@index([batchId, createdAt(sort: Desc)])
   @@index([code])
   @@index([validationCode])
   @@index([createdAt])
+  @@index([is_deduped])
+  @@index([is_validated])
   @@map("validation_errors")
 }
 
@@ -159,10 +172,8 @@ model Order {
   batchId  Int
   clientId String?
 
-  // Deduplication and validation tracking
+  // Deduplication tracking
   uniqueID     String @db.VarChar(256) // Combination of orderId + orderIdInstance
-  id_deduped   Int    @default(0) // 0 = not deduped, 1 = deduped (old record)
-  is_validated Int    @default(0) // 0 = not validated, 1 = validated
 
   // Excel fields (101 total)
   orderId                       String   @db.VarChar(128)
@@ -280,8 +291,6 @@ model Order {
   @@index([batchId])
   @@index([orderId])
   @@index([uniqueID])
-  @@index([id_deduped])
-  @@index([is_validated])
   @@index([userId, createdAt(sort: Desc)])
   @@index([batchId, createdAt(sort: Desc)])
   @@index([clientId, createdAt(sort: Desc)])
@@ -357,6 +366,9 @@ model Execution {
   userId   Int
   batchId  Int
   clientId String?
+
+  // Deduplication tracking
+  uniqueID     String @db.VarChar(256) // Combination of executionId + executionIdInstance
 
   // Execution fields (72 total)
   executionId                       String   @db.VarChar(128) // Non-Negotiable
@@ -438,6 +450,8 @@ model Execution {
   // Relations
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  validations      Validation[]
+  validationErrors ValidationError[]
 
   @@index([userId])
   @@index([batchId])
@@ -448,5 +462,6 @@ model Execution {
   @@index([clientId, createdAt(sort: Desc)])
   @@index([executionSymbol])
   @@index([clientId])
+  @@index([uniqueID])
   @@map("executions")
 }
