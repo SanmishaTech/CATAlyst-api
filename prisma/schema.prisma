@@ -13,8 +13,8 @@ model User {
   name              String
   email             String    @unique
   password          String
-  role              String    
-  clientId          Int?      // For users: references their client
+  role              String
+  clientId          Int? // For users: references their client
   active            Boolean   @default(true)
   lastLogin         DateTime?
   resetToken        String?
@@ -23,124 +23,126 @@ model User {
   apiKeyExpiry      DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
-  
+
   // Relations
-  client            Client?   @relation("ClientUsers", fields: [clientId], references: [id], onDelete: Cascade)
-  batches           Batch[]
-  orders            Order[]
-  executions        Execution[]
-  
+  client     Client?     @relation("ClientUsers", fields: [clientId], references: [id], onDelete: Cascade)
+  batches    Batch[]
+  orders     Order[]
+  executions Execution[]
+
   @@index([clientId])
   @@map("users")
 }
 
 model Client {
-  id                            Int       @id @default(autoincrement())
-  name                          String
-  entityName                    String?
-  address                       String?   @db.Text
-  legalAddress                  String?   @db.Text
-  taxOrEinNumber                String?
-  mpid                          String?
-  lei                           String?
-  catReporterImid               String?
-  catSubmitterImid              String?
-  contactPersonName             String?
-  contactNumber                 String?
-  contactEmailId                String?
-  serviceEmailId                String?
-  catEnabled                    Boolean   @default(false)
-  sixZeroFiveEnabled            Boolean   @default(false)
-  loprEnabled                   Boolean   @default(false)
-  supportEscalationContact      String?
-  dataSpecificationModel        String?   // Enum stored as string
-  configurationPlaceholder      String?   // Enum stored as string
-  configurationPlaceholder1     String?   // Enum stored as string
-  configurationPlaceholder2     String?   // Enum stored as string
-  placeholderColumn1            String?
-  placeholderColumn2            String?
-  placeholderColumn3            String?
-  placeholderColumn4            String?
-  placeholderColumn5            String?
-  placeholderColumn6            String?
-  placeholderColumn7            String?
-  validation_1                  Json?
-  active                        Boolean   @default(true)
-  createdAt                     DateTime  @default(now())
-  updatedAt                     DateTime  @updatedAt
-  
+  id                        Int      @id @default(autoincrement())
+  name                      String
+  entityName                String?
+  address                   String?  @db.Text
+  legalAddress              String?  @db.Text
+  taxOrEinNumber            String?
+  mpid                      String?
+  lei                       String?
+  catReporterImid           String?
+  catSubmitterImid          String?
+  contactPersonName         String?
+  contactNumber             String?
+  contactEmailId            String?
+  serviceEmailId            String?
+  catEnabled                Boolean  @default(false)
+  sixZeroFiveEnabled        Boolean  @default(false)
+  loprEnabled               Boolean  @default(false)
+  supportEscalationContact  String?
+  dataSpecificationModel    String? // Enum stored as string
+  configurationPlaceholder  String? // Enum stored as string
+  configurationPlaceholder1 String? // Enum stored as string
+  configurationPlaceholder2 String? // Enum stored as string
+  placeholderColumn1        String?
+  placeholderColumn2        String?
+  placeholderColumn3        String?
+  placeholderColumn4        String?
+  placeholderColumn5        String?
+  placeholderColumn6        String?
+  placeholderColumn7        String?
+  validation_1              Json?
+  exe_validation_1          Json?
+  active                    Boolean  @default(true)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
   // Relations
-  users                         User[]    @relation("ClientUsers")
-  
+  users User[] @relation("ClientUsers")
+
   @@map("clients")
 }
 
 model Batch {
-  id                Int       @id @default(autoincrement())
-  userId            Int
-  totalOrders       Int       @default(0)
-  successfulOrders  Int       @default(0)
-  failedOrders      Int       @default(0)
-  status            String    @default("pending") // pending, in_progress, completed
-  fileName          String?   @db.VarChar(255)
-  tradeDate         DateTime?
-  fileType          String?
-  errorLog          String?   @db.Text
-  validation_1      Boolean?  // null = not validated, false = failed, true = passed
-  importedAt        DateTime  @default(now())
-  completedAt       DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  
+  id               Int       @id @default(autoincrement())
+  userId           Int
+  totalOrders      Int       @default(0)
+  successfulOrders Int       @default(0)
+  failedOrders     Int       @default(0)
+  status           String    @default("pending") // pending, in_progress, completed
+  fileName         String?   @db.VarChar(255)
+  tradeDate        DateTime?
+  fileType         String?
+  errorLog         String?   @db.Text
+  validation_1     Boolean? // null = not validated, false = failed, true = passed
+  importedAt       DateTime  @default(now())
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
   // Relations
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   orders            Order[]
   executions        Execution[]
   validations       Validation[]
   validationErrors  ValidationError[]
   rejectedOrders    RejectedOrder[]
-  
+  rejectedExecutions RejectedExecution[]
+
   @@index([userId])
   @@index([validation_1])
   @@map("batches")
 }
 
 model Validation {
-  id                Int       @id @default(autoincrement())
-  orderId           Int
-  batchId           Int
-  success           Boolean   @default(false)
-  validatedAt       DateTime  @default(now())
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  
+  id          Int      @id @default(autoincrement())
+  orderId     Int
+  batchId     Int
+  success     Boolean  @default(false)
+  validatedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   // Relations
-  order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  batch             Batch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  errors            ValidationError[]
-  
+  order  Order             @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  batch  Batch             @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  errors ValidationError[]
+
   @@index([orderId])
   @@index([batchId])
   @@map("validations")
 }
 
 model ValidationError {
-  id                Int       @id @default(autoincrement())
-  validationId      Int
-  batchId           Int
-  orderId           Int
-  validationCode    String    @db.VarChar(100)
-  field             String    @db.VarChar(255)
-  message           String    @db.Text
-  code              String    @db.VarChar(100)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  
+  id             Int      @id @default(autoincrement())
+  validationId   Int
+  batchId        Int
+  orderId        Int
+  validationCode String   @db.VarChar(100)
+  field          String   @db.VarChar(255)
+  message        String   @db.Text
+  code           String   @db.VarChar(100)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
   // Relations
-  validation        Validation @relation(fields: [validationId], references: [id], onDelete: Cascade)
-  batch             Batch      @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  order             Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
+  validation Validation @relation(fields: [validationId], references: [id], onDelete: Cascade)
+  batch      Batch      @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  order      Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
   @@index([validationId])
   @@index([batchId])
   @@index([orderId])
@@ -152,128 +154,128 @@ model ValidationError {
 }
 
 model Order {
-  id                              Int       @id @default(autoincrement())
-  userId                          Int
-  batchId                         Int
-  clientId                        String?
-  
+  id       Int     @id @default(autoincrement())
+  userId   Int
+  batchId  Int
+  clientId String?
+
   // Deduplication and validation tracking
-  uniqueID                        String    @db.VarChar(256)  // Combination of orderId + orderIdInstance
-  id_deduped                      Int       @default(0)       // 0 = not deduped, 1 = deduped (old record)
-  is_validated                    Int       @default(0)       // 0 = not validated, 1 = validated
-  
+  uniqueID     String @db.VarChar(256) // Combination of orderId + orderIdInstance
+  id_deduped   Int    @default(0) // 0 = not deduped, 1 = deduped (old record)
+  is_validated Int    @default(0) // 0 = not validated, 1 = validated
+
   // Excel fields (101 total)
-  orderId                         String    @db.VarChar(128)
-  orderIdVersion                  Int?
-  orderIdSession                  String?   @db.VarChar(16)
-  orderIdInstance                 String?   @db.VarChar(64)
-  parentOrderId                   String?   @db.VarChar(128)
-  cancelreplaceOrderId            String?   @db.VarChar(128)
-  linkedOrderId                   String?   @db.VarChar(128)
-  linkOrderType                   String?   @db.VarChar(128)  // Link Identifier - conditional (required when linkedOrderId is not null)
-  orderAction                     String    @db.VarChar(50)
-  orderStatus                     String?   @db.VarChar(48)
-  orderCapacity                   String    @db.VarChar(48)
-  orderDestination                String?   @db.VarChar(48)
-  orderClientRef                  String?   @db.VarChar(128)
-  orderClientRefDetails           String?   @db.VarChar(48)
-  orderExecutingEntity            Int?
-  orderBookingEntity              Int?
-  orderPositionAccount            Int?
-  orderSide                       String    @db.VarChar(50)
-  orderClientCapacity              String?   @db.VarChar(50)
-  orderManualIndicator             String?   @db.VarChar(50)
-  orderRequestTime                 String?   @db.VarChar(50)
-  orderEventTime                  String?   @db.VarChar(50)
-  orderManualTimestamp            String?   @db.VarChar(50)
-  orderOmsSource                  String    @db.VarChar(64)
-  orderPublishingTime             String    @db.VarChar(50)
-  orderTradeDate                  String?   @db.VarChar(50)
-  orderQuantity                   Decimal?  @db.Decimal(18, 6)
-  orderPrice                      Decimal?  @db.Decimal(18, 6)
-  orderType                       String    @db.VarChar(50)
-  orderTimeInforce                String?   @db.VarChar(50)
-  orderExecutionInstructions      String?   @db.VarChar(128)
-  orderAttributes                 String?   @db.VarChar(128)
-  orderRestrictions               String?   @db.VarChar(256)
-  orderAuctionIndicator           String?   @db.VarChar(64)
-  orderSwapIndicator              String?   @db.VarChar(50)
-  orderOsi                        String?   @db.VarChar(128)
-  orderInstrumentId               Int?
-  orderLinkedInstrumentId         Int?
-  orderCurrencyId                 String?   @db.VarChar(32)
-  orderFlowType                   String?   @db.VarChar(32)
-  orderAlgoInstruction            String?   @db.VarChar(64)
-  orderSymbol                     String?   @db.VarChar(64)
-  orderInstrumentReference        String?   @db.VarChar(24)
-  orderInstrumentReferenceValue   String?   @db.VarChar(64)
-  orderOptionPutCall              String?   @db.VarChar(50)
-  orderOptionStrikePrice          Decimal?  @db.Decimal(18, 6)
-  orderOptionLegIndicator         String?   @db.VarChar(50)
-  orderComplianceId               String    @db.VarChar(128)
-  orderEntityId                   String?   @db.VarChar(128)
-  orderExecutingAccount           Int?
-  orderClearingAccount            Int?
-  orderClientOrderId              String?   @db.VarChar(128)
-  orderRoutedOrderId              String?   @db.VarChar(128)
-  orderTradingOwner               Int?
-  orderExtendedAttribute          String?   @db.VarChar(256)
-  orderQuoteId                    String?   @db.VarChar(128)
-  orderRepresentOrderId           String?   @db.VarChar(128)
-  orderOnBehalfCompId             String?   @db.VarChar(64)
-  orderSpread                     Decimal?  @db.Decimal(18, 6)
-  orderAmendReason                String?   @db.VarChar(64)
-  orderCancelRejectReason         String?   @db.VarChar(64)
-  orderBidSize                    Decimal?  @db.Decimal(18, 6)
-  orderBidPrice                   Decimal?  @db.Decimal(18, 6)
-  orderAskSize                    Decimal?  @db.Decimal(18, 6)
-  orderAskPrice                   Decimal?  @db.Decimal(18, 6)
-  orderBasketId                   String?   @db.VarChar(128)
-  orderCumQty                     Decimal?  @db.Decimal(18, 6)
-  orderLeavesQty                  Decimal?  @db.Decimal(18, 6)
-  orderStopPrice                  Decimal?  @db.Decimal(18, 6)
-  orderDiscretionPrice            Decimal?  @db.Decimal(18, 6)
-  orderExdestinationInstruction   String?   @db.VarChar(64)
-  orderExecutionParameter         String?   @db.VarChar(128)
-  orderInfobarrierId              String?   @db.VarChar(128)
-  orderLegRatio                   Decimal?  @db.Decimal(18, 6)
-  orderLocateId                   String?   @db.VarChar(128)
-  orderNegotiatedIndicator        String?   @db.VarChar(50)
-  orderOpenClose                  String?   @db.VarChar(50)
-  orderParticipantPriorityCode    String?   @db.VarChar(32)
-  orderActionInitiated            String?   @db.VarChar(32)
-  orderPackageIndicator           String?   @db.VarChar(50)
-  orderPackageId                  String?   @db.VarChar(128)
-  orderPackagePricetype           String?   @db.VarChar(64)
-  orderStrategyType                String?   @db.VarChar(64)
-  orderSecondaryOffering          String?   @db.VarChar(50)
-  orderStartTime                   String?   @db.VarChar(50)
-  orderTifExpiration              String?   @db.VarChar(50)
-  orderParentChildType            String?   @db.VarChar(50)
-  orderMinimumQty                 Decimal?  @db.Decimal(18, 6)
-  orderTradingSession             String?   @db.VarChar(50)
-  orderDisplayPrice               Decimal?  @db.Decimal(18, 6)
-  orderSeqNumber                  String?   @db.VarChar(128)
-  atsDisplayIndicator             String?   @db.VarChar(50)
-  orderDisplayQty                 Decimal?  @db.Decimal(18, 6)
-  orderWorkingPrice               Decimal?  @db.Decimal(18, 6)
-  atsOrderType                    String?   @db.VarChar(32)
-  orderNbboSource                 String?   @db.VarChar(64)
-  orderNbboTimestamp              String?   @db.VarChar(50)
-  orderSolicitationFlag           String?   @db.VarChar(50)
-  orderNetPrice                   Decimal?  @db.Decimal(18, 6)
-  routeRejectedFlag               String?   @db.VarChar(50)
-  orderOriginationSystem          String    @db.VarChar(64)
-  
-  createdAt                       DateTime  @default(now())
-  updatedAt                       DateTime  @updatedAt
-  
+  orderId                       String   @db.VarChar(128)
+  orderIdVersion                Int?
+  orderIdSession                String?  @db.VarChar(16)
+  orderIdInstance               String?  @db.VarChar(64)
+  parentOrderId                 String?  @db.VarChar(128)
+  cancelreplaceOrderId          String?  @db.VarChar(128)
+  linkedOrderId                 String?  @db.VarChar(128)
+  linkOrderType                 String?  @db.VarChar(128) // Link Identifier - conditional (required when linkedOrderId is not null)
+  orderAction                   String   @db.VarChar(50)
+  orderStatus                   String?  @db.VarChar(48)
+  orderCapacity                 String   @db.VarChar(48)
+  orderDestination              String?  @db.VarChar(48)
+  orderClientRef                String?  @db.VarChar(128)
+  orderClientRefDetails         String?  @db.VarChar(48)
+  orderExecutingEntity          Int?
+  orderBookingEntity            Int?
+  orderPositionAccount          Int?
+  orderSide                     String   @db.VarChar(50)
+  orderClientCapacity           String?  @db.VarChar(50)
+  orderManualIndicator          String?  @db.VarChar(50)
+  orderRequestTime              String?  @db.VarChar(50)
+  orderEventTime                String?  @db.VarChar(50)
+  orderManualTimestamp          String?  @db.VarChar(50)
+  orderOmsSource                String   @db.VarChar(64)
+  orderPublishingTime           String   @db.VarChar(50)
+  orderTradeDate                String?  @db.VarChar(50)
+  orderQuantity                 Decimal? @db.Decimal(18, 6)
+  orderPrice                    Decimal? @db.Decimal(18, 6)
+  orderType                     String   @db.VarChar(50)
+  orderTimeInforce              String?  @db.VarChar(50)
+  orderExecutionInstructions    String?  @db.VarChar(128)
+  orderAttributes               String?  @db.VarChar(128)
+  orderRestrictions             String?  @db.VarChar(256)
+  orderAuctionIndicator         String?  @db.VarChar(64)
+  orderSwapIndicator            String?  @db.VarChar(50)
+  orderOsi                      String?  @db.VarChar(128)
+  orderInstrumentId             Int?
+  orderLinkedInstrumentId       Int?
+  orderCurrencyId               String?  @db.VarChar(32)
+  orderFlowType                 String?  @db.VarChar(32)
+  orderAlgoInstruction          String?  @db.VarChar(64)
+  orderSymbol                   String?  @db.VarChar(64)
+  orderInstrumentReference      String?  @db.VarChar(24)
+  orderInstrumentReferenceValue String?  @db.VarChar(64)
+  orderOptionPutCall            String?  @db.VarChar(50)
+  orderOptionStrikePrice        Decimal? @db.Decimal(18, 6)
+  orderOptionLegIndicator       String?  @db.VarChar(50)
+  orderComplianceId             String   @db.VarChar(128)
+  orderEntityId                 String?  @db.VarChar(128)
+  orderExecutingAccount         Int?
+  orderClearingAccount          Int?
+  orderClientOrderId            String?  @db.VarChar(128)
+  orderRoutedOrderId            String?  @db.VarChar(128)
+  orderTradingOwner             Int?
+  orderExtendedAttribute        String?  @db.VarChar(256)
+  orderQuoteId                  String?  @db.VarChar(128)
+  orderRepresentOrderId         String?  @db.VarChar(128)
+  orderOnBehalfCompId           String?  @db.VarChar(64)
+  orderSpread                   Decimal? @db.Decimal(18, 6)
+  orderAmendReason              String?  @db.VarChar(64)
+  orderCancelRejectReason       String?  @db.VarChar(64)
+  orderBidSize                  Decimal? @db.Decimal(18, 6)
+  orderBidPrice                 Decimal? @db.Decimal(18, 6)
+  orderAskSize                  Decimal? @db.Decimal(18, 6)
+  orderAskPrice                 Decimal? @db.Decimal(18, 6)
+  orderBasketId                 String?  @db.VarChar(128)
+  orderCumQty                   Decimal? @db.Decimal(18, 6)
+  orderLeavesQty                Decimal? @db.Decimal(18, 6)
+  orderStopPrice                Decimal? @db.Decimal(18, 6)
+  orderDiscretionPrice          Decimal? @db.Decimal(18, 6)
+  orderExdestinationInstruction String?  @db.VarChar(64)
+  orderExecutionParameter       String?  @db.VarChar(128)
+  orderInfobarrierId            String?  @db.VarChar(128)
+  orderLegRatio                 Decimal? @db.Decimal(18, 6)
+  orderLocateId                 String?  @db.VarChar(128)
+  orderNegotiatedIndicator      String?  @db.VarChar(50)
+  orderOpenClose                String?  @db.VarChar(50)
+  orderParticipantPriorityCode  String?  @db.VarChar(32)
+  orderActionInitiated          String?  @db.VarChar(32)
+  orderPackageIndicator         String?  @db.VarChar(50)
+  orderPackageId                String?  @db.VarChar(128)
+  orderPackagePricetype         String?  @db.VarChar(64)
+  orderStrategyType             String?  @db.VarChar(64)
+  orderSecondaryOffering        String?  @db.VarChar(50)
+  orderStartTime                String?  @db.VarChar(50)
+  orderTifExpiration            String?  @db.VarChar(50)
+  orderParentChildType          String?  @db.VarChar(50)
+  orderMinimumQty               Decimal? @db.Decimal(18, 6)
+  orderTradingSession           String?  @db.VarChar(50)
+  orderDisplayPrice             Decimal? @db.Decimal(18, 6)
+  orderSeqNumber                String?  @db.VarChar(128)
+  atsDisplayIndicator           String?  @db.VarChar(50)
+  orderDisplayQty               Decimal? @db.Decimal(18, 6)
+  orderWorkingPrice             Decimal? @db.Decimal(18, 6)
+  atsOrderType                  String?  @db.VarChar(32)
+  orderNbboSource               String?  @db.VarChar(64)
+  orderNbboTimestamp            String?  @db.VarChar(50)
+  orderSolicitationFlag         String?  @db.VarChar(50)
+  orderNetPrice                 Decimal? @db.Decimal(18, 6)
+  routeRejectedFlag             String?  @db.VarChar(50)
+  orderOriginationSystem        String   @db.VarChar(64)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   // Relations
-  user                            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  batch                           Batch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  validations                     Validation[]
-  validationErrors                ValidationError[]
-  
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  batch            Batch             @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  validations      Validation[]
+  validationErrors ValidationError[]
+
   @@index([userId])
   @@index([batchId])
   @@index([orderId])
@@ -300,121 +302,143 @@ model PasswordReset {
   verified  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([email])
   @@index([otp])
   @@map("password_resets")
 }
 
 model RejectedOrder {
-  id                Int      @id @default(autoincrement())
-  batchId           Int
-  userId            Int
-  rowNumber         Int?     // For Excel uploads - row number in Excel
-  jsonIndex         Int?     // For JSON uploads - index in JSON array
-  orderId           String?  @db.VarChar(128) // If available from failed data
-  rawData           Json?    // Store the raw order data that failed
-  validationErrors  Json     // Store validation error messages as JSON array
-  uploadType        String   @db.VarChar(10) // 'excel' or 'json'
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  
+  id               Int      @id @default(autoincrement())
+  batchId          Int
+  userId           Int
+  rowNumber        Int? // For Excel uploads - row number in Excel
+  jsonIndex        Int? // For JSON uploads - index in JSON array
+  orderId          String?  @db.VarChar(128) // If available from failed data
+  rawData          Json? // Store the raw order data that failed
+  validationErrors Json // Store validation error messages as JSON array
+  uploadType       String   @db.VarChar(10) // 'excel' or 'json'
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
   // Relations
-  batch             Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  
+  batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
   @@index([batchId])
   @@index([userId])
   @@index([orderId])
   @@map("rejected_orders")
 }
 
-model Execution {
-  id                              Int       @id @default(autoincrement())
-  userId                          Int
-  batchId                         Int
-  clientId                        String?
-  
-  // Execution fields (72 total)
-  executionId                     String?   @db.VarChar(128)
-  previousExecutionId             String?   @db.VarChar(128)
-  executionEntityId               String    @db.VarChar(128)
-  executionVersion                Int?
-  executionSeqNumber              String    @db.VarChar(128)
-  externalExecutionId             String?   @db.VarChar(128)
-  executionSide                   String?   @db.VarChar(50)
-  executionPostingSide            String?   @db.VarChar(50)
-  executionAllocationSide         String?   @db.VarChar(50)
-  executionBrokerCapacity         String    @db.VarChar(50)
-  executionCapacity               String?   @db.VarChar(50)
-  executionEventTime              String?   @db.VarChar(50)
-  executionTime                   String?   @db.VarChar(50)
-  executionManualIndicator        String    @db.VarChar(50)
-  executionManualEventTime        String?   @db.VarChar(50)
-  isMarketExecution               String    @db.VarChar(50)
-  executionLastMarket             String?   @db.VarChar(48)
-  executionAccount                Int?
-  executionBookingAccount         Int?
-  executionBookingEntity          Int?
-  executionTradingEntity          Int?
-  executionDeskId                 String?   @db.VarChar(48)
-  executionOsi                    String?   @db.VarChar(128)
-  executionInstrumentId           Int?
-  executionLinkedInstrumentId     Int?
-  executionSymbol                 String    @db.VarChar(64)
-  executionInstrumentReference    String?   @db.VarChar(24)
-  executionInstrumentReferenceValue String? @db.VarChar(64)
-  executionLastPrice              Decimal?  @db.Decimal(18, 6)
-  executionLastQuantity           Decimal?  @db.Decimal(18, 6)
-  executionContraBroker           String    @db.VarChar(48)
-  linkedExecutionId               String?   @db.VarChar(128)
-  executionTransactionType        String    @db.VarChar(50)
-  executionIdInstance             String    @db.VarChar(64)
-  executionSession                String?   @db.VarChar(16)
-  executionOrderIdInstance        String?   @db.VarChar(64)
-  executionOrderIdSession         String?   @db.VarChar(16)
-  executonOrderId                 String    @db.VarChar(128)
-  executionOrderIdVersion         Int?
-  executionTradeExecutionSystem   String    @db.VarChar(64)
-  executionOmsSource              String?   @db.VarChar(64)
-  executionBookingEligiblity      String?   @db.VarChar(50)
-  executionTradeDate              String    @db.VarChar(50)
-  executionCurrencyId             String    @db.VarChar(32)
-  executionPositionId             Int?
-  executionSwapIndicator          String?   @db.VarChar(50)
-  executionSettleDate             String?   @db.VarChar(50)
-  executionCommisionFee           Decimal?  @db.Decimal(18, 6)
-  executionRollupId               String?   @db.VarChar(128)
-  executionSecondaryOffering      String    @db.VarChar(50)
-  executionCumQuantity            Decimal?  @db.Decimal(18, 6)
-  executionTradeFactors           Decimal?  @db.Decimal(18, 6)
-  executionRiskDate               String?   @db.VarChar(50)
-  executionOrderComplianceId      String?   @db.VarChar(128)
-  executionInfoBarrierId          String?   @db.VarChar(128)
-  executonSessionActual           String    @db.VarChar(50)
-  executionStrategy               String?   @db.VarChar(64)
-  executionLastLiquidityIndicator String?   @db.VarChar(50)
-  executionWaiverIndicator        String?   @db.VarChar(50)
-  executionLifecycleType          String?   @db.VarChar(50)
-  executionPackageIndicator       String?   @db.VarChar(50)
-  executionRawLiquidityIndicator  String?   @db.VarChar(50)
-  executionPackageId              String?   @db.VarChar(128)
-  executionQuoteId                String?   @db.VarChar(128)
-  executionYield                  Decimal?  @db.Decimal(18, 6)
-  executionSpread                 Decimal?  @db.Decimal(18, 6)
-  executionNegotiatedIndicator    String?   @db.VarChar(50)
-  executionOpenCloseIndicator     String?   @db.VarChar(50)
-  exchangeExecId                  String?   @db.VarChar(128)
-  executionAction                 String?   @db.VarChar(50)
-  executionCrossId                String?   @db.VarChar(128)
-  executionExecutingEntity        Int?
-  
-  createdAt                       DateTime  @default(now())
-  updatedAt                       DateTime  @updatedAt
-  
+model RejectedExecution {
+  id               Int      @id @default(autoincrement())
+  batchId          Int
+  userId           Int
+  rowNumber        Int? // For Excel uploads - row number in Excel
+  jsonIndex        Int? // For JSON uploads - index in JSON array
+  executionId      String?  @db.VarChar(128) // If available from failed data
+  rawData          Json? // Store the raw execution data that failed
+  validationErrors Json // Store validation error messages as JSON array
+  uploadType       String   @db.VarChar(10) // 'excel' or 'json'
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
   // Relations
-  user                            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  batch                           Batch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  
+  batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
+  @@index([userId])
+  @@index([executionId])
+  @@map("rejected_executions")
+}
+
+model Execution {
+  id       Int     @id @default(autoincrement())
+  userId   Int
+  batchId  Int
+  clientId String?
+
+  // Execution fields (72 total)
+  executionId                       String   @db.VarChar(128) // Non-Negotiable
+  previousExecutionId               String?  @db.VarChar(128)
+  executionEntityId                 String   @db.VarChar(128)
+  executionVersion                  Int?
+  executionSeqNumber                String   @db.VarChar(128)
+  externalExecutionId               String?  @db.VarChar(128)
+  executionSide                     String   @db.VarChar(50) // Non-Negotiable
+  executionPostingSide              String   @db.VarChar(50) // Non-Negotiable
+  executionAllocationSide           String?  @db.VarChar(50)
+  executionBrokerCapacity           String   @db.VarChar(50)
+  executionCapacity                 String   @db.VarChar(50) // Non-Negotiable
+  executionEventTime                String   @db.VarChar(50) // Non-Negotiable
+  executionTime                     String   @db.VarChar(50) // Non-Negotiable
+  executionManualIndicator          String   @db.VarChar(50)
+  executionManualEventTime          String?  @db.VarChar(50)
+  isMarketExecution                 String   @db.VarChar(50)
+  executionLastMarket               String?  @db.VarChar(48)
+  executionAccount                  Int // Non-Negotiable
+  executionBookingAccount           Int?
+  executionBookingEntity            Int?
+  executionTradingEntity            Int?
+  executionDeskId                   String?  @db.VarChar(48)
+  executionOsi                      String?  @db.VarChar(128)
+  executionInstrumentId             Int?
+  executionLinkedInstrumentId       Int?
+  executionSymbol                   String   @db.VarChar(64)
+  executionInstrumentReference      String?  @db.VarChar(24)
+  executionInstrumentReferenceValue String?  @db.VarChar(64)
+  executionLastPrice                Decimal  @db.Decimal(18, 6) // Non-Negotiable
+  executionLastQuantity             Decimal  @db.Decimal(18, 6) // Non-Negotiable
+  executionContraBroker             String?  @db.VarChar(48)
+  linkedExecutionId                 String?  @db.VarChar(128)
+  executionTransactionType          String   @db.VarChar(50)
+  executionIdInstance               String   @db.VarChar(64)
+  executionSession                  String?  @db.VarChar(16)
+  executionOrderIdInstance          String?  @db.VarChar(64)
+  executionOrderIdSession           String?  @db.VarChar(16)
+  executonOrderId                   String   @db.VarChar(128) // Non-Negotiable
+  executionOrderIdVersion           Int?
+  executionTradeExecutionSystem     String   @db.VarChar(64)
+  executionOmsSource                String   @db.VarChar(64) // Non-Negotiable
+  executionBookingEligiblity        String?  @db.VarChar(50)
+  executionTradeDate                String   @db.VarChar(50)
+  executionCurrencyId               String   @db.VarChar(32)
+  executionPositionId               Int?
+  executionSwapIndicator            String?  @db.VarChar(50)
+  executionSettleDate               String?  @db.VarChar(50)
+  executionCommisionFee             Decimal? @db.Decimal(18, 6)
+  executionRollupId                 String?  @db.VarChar(128)
+  executionSecondaryOffering        String   @db.VarChar(50)
+  executionCumQuantity              Decimal? @db.Decimal(18, 6)
+  executionTradeFactors             Decimal? @db.Decimal(18, 6)
+  executionRiskDate                 String?  @db.VarChar(50)
+  executionOrderComplianceId        String   @db.VarChar(128) // Non-Negotiable
+  executionInfoBarrierId            String?  @db.VarChar(128)
+  executonSessionActual             String?  @db.VarChar(50)
+  executionStrategy                 String?  @db.VarChar(64)
+  executionLastLiquidityIndicator   String?  @db.VarChar(50)
+  executionWaiverIndicator          String?  @db.VarChar(50)
+  executionLifecycleType            String?  @db.VarChar(50)
+  executionPackageIndicator         String?  @db.VarChar(50)
+  executionRawLiquidityIndicator    String?  @db.VarChar(50)
+  executionPackageId                String?  @db.VarChar(128)
+  executionQuoteId                  String?  @db.VarChar(128)
+  executionYield                    Decimal? @db.Decimal(18, 6)
+  executionSpread                   Decimal? @db.Decimal(18, 6)
+  executionNegotiatedIndicator      String?  @db.VarChar(50)
+  executionOpenCloseIndicator       String?  @db.VarChar(50)
+  exchangeExecId                    String?  @db.VarChar(128)
+  executionAction                   String   @db.VarChar(50) // Non-Negotiable
+  executionCrossId                  String?  @db.VarChar(128)
+  executionExecutingEntity          Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([batchId])
   @@index([executionEntityId])

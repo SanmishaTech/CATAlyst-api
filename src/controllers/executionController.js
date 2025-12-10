@@ -208,7 +208,7 @@ const validateAndNormalizeExecution = (executionData, userId, batchId, clientId)
     { field: 'executionBookingEligiblity', enum: ExecutionBookingEligiblity, name: 'Execution_Booking_Eligiblity' },
     { field: 'executionSwapIndicator', enum: ExecutionSwapIndicator, name: 'Execution_Swap_Indicator' },
     { field: 'executionSecondaryOffering', enum: ExecutionSecondaryOffering, name: 'Execution_Secondary_Offering', required: true },
-    { field: 'executonSessionActual', enum: ExecutonSessionActual, name: 'Executon_Session_Actual', required: true },
+    { field: 'executonSessionActual', enum: ExecutonSessionActual, name: 'Executon_Session_Actual' },
     { field: 'executionLastLiquidityIndicator', enum: ExecutionLastLiquidityIndicator, name: 'Execution_Last_Liquidity_Indicator' },
     { field: 'executionWaiverIndicator', enum: ExecutionWaiverIndicator, name: 'Execution_Waiver_Indicator' },
     { field: 'executionPackageIndicator', enum: ExecutionPackageIndicator, name: 'Execution_Package_Indicator' },
@@ -224,7 +224,6 @@ const validateAndNormalizeExecution = (executionData, userId, batchId, clientId)
     { field: 'executionEntityId', name: 'Execution_Entity_ID' },
     { field: 'executionSeqNumber', name: 'Execution_Seq_Number' },
     { field: 'executionSymbol', name: 'Execution_Symbol' },
-    { field: 'executionContraBroker', name: 'Execution_Contra_Broker' },
     { field: 'executonOrderId', name: 'Executon_Order_ID' },
     { field: 'executionIdInstance', name: 'Execution_ID_Instance' },
     { field: 'executionTradeExecutionSystem', name: 'Execution_Trade_Execution_System' },
@@ -661,6 +660,56 @@ const uploadExecutions = async (req, res, next) => {
       },
     });
 
+    // Save rejected executions to database (if table exists)
+    if (errors.length > 0) {
+      try {
+        // Determine upload type (excel vs json)
+        const uploadType = req.file ? 'excel' : 'json';
+
+        // Group errors by index to handle multiple errors per execution
+        const errorsByIndex = {};
+        errors.forEach(err => {
+          if (!errorsByIndex[err.index]) {
+            errorsByIndex[err.index] = [];
+          }
+          errorsByIndex[err.index].push(err.error);
+        });
+
+        // Prepare rejected executions data
+        const rejectedExecutionsData = Object.keys(errorsByIndex).map(index => {
+          const idx = parseInt(index);
+          const executionData = executionsArray[idx];
+          const errorMessages = errorsByIndex[index];
+
+          return {
+            batchId: batch.id,
+            userId: userId,
+            rowNumber: uploadType === 'excel' ? idx + 2 : null, // Excel row number (header is row 1)
+            jsonIndex: uploadType === 'json' ? idx : null, // JSON array index
+            executionId: executionData?.executionId || null,
+            rawData: executionData || null,
+            validationErrors: errorMessages,
+            uploadType: uploadType,
+          };
+        });
+
+        // Try to insert rejected executions (may fail if table doesn't exist yet)
+        try {
+          await prisma.rejectedExecution.createMany({
+            data: rejectedExecutionsData,
+            skipDuplicates: false,
+          });
+          console.log(`[REJECTED EXECUTIONS] Saved ${rejectedExecutionsData.length} rejected executions to database`);
+        } catch (tableError) {
+          // Table might not exist yet, log but don't fail the upload
+          console.warn('[REJECTED EXECUTIONS] Could not save to database (table may not exist):', tableError.message);
+        }
+      } catch (dbError) {
+        console.error('[REJECTED EXECUTIONS] Failed to process rejected executions:', dbError);
+        // Don't fail the entire request if we can't save rejected executions
+      }
+    }
+
     res.status(201).json({
       message: "Executions uploaded successfully",
       batchId: batch.id,
@@ -701,6 +750,76 @@ const uploadExecutions = async (req, res, next) => {
   }
 };
 
+// Get rejected executions for a batch
+const getRejectedExecutions = async (req, res, next) => {
+  try {
+    const { batchId } = req.params;
+    const userId = req.user.id;
+    const userRole = req.user.role;
+    const { page = 1, limit = 50 } = req.query;
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const take = parseInt(limit);
+
+    // Build where clause based on user role
+    const where = {
+      batchId: parseInt(batchId),
+    };
+
+    // Role-based filtering
+    if (userRole !== 'admin') {
+      // Non-admin users can only see their own rejected executions
+      where.userId = userId;
+    }
+
+    // Try to fetch rejected executions (may fail if table doesn't exist)
+    try {
+      const [rejectedExecutions, total] = await Promise.all([
+        prisma.rejectedExecution.findMany({
+          where,
+          skip,
+          take,
+          orderBy: { createdAt: "desc" },
+          include: {
+            batch: {
+              select: {
+                id: true,
+                fileName: true,
+                createdAt: true,
+              },
+            },
+          },
+        }),
+        prisma.rejectedExecution.count({ where }),
+      ]);
+
+      res.json({
+        rejectedExecutions,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / parseInt(limit)),
+        },
+      });
+    } catch (tableError) {
+      // Table doesn't exist yet, return empty result
+      console.warn('[REJECTED EXECUTIONS] Table does not exist yet:', tableError.message);
+      res.json({
+        rejectedExecutions: [],
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: 0,
+          pages: 0,
+        },
+      });
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Export controller functions
 module.exports = {
   fieldMapping,
@@ -708,4 +827,5 @@ module.exports = {
   parseExcelToJson,
   uploadExecutions,
   getExecutions,
+  getRejectedExecutions,
 };

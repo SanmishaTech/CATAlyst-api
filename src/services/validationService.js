@@ -113,6 +113,17 @@ const validateOrder = (orderData, zodSchemaObj) => {
 };
 
 /**
+ * Validates executions against client's execution validation schema
+ * @param {Object} executionData - The execution data to validate
+ * @param {Object} zodSchemaObj - The zod schema object from client's exe_validation_1 field
+ * @returns {Object} - { success: boolean, errors?: array }
+ */
+const validateExecution = (executionData, zodSchemaObj) => {
+  // Reuse the same dynamic zod validation as orders
+  return validateOrder(executionData, zodSchemaObj);
+};
+
+/**
  * Process validation for a specific batch
  * @param {number} batchId - The batch ID to validate
  */
@@ -141,6 +152,11 @@ const processBatchValidation = async (batchId) => {
     if (batch.validation_1 !== null) {
       console.log(`[Validation] Batch ${batchId} already validated`);
       return;
+    }
+
+    // Route execution batches to execution validator
+    if (batch.fileType === 'execution') {
+      return await processExecutionBatchValidation(batchId, batch);
     }
 
     // Get client's validation schema
@@ -265,7 +281,86 @@ const processBatchValidation = async (batchId) => {
   }
 };
 
+/**
+ * Process execution validation for a specific batch
+ * @param {number} batchId - The batch ID to validate
+ */
+const processExecutionBatchValidation = async (batchId, batch = null) => {
+  try {
+    // Get batch if not provided
+    if (!batch) {
+      batch = await prisma.batch.findUnique({
+        where: { id: batchId },
+        include: {
+          user: {
+            select: { id: true, clientId: true },
+          },
+        },
+      });
+      if (!batch) {
+        console.log(`[Validation] Batch ${batchId} not found`);
+        return;
+      }
+    }
+
+    // Get client's execution validation schema
+    if (!batch.user.clientId) {
+      console.log(`[Validation] User ${batch.userId} has no associated client`);
+      await prisma.batch.update({ where: { id: batchId }, data: { validation_1: true } });
+      return;
+    }
+
+    const client = await prisma.client.findUnique({
+      where: { id: batch.user.clientId },
+      select: { exe_validation_1: true },
+    });
+
+    if (!client || !client.exe_validation_1) {
+      console.log(`[Validation] Client has no execution validation schema configured`);
+      await prisma.batch.update({ where: { id: batchId }, data: { validation_1: true } });
+      return;
+    }
+
+    // Get all executions for this batch
+    const executions = await prisma.execution.findMany({ where: { batchId } });
+    console.log(`[Validation] Validating ${executions.length} executions for batch ${batchId}`);
+
+    let successCount = 0;
+    let failCount = 0;
+    const failed = [];
+
+    for (const exe of executions) {
+      const result = validateExecution(exe, client.exe_validation_1);
+      if (result.success) {
+        successCount++;
+      } else {
+        failCount++;
+        failed.push({
+          executionId: exe.id,
+          executionIdentifier: exe.executionId || exe.executionSeqNumber,
+          errors: result.errors,
+        });
+      }
+    }
+
+    const allPassed = failCount === 0;
+    const errorLog = failed.length > 0
+      ? JSON.stringify({ type: 'execution_validation', failedExecutions: failed.slice(0, 100), totalFailed: failCount })
+      : null;
+
+    await prisma.batch.update({ where: { id: batchId }, data: { validation_1: allPassed, errorLog: errorLog ?? batch.errorLog } });
+    console.log(`[Validation] Execution Batch ${batchId} completed: ${successCount} passed, ${failCount} failed - Overall: ${allPassed ? 'PASSED' : 'FAILED'}`);
+
+    return { batchId, totalExecutions: executions.length, successCount, failCount };
+  } catch (error) {
+    console.error(`[Validation] Error processing execution batch ${batchId}:`, error);
+    throw error;
+  }
+};
+
 module.exports = {
   validateOrder,
+  validateExecution,
   processBatchValidation,
+  processExecutionBatchValidation,
 };

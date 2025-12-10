@@ -22,6 +22,14 @@ const processValidationQueue = async () => {
       where: {
         validation_1: null,
       },
+      include: {
+        user: {
+          select: {
+            id: true,
+            clientId: true,
+          },
+        },
+      },
       orderBy: {
         id: "asc", // Process in order by ID
       },

@@ -428,4 +428,70 @@ router.get("/:id/validation-schema", auth, clientController.getValidationSchema)
  */
 router.put("/:id/validation-schema", auth, clientController.updateValidationSchema);
 
+/**
+ * @swagger
+ * /clients/{id}/execution-validation-schema:
+ *   get:
+ *     summary: Get client execution validation schema
+ *     tags: [Clients]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: Client ID
+ *     responses:
+ *       200:
+ *         description: Execution validation schema retrieved
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Client not found
+ */
+router.get("/:id/execution-validation-schema", auth, clientController.getExecutionValidationSchema);
+
+/**
+ * @swagger
+ * /clients/{id}/execution-validation-schema:
+ *   put:
+ *     summary: Update client execution validation schema
+ *     tags: [Clients]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: Client ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               schema:
+ *                 type: object
+ *                 description: Execution validation schema JSON object
+ *     responses:
+ *       200:
+ *         description: Execution validation schema updated
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Client not found
+ */
+router.put("/:id/execution-validation-schema", auth, clientController.updateExecutionValidationSchema);
+
 module.exports = router;
