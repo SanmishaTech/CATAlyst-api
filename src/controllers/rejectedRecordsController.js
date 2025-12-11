@@ -10,6 +10,7 @@ const getRejectedOrders = async (req, res, next) => {
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
+    
 
     // Build where clause based on user role
     const where = {
@@ -183,14 +184,14 @@ const getRejectedRecordsByDateRange = async (req, res, next) => {
       ...(userRole !== 'admin' ? { userId } : {})
     });
 
-    // Parallel queries
+    // Fetch enough from each side to support combined pagination, then compose a page
+    const fetchCount = take + skip;
     const [ordersData, executionsData] = await Promise.all([
       prisma.$transaction([
         prisma.rejectedOrder.findMany({
           where: commonWhere({}),
-          skip,
-          take,
           orderBy: { createdAt: 'desc' },
+          take: fetchCount,
           include: {
             batch: {
               select: { id: true, fileName: true, fileType: true, createdAt: true }
@@ -202,9 +203,8 @@ const getRejectedRecordsByDateRange = async (req, res, next) => {
       prisma.$transaction([
         prisma.rejectedExecution.findMany({
           where: commonWhere({}),
-          skip,
-          take,
           orderBy: { createdAt: 'desc' },
+          take: fetchCount,
           include: {
             batch: {
               select: { id: true, fileName: true, fileType: true, createdAt: true }
@@ -215,11 +215,31 @@ const getRejectedRecordsByDateRange = async (req, res, next) => {
       ])
     ]);
 
-    const [rejectedOrders, totalOrders] = ordersData;
-    const [rejectedExecutions, totalExecutions] = executionsData;
+    const [rawOrders, totalOrders] = ordersData;
+    const [rawExecutions, totalExecutions] = executionsData;
 
     const total = totalOrders + totalExecutions;
     const pages = Math.ceil(total / take);
+
+    // Merge, sort, and slice to build a single combined page; then split back
+    const combined = [
+      ...rawOrders.map((o) => ({ type: 'order', createdAt: o.createdAt, item: o })),
+      ...rawExecutions.map((e) => ({ type: 'execution', createdAt: e.createdAt, item: e })),
+    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    const pageSlice = combined.slice(skip, skip + take);
+    const rejectedOrders = pageSlice.filter((x) => x.type === 'order').map((x) => x.item);
+    const rejectedExecutions = pageSlice.filter((x) => x.type === 'execution').map((x) => x.item);
+
+    // Upload type breakdown for summary cards
+    const [ordersExcelCount, ordersJsonCount, execExcelCount, execJsonCount] = await Promise.all([
+      prisma.rejectedOrder.count({ where: { ...commonWhere({}), uploadType: 'excel' } }),
+      prisma.rejectedOrder.count({ where: { ...commonWhere({}), uploadType: 'json' } }),
+      prisma.rejectedExecution.count({ where: { ...commonWhere({}), uploadType: 'excel' } }).catch(() => 0),
+      prisma.rejectedExecution.count({ where: { ...commonWhere({}), uploadType: 'json' } }).catch(() => 0),
+    ]);
+    const fromExcel = ordersExcelCount + execExcelCount;
+    const fromJson = ordersJsonCount + execJsonCount;
 
     res.json({
       rejectedOrders,
@@ -229,6 +249,11 @@ const getRejectedRecordsByDateRange = async (req, res, next) => {
         limit: take,
         total,
         pages
+      },
+      stats: {
+        total,
+        fromExcel,
+        fromJson,
       }
     });
   } catch (error) {
