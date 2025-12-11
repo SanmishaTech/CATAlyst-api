@@ -1422,66 +1422,9 @@ const deleteOrder = async (req, res, next) => {
   }
 };
 
-// Get rejected orders for a batch
-const getRejectedOrders = async (req, res, next) => {
-  try {
-    const { batchId } = req.params;
-    const userId = req.user.id;
-    const userRole = req.user.role;
-    const { page = 1, limit = 50 } = req.query;
-
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const take = parseInt(limit);
-
-    // Build where clause based on user role
-    const where = {
-      batchId: parseInt(batchId),
-    };
-
-    // Role-based filtering
-    if (userRole !== 'admin') {
-      // Non-admin users can only see their own rejected orders
-      where.userId = userId;
-    }
-
-    const [rejectedOrders, total] = await Promise.all([
-      prisma.rejectedOrder.findMany({
-        where,
-        skip,
-        take,
-        orderBy: { createdAt: "desc" },
-        include: {
-          batch: {
-            select: {
-              id: true,
-              fileName: true,
-              createdAt: true,
-            },
-          },
-        },
-      }),
-      prisma.rejectedOrder.count({ where }),
-    ]);
-
-    res.json({
-      rejectedOrders,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / parseInt(limit)),
-      },
-    });
-  } catch (error) {
-    next(error);
-  }
-};
-
-
 module.exports = {
   uploadOrders,
   getOrders,
   getOrderById,
   deleteOrder,
-  getRejectedOrders,
 };

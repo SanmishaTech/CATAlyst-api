@@ -801,76 +801,6 @@ const uploadExecutions = async (req, res, next) => {
   }
 };
 
-// Get rejected executions for a batch
-const getRejectedExecutions = async (req, res, next) => {
-  try {
-    const { batchId } = req.params;
-    const userId = req.user.id;
-    const userRole = req.user.role;
-    const { page = 1, limit = 50 } = req.query;
-
-    const skip = (parseInt(page) - 1) * parseInt(limit);
-    const take = parseInt(limit);
-
-    // Build where clause based on user role
-    const where = {
-      batchId: parseInt(batchId),
-    };
-
-    // Role-based filtering
-    if (userRole !== 'admin') {
-      // Non-admin users can only see their own rejected executions
-      where.userId = userId;
-    }
-
-    // Try to fetch rejected executions (may fail if table doesn't exist)
-    try {
-      const [rejectedExecutions, total] = await Promise.all([
-        prisma.rejectedExecution.findMany({
-          where,
-          skip,
-          take,
-          orderBy: { createdAt: "desc" },
-          include: {
-            batch: {
-              select: {
-                id: true,
-                fileName: true,
-                createdAt: true,
-              },
-            },
-          },
-        }),
-        prisma.rejectedExecution.count({ where }),
-      ]);
-
-      res.json({
-        rejectedExecutions,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total,
-          pages: Math.ceil(total / parseInt(limit)),
-        },
-      });
-    } catch (tableError) {
-      // Table doesn't exist yet, return empty result
-      console.warn('[REJECTED EXECUTIONS] Table does not exist yet:', tableError.message);
-      res.json({
-        rejectedExecutions: [],
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total: 0,
-          pages: 0,
-        },
-      });
-    }
-  } catch (error) {
-    next(error);
-  }
-};
-
 // Export controller functions
 module.exports = {
   fieldMapping,
@@ -878,5 +808,4 @@ module.exports = {
   parseExcelToJson,
   uploadExecutions,
   getExecutions,
-  getRejectedExecutions,
 };

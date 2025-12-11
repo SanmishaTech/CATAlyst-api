@@ -116,43 +116,6 @@ router.get("/template", auth, executionTemplateController.downloadExecutionTempl
  */
 router.post("/upload", auth, upload.single("file"), executionController.uploadExecutions);
 
-/**
- * @swagger
- * /executions/rejected/{batchId}:
- *   get:
- *     summary: Get rejected executions for a batch
- *     tags: [Executions]
- *     description: |
- *       Retrieve all rejected executions for a specific batch.
- *       Shows row numbers (Excel) or JSON indexes with validation errors.
- *     security:
- *       - ApiKeyAuth: []
- *     parameters:
- *       - in: path
- *         name: batchId
- *         required: true
- *         schema:
- *           type: integer
- *         description: Batch ID
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *         description: Page number
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 50
- *         description: Items per page
- *     responses:
- *       200:
- *         description: List of rejected executions
- *       401:
- *         description: Unauthorized
- */
-router.get("/rejected/:batchId", auth, executionController.getRejectedExecutions);
 
 /**
  * @swagger
