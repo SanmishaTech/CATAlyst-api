@@ -30,9 +30,11 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
   const isExecution = source === 'execution';
   // Additional order-level filters
   const executingEntity = req.query.executingEntity;   // orderExecutingEntity / executionExecutingEntity exact match
-  const clientRef = req.query.clientRef;               // orderClientRef LIKE match
+  const clientRef = req.query.clientRef;               // orderClientRef exact match
   const exDestination = req.query.exDestination;       // orderDestination LIKE match (orders only)
   const orderSymbol = req.query.orderSymbol;           // orderSymbol LIKE match
+  const orderIdFilter = req.query.orderId;             // exact match for orders tab
+  const executionIdFilter = req.query.executionId;     // exact match for executions tab
   
   // Search parameter for global search
   const searchFilter = req.query.search;
@@ -120,6 +122,10 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
     orderConditions.push(`${execCol} = ${parseInt(executingEntity, 10)}`);
   }
   if (!isExecution) {
+    if (orderIdFilter) {
+      const safeOrderId = String(orderIdFilter).replace(/'/g, "''");
+      orderConditions.push(`o.orderId = '${safeOrderId}'`);
+    }
     if (clientRef) {
       const safeClientRef = String(clientRef).replace(/'/g, "''");
       orderConditions.push(`o.orderClientRef = '${safeClientRef}'`);
@@ -127,6 +133,11 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
     if (exDestination) {
       const safeDest = String(exDestination).replace(/'/g, "''");
       orderConditions.push(`o.orderDestination LIKE '%${safeDest}%'`);
+    }
+  } else {
+    if (executionIdFilter) {
+      const safeExeId = String(executionIdFilter).replace(/'/g, "''");
+      orderConditions.push(`e.executionId = '${safeExeId}'`);
     }
   }
   if (orderSymbol) {
