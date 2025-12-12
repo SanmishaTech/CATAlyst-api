@@ -85,6 +85,14 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
   const baseConditions = [];
   const orderConditions = [];
 
+  baseConditions.push('ve.is_deduped = 0');
+
+  if (isExecution) {
+    baseConditions.push('ve.executionId IS NOT NULL');
+  } else {
+    baseConditions.push('ve.orderId IS NOT NULL');
+  }
+
   // User-scope filters (client or specific user)
   if (whereClause.batch?.user?.clientId) {
     baseConditions.push(`u.clientId = ${whereClause.batch.user.clientId}`);
@@ -114,7 +122,7 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
   if (!isExecution) {
     if (clientRef) {
       const safeClientRef = String(clientRef).replace(/'/g, "''");
-      orderConditions.push(`o.orderClientRef LIKE '%${safeClientRef}%'`);
+      orderConditions.push(`o.orderClientRef = '${safeClientRef}'`);
     }
     if (exDestination) {
       const safeDest = String(exDestination).replace(/'/g, "''");
