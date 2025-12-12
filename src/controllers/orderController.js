@@ -1242,12 +1242,11 @@ const uploadOrders = async (req, res, next) => {
   }
 };
 
-// Get all orders for the authenticated user - Optimized for millions of records
 const getOrders = async (req, res, next) => {
   try {
     const userId = req.user.id;
     const userRole = req.user.role;
-    const {
+    const { 
       page = 1,
       limit = 50,
       cursor,
@@ -1257,6 +1256,11 @@ const getOrders = async (req, res, next) => {
       orderSide,
       batchId,
       clientId,
+      fromDate,
+      toDate,
+      executingEntity,
+      clientRef,
+      exDestination,
       sortBy = 'id',
       sortOrder = 'asc',
       groupBy,
@@ -1298,6 +1302,29 @@ const getOrders = async (req, res, next) => {
     if (orderSymbol) {
       where.orderSymbol = { contains: orderSymbol };
     }
+    // Executing Entity exact match
+    if (executingEntity) {
+      where.orderExecutingEntity = parseInt(executingEntity);
+    }
+    // Client Ref exact match
+    if (clientRef) {
+      where.orderClientRef = clientRef;
+    }
+    // Destination LIKE match
+    if (exDestination) {
+      where.orderDestination = { contains: exDestination };
+    }
+    // Trade date range filter (string comparison)
+    if (fromDate || toDate) {
+      where.orderTradeDate = {};
+      if (fromDate) {
+        where.orderTradeDate.gte = fromDate;
+      }
+      if (toDate) {
+        where.orderTradeDate.lte = toDate;
+      }
+    }
+
     if (orderSide) {
       where.orderSide = orderSide;
     }

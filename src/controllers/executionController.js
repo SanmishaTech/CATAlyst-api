@@ -397,71 +397,107 @@ const validateAndNormalizeExecution = (executionData, userId, batchId, clientId)
  */
 const getExecutions = async (req, res, next) => {
   try {
-    const { batchId, clientId, limit = 100 } = req.query;
+    const {
+      page = 1,
+      limit = 50,
+      cursor,
+      sortBy = "id",
+      sortOrder = "desc",
+      batchId,
+      clientId,
+      executionId,
+      executionSymbol,
+      executingEntity,
+      fromDate,
+      toDate,
+    } = req.query;
+
     const userId = req.user.id;
     const userRole = req.user.role;
 
-    // Build where clause based on user role and filters
+    const take = Math.min(parseInt(limit), 100);
+    const skip = cursor ? 0 : (parseInt(page) - 1) * take;
+
+    // ------------------
+    // Build WHERE clause
+    // ------------------
     const where = {};
 
-    // --- Role-based visibility (mirror orders controller behaviour) ---
-    if (userRole === 'admin') {
-      // Admin can see all executions, optionally filtered by clientId
-      if (clientId) {
-        where.clientId = String(clientId);
-      }
-    } else if (userRole === 'client') {
-      // Client users see executions for *their* client account
-      // In this system, client-facing users use their own user id as clientId string
+    if (userRole === "admin") {
+      if (clientId) where.clientId = String(clientId);
+    } else if (userRole === "client") {
       where.clientId = userId.toString();
     } else {
-      // Regular users see only their own executions
       where.userId = userId;
-
-      // If the user is associated with a client, also scope by clientId
       if (req.user.clientId) {
         where.clientId = req.user.clientId.toString();
       }
     }
 
-    // Apply batch filter if provided
-    if (batchId) {
-      where.batchId = parseInt(batchId);
+    if (batchId) where.batchId = parseInt(batchId);
+    if (executionId) where.executionId = { contains: executionId };
+    if (executionSymbol) where.executionSymbol = { contains: executionSymbol };
+    if (executingEntity) where.executionExecutingEntity = parseInt(executingEntity);
+
+    if (fromDate || toDate) {
+      where.executionTradeDate = {};
+      if (fromDate) where.executionTradeDate.gte = fromDate;
+      if (toDate) where.executionTradeDate.lte = toDate;
     }
 
-    const take = Math.min(parseInt(limit), 100);
+    // ------------------
+    // Sorting
+    // ------------------
+    const validSortFields = [
+      "id",
+      "createdAt",
+      "executionId",
+      "executionSymbol",
+      "executionTradeDate",
+      "batchId",
+    ];
+    const orderBy = validSortFields.includes(sortBy)
+      ? { [sortBy]: sortOrder === "asc" ? "asc" : "desc" }
+      : { id: "desc" };
 
-    // Fetch executions from database
-    const executions = await prisma.execution.findMany({
+    // ------------------
+    // Query
+    // ------------------
+    const queryOpts = {
       where,
-      orderBy: { createdAt: 'desc' },
-      take,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        batch: {
-          select: {
-            id: true,
-            fileName: true,
-            status: true,
-          },
-        },
-      },
-    });
+      take: take + 1,
+      orderBy,
+      skip,
+    };
+
+    if (cursor) {
+      queryOpts.cursor = { id: parseInt(cursor) };
+      queryOpts.skip = 1;
+    }
+
+    const executions = await prisma.execution.findMany(queryOpts);
+    const hasMore = executions.length > take;
+    if (hasMore) executions.pop();
+
+    const total = await prisma.execution.count({ where });
 
     res.json({
-      success: true,
       executions,
-      total: executions.length,
+      pagination: {
+        page: parseInt(page),
+        limit: take,
+        total,
+        pages: Math.ceil(total / take),
+        hasMore,
+        nextCursor:
+          hasMore && executions.length
+            ? executions[executions.length - 1].id
+            : null,
+      },
     });
   } catch (error) {
-    console.error('Error fetching executions:', error);
-    next(createError(500, 'Failed to fetch executions'));
+    console.error("[EXECUTIONS] fetch error", error);
+    next(createError(500, "Failed to fetch executions"));
   }
 };
 
