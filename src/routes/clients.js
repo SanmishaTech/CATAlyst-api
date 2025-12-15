@@ -389,6 +389,44 @@ router.patch("/:id/status", auth, clientController.setActiveStatus);
  */
 router.get("/:id/validation-schema", auth, clientController.getValidationSchema);
 
+// Validation schema history list
+router.get("/:id/validation-schema/history", auth, clientController.getValidationSchemaHistory);
+// Single history record
+router.get("/:id/validation-schema/history/:historyId", auth, clientController.getValidationSchemaHistoryById);
+
+/**
+ * @swagger
+ * /clients/{id}/validation-schema/history/{historyId}:
+ *   get:
+ *     summary: Get single validation schema history record
+ *     tags: [Clients]
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: Client ID
+ *       - in: path
+ *         name: historyId
+ *         schema:
+ *           type: integer
+ *         required: true
+ *         description: History ID
+ *     responses:
+ *       200:
+ *         description: Validation schema history record retrieved
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Client not found
+ */
+router.get("/:id/validation-schema/history/:historyId", auth, clientController.getValidationSchemaHistoryById);
+
 /**
  * @swagger
  * /clients/{id}/validation-schema:

@@ -380,6 +380,21 @@ const updateValidationSchema = async (req, res, next) => {
       data: { validation_1: req.body.schema },
     });
     
+    // Record history
+    try {
+      await prisma.validationSchemaHistory.create({
+        data: {
+          clientId: parseInt(req.params.id),
+          validationType: 1,
+          fileType: 'ORDER',
+          schema: req.body.schema,
+          changedBy: req.user ? req.user.id : null,
+        },
+      });
+    } catch (histError) {
+      console.error('[ValidationSchemaHistory] Error inserting', histError);
+    }
+
     res.json({
       message: "Validation schema updated successfully",
       schema: updatedClient.validation_1,
@@ -390,6 +405,31 @@ const updateValidationSchema = async (req, res, next) => {
         errors: { message: "Client not found" },
       });
     }
+    next(error);
+  }
+};
+
+// Get validation schema history
+const getValidationSchemaHistory = async (req, res, next) => {
+  const clientId = parseInt(req.params.id);
+  const type = req.query.type ? parseInt(req.query.type) : undefined; // 1|2|3 or undefined for all
+  try {
+    const history = await prisma.validationSchemaHistory.findMany({
+      where: {
+        clientId,
+        ...(type ? { validationType: type } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        validationType: true,
+        schema: true,
+        createdAt: true,
+        user: { select: { id: true, name: true, email: true } },
+      },
+    });
+    res.json({ history });
+  } catch (error) {
     next(error);
   }
 };
@@ -428,6 +468,21 @@ const updateExecutionValidationSchema = async (req, res, next) => {
       data: { exe_validation_1: req.body.schema },
     });
     
+    // Record history
+    try {
+      await prisma.validationSchemaHistory.create({
+        data: {
+          clientId: parseInt(req.params.id),
+          validationType: 2,
+          fileType: 'EXECUTION',
+          schema: req.body.schema,
+          changedBy: req.user ? req.user.id : null,
+        },
+      });
+    } catch (histError) {
+      console.error('[ValidationSchemaHistory] Error inserting', histError);
+    }
+
     res.json({
       message: "Execution validation schema updated successfully",
       schema: updatedClient.exe_validation_1,
@@ -442,6 +497,35 @@ const updateExecutionValidationSchema = async (req, res, next) => {
   }
 };
 
+// Get single validation schema history record by ID
+const getValidationSchemaHistoryById = async (req, res, next) => {
+  const clientId = parseInt(req.params.id);
+  const historyId = parseInt(req.params.historyId);
+  try {
+    const record = await prisma.validationSchemaHistory.findFirst({
+      where: {
+        id: historyId,
+        clientId,
+      },
+      select: {
+        id: true,
+        validationType: true,
+        schema: true,
+        createdAt: true,
+        user: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    if (!record) {
+      return res.status(404).json({ errors: { message: "History record not found" } });
+    }
+
+    res.json(record);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getClients,
   getClientById,
@@ -451,6 +535,8 @@ module.exports = {
   setActiveStatus,
   getValidationSchema,
   updateValidationSchema,
+  getValidationSchemaHistory,
   getExecutionValidationSchema,
   updateExecutionValidationSchema,
+  getValidationSchemaHistoryById,
 };

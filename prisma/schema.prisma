@@ -29,6 +29,7 @@ model User {
   batches    Batch[]
   orders     Order[]
   executions Execution[]
+  validationSchemaHistories ValidationSchemaHistory[]
 
   @@index([clientId])
   @@map("users")
@@ -72,6 +73,7 @@ model Client {
 
   // Relations
   users User[] @relation("ClientUsers")
+  validationSchemaHistories ValidationSchemaHistory[]
 
   @@map("clients")
 }
@@ -464,4 +466,28 @@ model Execution {
   @@index([clientId])
   @@index([uniqueID])
   @@map("executions")
+}
+
+enum FileType {
+  ORDER
+  EXECUTION
+}
+
+model ValidationSchemaHistory {
+  id             Int      @id @default(autoincrement())
+  clientId       Int
+  fileType      FileType @default(ORDER)
+  validationType Int      // 1 = Validation 1, 2 = Validation 2, 3 = Validation 3
+  schema         Json
+  changedBy      Int?
+  createdAt      DateTime @default(now())
+
+  // Relations
+  client Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  user   User?  @relation(fields: [changedBy], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([validationType])
+  @@index([fileType])
+  @@map("validation_schema_history")
 }
