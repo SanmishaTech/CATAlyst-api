@@ -5,7 +5,7 @@ const createError = require("http-errors");
 const getBatches = async (req, res, next) => {
   try {
     const userId = req.user.id;
-    const { page = 1, limit = 10, status, search } = req.query;
+    const { page = 1, limit = 10, status, fileType, search } = req.query;
 
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const take = parseInt(limit);
@@ -16,14 +16,20 @@ const getBatches = async (req, res, next) => {
       where.status = status;
     }
 
+    if (fileType) {
+      where.fileType = fileType;
+    }
+
     // Add search filter if provided
     if (search) {
       const searchLower = search.toLowerCase();
       where.OR = [
+        // Reference ID (batch id)
         { id: isNaN(parseInt(search)) ? undefined : parseInt(search) },
-        { fileName: { contains: searchLower, mode: 'insensitive' } },
-        { status: { contains: searchLower.replace(' ', '_'), mode: 'insensitive' } },
-        { user: { name: { contains: searchLower, mode: 'insensitive' } } },
+        // File name (case-insensitive at DB collation level)
+        { fileName: { contains: searchLower } },
+        // Uploaded by (user name)
+        { user: { is: { name: { contains: searchLower } } } },
       ].filter(condition => Object.values(condition)[0] !== undefined);
     }
 
@@ -45,6 +51,7 @@ const getBatches = async (req, res, next) => {
             },
           },
           validations: {
+            orderBy: { createdAt: 'desc' },
             take: 1,
             include: {
               errors: true,
