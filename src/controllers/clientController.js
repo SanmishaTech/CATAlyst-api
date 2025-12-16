@@ -413,11 +413,13 @@ const updateValidationSchema = async (req, res, next) => {
 const getValidationSchemaHistory = async (req, res, next) => {
   const clientId = parseInt(req.params.id);
   const type = req.query.type ? parseInt(req.query.type) : undefined; // 1|2|3 or undefined for all
+  const fileType = req.query.fileType ? String(req.query.fileType) : undefined; // 'ORDER' | 'EXECUTION' | undefined
   try {
     const history = await prisma.validationSchemaHistory.findMany({
       where: {
         clientId,
         ...(type ? { validationType: type } : {}),
+        ...(fileType ? { fileType } : {}),
       },
       orderBy: { createdAt: 'desc' },
       select: {
