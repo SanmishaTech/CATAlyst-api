@@ -387,7 +387,7 @@ const updateValidationSchema = async (req, res, next) => {
           clientId: parseInt(req.params.id),
           validationType: 1,
           fileType: 'ORDER',
-          schema: req.body.schema,
+          schema: JSON.stringify(req.body.schema),
           changedBy: req.user ? req.user.id : null,
         },
       });
@@ -477,7 +477,7 @@ const updateExecutionValidationSchema = async (req, res, next) => {
           clientId: parseInt(req.params.id),
           validationType: 2,
           fileType: 'EXECUTION',
-          schema: req.body.schema,
+          schema: JSON.stringify(req.body.schema),
           changedBy: req.user ? req.user.id : null,
         },
       });
@@ -571,7 +571,7 @@ const updateValidation2Schema = async (req, res, next) => {
           clientId: parseInt(req.params.id),
           validationType: 2,
           fileType: 'ORDER',
-          schema: req.body.schema,
+          schema: JSON.stringify(req.body.schema),
           changedBy: req.user ? req.user.id : null,
         },
       });
@@ -653,7 +653,7 @@ const updateValidation3Schema = async (req, res, next) => {
           clientId: parseInt(req.params.id),
           validationType: 3,
           fileType: 'ORDER',
-          schema: req.body.schema,
+          schema: JSON.stringify(req.body.schema),
           changedBy: req.user ? req.user.id : null,
         },
       });
@@ -709,7 +709,7 @@ const updateExecutionValidation3Schema = async (req, res, next) => {
           clientId: parseInt(req.params.id),
           validationType: 3,
           fileType: 'EXECUTION',
-          schema: req.body.schema,
+          schema: JSON.stringify(req.body.schema),
           changedBy: req.user ? req.user.id : null,
         },
       });
@@ -752,7 +752,7 @@ const updateExecutionValidation2Schema = async (req, res, next) => {
           clientId: parseInt(req.params.id),
           validationType: 2,
           fileType: 'EXECUTION',
-          schema: req.body.schema,
+          schema: JSON.stringify(req.body.schema),
           changedBy: req.user ? req.user.id : null,
         },
       });
