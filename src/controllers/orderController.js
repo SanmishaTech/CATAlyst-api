@@ -1171,8 +1171,8 @@ const uploadOrders = async (req, res, next) => {
             rowNumber: uploadType === 'excel' ? idx + 2 : null, // Excel row number (header is row 1)
             jsonIndex: uploadType === 'json' ? idx : null, // JSON array index
             orderId: orderData?.orderId || null,
-            rawData: orderData || null,
-            validationErrors: errorMessages,
+            rawData: orderData ? JSON.stringify(orderData) : null,
+            validationErrors: JSON.stringify(errorMessages),
             uploadType: uploadType,
           };
         });

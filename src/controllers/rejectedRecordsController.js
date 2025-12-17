@@ -18,8 +18,14 @@ const getRejectedOrders = async (req, res, next) => {
     };
 
     // Role-based filtering
-    if (userRole !== 'admin') {
-      // Non-admin users can only see their own rejected orders
+    if (userRole === 'client') {
+      const orgUsers = await prisma.user.findMany({
+        where: { clientId: req.user.clientId },
+        select: { id: true },
+      });
+      const orgUserIds = orgUsers.map((u) => u.id);
+      where.userId = { in: orgUserIds };
+    } else if (userRole !== 'admin') {
       where.userId = userId;
     }
 
@@ -89,8 +95,14 @@ const getRejectedExecutions = async (req, res, next) => {
     };
 
     // Role-based filtering
-    if (userRole !== 'admin') {
-      // Non-admin users can only see their own rejected executions
+    if (userRole === 'client') {
+      const orgUsers = await prisma.user.findMany({
+        where: { clientId: req.user.clientId },
+        select: { id: true },
+      });
+      const orgUserIds = orgUsers.map((u) => u.id);
+      where.userId = { in: orgUserIds };
+    } else if (userRole !== 'admin') {
       where.userId = userId;
     }
 
@@ -178,10 +190,21 @@ const getRejectedRecordsByDateRange = async (req, res, next) => {
       lte: new Date(new Date(toDate).setHours(23, 59, 59, 999))
     };
 
+    // Prepare user filter for date-range query
+    let orgUserIds = null;
+    if (userRole === 'client') {
+      const rows = await prisma.user.findMany({ where: { clientId: req.user.clientId }, select: { id: true } });
+      orgUserIds = rows.map((u) => u.id);
+    }
+
     const commonWhere = (extra) => ({
       ...extra,
       createdAt: createdFilter,
-      ...(userRole !== 'admin' ? { userId } : {})
+      ...(userRole === 'client'
+        ? { userId: { in: orgUserIds } }
+        : userRole !== 'admin'
+        ? { userId }
+        : {}),
     });
 
     // Fetch enough from each side to support combined pagination, then compose a page
