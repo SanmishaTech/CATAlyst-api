@@ -816,6 +816,88 @@ const processExecutionValidation2ForBatch = async (batchId, batch = null) => {
   }
 };
 
+// ===============================
+// Level-3 processors (copy of Level-2 logic with updated flags)
+// ===============================
+
+/**
+ * Process Validation 3 for order batch (Level 3 validation)
+ */
+const processValidation3ForBatch = async (batchId) => {
+  try {
+    console.log(`[Validation 3] Processing batch ${batchId}`);
+    const batch = await prisma.batch.findUnique({
+      where: { id: batchId },
+      include: { user: { select: { id: true, clientId: true } } },
+    });
+    if (!batch) return console.log(`[Validation 3] Batch ${batchId} not found`);
+
+    // require previous level passed
+    if (batch.validation_2_status !== 'passed') {
+      return console.log(`[Validation 3] Batch ${batchId} - validation_2_status not 'passed', skipping`);
+    }
+    if (batch.validation_3 !== null) return console.log(`[Validation 3] Batch ${batchId} already validated`);
+    if (batch.fileType === 'execution') return await processExecutionValidation3ForBatch(batchId, batch);
+
+    // no client association
+    if (!batch.user.clientId) {
+      await prisma.batch.update({ where: { id: batchId }, data: { validation_3: true } });
+      return;
+    }
+    const client = await prisma.client.findUnique({ where: { id: batch.user.clientId }, select: { validation_3: true } });
+    if (!client || !client.validation_3) {
+      await prisma.batch.update({ where: { id: batchId }, data: { validation_3: true } });
+      return;
+    }
+
+    const orders = await prisma.order.findMany({ where: { batchId } });
+    let passCnt = 0, failCnt = 0;
+    for (const order of orders) {
+      let result = validateOrder(order, client.validation_3);
+      const ruleErrors = evaluateLevel2Rules(order, client.validation_3) || [];
+      if (ruleErrors.length) {
+        result = { success: false, errors: [...(result.errors||[]), ...ruleErrors] };
+      }
+      const validation = await prisma.validation.create({ data: { orderId: order.id, batchId, success: result.success, validatedAt: new Date() } });
+      if (!result.success && result.errors?.length) {
+        await prisma.validationError.createMany({ data: result.errors.map(err=>({ validationId: validation.id, field: err.field||'unknown', message: err.message||'Validation 3 failed', code: err.code||'validation_3_error', batchId, orderId: order.id, validationCode: getValidationCode('CTX_INVALID_COMBINATION').code, is_deduped:0, is_validated:0 })) });
+      }
+      result.success? passCnt++ : failCnt++;
+    }
+    const allPassed = failCnt === 0;
+    await prisma.batch.update({ where:{id:batchId}, data:{ validation_3: allPassed, validation_3_status: allPassed?'passed':'failed' } });
+    console.log(`[Validation 3] Batch ${batchId} completed: ${passCnt} passed, ${failCnt} failed`);
+  } catch (e) { console.error(`[Validation 3] Error batch ${batchId}`, e); throw e; }
+};
+
+/** Process Validation 3 for execution batch */
+const processExecutionValidation3ForBatch = async (batchId, batch=null) => {
+  try {
+    if (!batch) batch = await prisma.batch.findUnique({ where:{id:batchId}, include:{user:{select:{id:true,clientId:true}}}});
+    if (!batch) return console.log(`[Validation 3] Execution batch ${batchId} not found`);
+    if (batch.validation_2_status !== 'passed') return console.log(`[Validation 3] Execution batch ${batchId} – validation_2_status not 'passed', skip`);
+    if (batch.validation_3 !== null) return console.log(`[Validation 3] Execution batch ${batchId} already validated`);
+
+    if (!batch.user.clientId) { await prisma.batch.update({ where:{id:batchId}, data:{ validation_3:true } }); return; }
+    const client = await prisma.client.findUnique({ where:{id:batch.user.clientId}, select:{ exe_validation_3:true } });
+    if (!client || !client.exe_validation_3) { await prisma.batch.update({ where:{id:batchId}, data:{ validation_3:true } }); return; }
+
+    const executions = await prisma.execution.findMany({ where:{ batchId } });
+    let pass=0, fail=0;
+    for (const exe of executions) {
+      const result = validateExecution(exe, client.exe_validation_3);
+      const validation = await prisma.validation.create({ data:{ executionId: exe.id, batchId, success: result.success, validatedAt:new Date() } });
+      if (!result.success && result.errors?.length) {
+        await prisma.validationError.createMany({ data: result.errors.map(err=>({ validationId:validation.id, field: err.field||'unknown', message: err.message||'Validation 3 failed', code: err.code||'validation_3_error', batchId, executionId: exe.id, validationCode: getValidationCode('CTX_INVALID_COMBINATION').code, is_deduped:0, is_validated:0 })) });
+      }
+      result.success? pass++ : fail++;
+    }
+    const allPassed = fail===0;
+    await prisma.batch.update({ where:{id:batchId}, data:{ validation_3: allPassed, validation_3_status: allPassed?'passed':'failed' } });
+    console.log(`[Validation 3] Execution Batch ${batchId} completed: ${pass} passed, ${fail} failed`);
+  } catch(err){ console.error(`[Validation 3] Error execution batch ${batchId}`, err); throw err; }
+};
+
 module.exports = {
   validateOrder,
   validateExecution,
@@ -823,4 +905,6 @@ module.exports = {
   processExecutionBatchValidation,
   processValidation2ForBatch,
   processExecutionValidation2ForBatch,
+  processValidation3ForBatch,
+  processExecutionValidation3ForBatch,
 };
