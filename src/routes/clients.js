@@ -664,4 +664,10 @@ router.get("/:id/execution-validation-2-schema", auth, clientController.getExecu
  */
 router.put("/:id/execution-validation-2-schema", auth, clientController.updateExecutionValidation2Schema);
 
+// Level 3 validation schema endpoints
+router.get("/:id/validation-3-schema", auth, clientController.getValidation3Schema);
+router.put("/:id/validation-3-schema", auth, clientController.updateValidation3Schema);
+router.get("/:id/execution-validation-3-schema", auth, clientController.getExecutionValidation3Schema);
+router.put("/:id/execution-validation-3-schema", auth, clientController.updateExecutionValidation3Schema);
+
 module.exports = router;

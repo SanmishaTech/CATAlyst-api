@@ -1,6 +1,7 @@
 const app = require('./src/app');
 const { initValidationCron } = require('./src/jobs/validationCron');
 const { initValidation2Cron } = require('./src/jobs/validation2Cron');
+const { initValidation3Cron } = require('./src/jobs/validation3Cron');
 
 const port = process.env.PORT || 3000;
 
@@ -15,5 +16,10 @@ app.listen(port, () => {
   // Initialize validation_2 cronjob if enabled
   if (process.env.CRON_VALIDATION_2_ENABLED !== 'false') {
     initValidation2Cron();
+  }
+
+  // Initialize validation_3 cronjob if enabled
+  if (process.env.CRON_VALIDATION_3_ENABLED !== 'false') {
+    initValidation3Cron();
   }
 });

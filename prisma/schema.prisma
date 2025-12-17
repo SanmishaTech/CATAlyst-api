@@ -67,6 +67,8 @@ model Client {
   exe_validation_1          Json?
   validation_2              Json?
   exe_validation_2          Json?
+  validation_3              Json?
+  exe_validation_3          Json?
   active                    Boolean                   @default(true)
   createdAt                 DateTime                  @default(now())
   updatedAt                 DateTime                  @updatedAt
@@ -91,6 +93,8 @@ model Batch {
   validation_1_status String?             @db.VarChar(50) // "passed" or "failed"
   validation_2       Boolean?
   validation_2_status String?             @db.VarChar(50) // "passed" or "failed"
+  validation_3       Boolean?
+  validation_3_status String?             @db.VarChar(50) // "passed" or "failed"
   importedAt         DateTime            @default(now())
   completedAt        DateTime?
   createdAt          DateTime            @default(now())
@@ -106,6 +110,7 @@ model Batch {
   @@index([userId])
   @@index([validation_1])
   @@index([validation_2])
+  @@index([validation_3])
   @@map("batches")
 }
 
