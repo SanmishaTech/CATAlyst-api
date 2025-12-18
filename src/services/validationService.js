@@ -185,11 +185,32 @@ const validateOrder = (orderData, zodSchemaObj) => {
 // returns array of { field, message }
 const evaluateLevel2Rules = (record, rulesObj) => {
   const errors = [];
+  // Build a lowercase->value map so that rule conditions can be case-insensitive
+  const recLower = {};
+  for (const [k, v] of Object.entries(record || {})) {
+    recLower[k.toLowerCase()] = v;
+  }
   if (!rulesObj || typeof rulesObj !== 'object') return errors;
 
   for (const [field, rule] of Object.entries(rulesObj)) {
     if (!rule?.enabled || !rule.condition || rule.condition.trim() === '-' ) continue;
     const cond = rule.condition.toLowerCase();
+
+    // Pattern 0: unconditional null requirement (no "when <depField>" clause)
+    if (!cond.includes(' when ')) {
+      const nullMatch = /^(?<target>[a-z0-9_]+).*?should\s+(?<neg>not\s+)?be null$/i.exec(cond);
+      if (nullMatch) {
+        const { target, neg } = nullMatch.groups;
+        const hasValue = recLower[target] !== null && recLower[target] !== undefined && String(recLower[target]).trim() !== '';
+        if (neg && !hasValue) {
+          errors.push({ field, message: `${field} should not be null` });
+        }
+        if (!neg && hasValue) {
+          errors.push({ field, message: `${field} should be null` });
+        }
+        continue; // processed this rule
+      }
+    }
 
     // Pattern 1 & 2: population based on other field list
     const popRegex = /^(?<target>[a-z0-9_]+).*?(?<should>should|must).*?(?<nullstate>not be null|be null).*?when (?<dep>[a-z0-9_]+) in \((?<vals>[^)]+)\)/;
@@ -197,15 +218,15 @@ const evaluateLevel2Rules = (record, rulesObj) => {
     if (popMatch) {
       const { target, dep, nullstate, vals } = popMatch.groups;
       const list = vals.split(/[, ]+/).map(v => v.replace(/['"()]/g,'').trim()).filter(Boolean);
-      const depVal = String(record[dep] ?? '').trim();
-      const targetValPresent = record[target] !== null && record[target] !== undefined && String(record[target]).trim() !== '';
+      const depVal = String(recLower[dep] ?? '').trim();
+      const targetValPresent = recLower[target] !== null && recLower[target] !== undefined && String(recLower[target]).trim() !== '';
       const depMatch = list.includes(depVal);
       if (depMatch) {
         if (nullstate === 'not be null' && !targetValPresent) {
-          errors.push({ field: target, message: `${target} should not be null when ${dep} in (${list.join(',')})`});
+          errors.push({ field, message: `${field} should not be null when ${dep} in (${list.join(',')})`});
         }
         if (nullstate === 'be null' && targetValPresent) {
-          errors.push({ field: target, message: `${target} should be null when ${dep} in (${list.join(',')})`});
+          errors.push({ field, message: `${field} should be null when ${dep} in (${list.join(',')})`});
         }
       }
       continue;
@@ -217,9 +238,9 @@ const evaluateLevel2Rules = (record, rulesObj) => {
     if (enumMatch) {
       const { target, vals } = enumMatch.groups;
       const list = vals.split(/[, ]+/).map(v => v.replace(/['"()]/g,'').trim()).filter(Boolean);
-      const val = String(record[target] ?? '').trim();
+      const val = String(recLower[target] ?? '').trim();
       if (val && !list.includes(val)) {
-        errors.push({ field: target, message: `${target} value ${val} not in allowed list (${list.join(',')})`});
+        errors.push({ field, message: `${field} value ${val} not in allowed list (${list.join(',')})`});
       }
     }
   }
