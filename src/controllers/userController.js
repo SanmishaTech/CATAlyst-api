@@ -320,7 +320,7 @@ const updateUser = async (req, res, next) => {
     // Check if the target user is an admin
     const targetUser = await prisma.user.findUnique({
       where: { id: parseInt(req.params.id) },
-      select: { role: true }
+      select: { role: true, clientId: true }
     });
 
     if (targetUser && targetUser.role === 'admin') {
@@ -329,11 +329,38 @@ const updateUser = async (req, res, next) => {
       });
     }
 
-    const updatedUser = await prisma.user.update({
-      where: { id: parseInt(req.params.id) },
-      data: req.body,
+    // Use transaction to update both user and client if user is a client
+    const result = await prisma.$transaction(async (tx) => {
+      // Update the user
+      const updatedUser = await tx.user.update({
+        where: { id: parseInt(req.params.id) },
+        data: req.body,
+      });
+
+      // If the user has a clientId and name or email is being updated, sync to Client table
+      if (targetUser.clientId && (req.body.name || req.body.email)) {
+        const clientUpdateData = {};
+        
+        if (req.body.name) {
+          clientUpdateData.name = req.body.name;
+          clientUpdateData.contactPersonName = req.body.name;
+        }
+        
+        if (req.body.email) {
+          clientUpdateData.contactEmailId = req.body.email;
+        }
+
+        // Update the corresponding client record
+        await tx.client.update({
+          where: { id: targetUser.clientId },
+          data: clientUpdateData,
+        });
+      }
+
+      return updatedUser;
     });
-    res.json(updatedUser);
+
+    res.json(result);
   } catch (error) {
     if (error.code === "P2025") {
       return res.status(404).json({
