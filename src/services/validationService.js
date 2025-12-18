@@ -338,13 +338,14 @@ const processBatchValidation = async (batchId) => {
             return {
               validationId: validation.id,
               validationCode: validationCodeObj.code,
+              validationLevel: 1,  // Validation 1
               field: error.field || 'unknown',
               message: error.message || 'Validation failed',
               code: error.code || 'validation_error',
               batchId: batchId,
               orderId: order.id,
               is_deduped: 0,  // New validation errors start as not deduped
-                          };
+            };
           }),
         });
       }
@@ -473,6 +474,7 @@ const processExecutionBatchValidation = async (batchId, batch = null) => {
             return {
               validationId: validation.id,
               validationCode: validationCodeObj.code,
+              validationLevel: 1,  // Validation 1
               field: error.field || 'unknown',
               message: error.message || 'Validation failed',
               code: error.code || 'validation_error',
@@ -639,6 +641,7 @@ const processValidation2ForBatch = async (batchId) => {
             return {
               validationId: validation.id,
               validationCode: validationCodeObj.code,
+              validationLevel: 2,  // Validation 2
               field: error.field || 'unknown',
               message: error.message || 'Validation 2 failed',
               code: error.code || 'validation_2_error',
@@ -775,6 +778,7 @@ const processExecutionValidation2ForBatch = async (batchId, batch = null) => {
             return {
               validationId: validation.id,
               validationCode: validationCodeObj.code,
+              validationLevel: 2,  // Validation 2
               field: error.field || 'unknown',
               message: error.message || 'Validation 2 failed',
               code: error.code || 'validation_2_error',
@@ -860,7 +864,7 @@ const processValidation3ForBatch = async (batchId) => {
       }
       const validation = await prisma.validation.create({ data: { orderId: order.id, batchId, success: result.success, validatedAt: new Date() } });
       if (!result.success && result.errors?.length) {
-        await prisma.validationError.createMany({ data: result.errors.map(err=>({ validationId: validation.id, field: err.field||'unknown', message: err.message||'Validation 3 failed', code: err.code||'validation_3_error', batchId, orderId: order.id, validationCode: getValidationCode('CTX_INVALID_COMBINATION').code, is_deduped:0, is_validated:0 })) });
+        await prisma.validationError.createMany({ data: result.errors.map(err=>({ validationId: validation.id, validationLevel: 3, field: err.field||'unknown', message: err.message||'Validation 3 failed', code: err.code||'validation_3_error', batchId, orderId: order.id, validationCode: getValidationCode('CTX_INVALID_COMBINATION').code, is_deduped:0, is_validated:0 })) });
       }
       result.success? passCnt++ : failCnt++;
     }
@@ -888,7 +892,7 @@ const processExecutionValidation3ForBatch = async (batchId, batch=null) => {
       const result = validateExecution(exe, client.exe_validation_3);
       const validation = await prisma.validation.create({ data:{ executionId: exe.id, batchId, success: result.success, validatedAt:new Date() } });
       if (!result.success && result.errors?.length) {
-        await prisma.validationError.createMany({ data: result.errors.map(err=>({ validationId:validation.id, field: err.field||'unknown', message: err.message||'Validation 3 failed', code: err.code||'validation_3_error', batchId, executionId: exe.id, validationCode: getValidationCode('CTX_INVALID_COMBINATION').code, is_deduped:0, is_validated:0 })) });
+        await prisma.validationError.createMany({ data: result.errors.map(err=>({ validationId:validation.id, validationLevel: 3, field: err.field||'unknown', message: err.message||'Validation 3 failed', code: err.code||'validation_3_error', batchId, executionId: exe.id, validationCode: getValidationCode('CTX_INVALID_COMBINATION').code, is_deduped:0, is_validated:0 })) });
       }
       result.success? pass++ : fail++;
     }

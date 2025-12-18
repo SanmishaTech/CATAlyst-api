@@ -36,6 +36,9 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
   const orderIdFilter = req.query.orderId;             // exact match for orders tab
   const executionIdFilter = req.query.executionId;     // exact match for executions tab
   
+  // Validation level filter (1, 2, or 3)
+  const validationLevel = req.query.validationLevel ? parseInt(req.query.validationLevel) : null;
+  
   // Search parameter for global search
   const searchFilter = req.query.search;
   
@@ -93,6 +96,11 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
     baseConditions.push('ve.executionId IS NOT NULL');
   } else {
     baseConditions.push('ve.orderId IS NOT NULL');
+  }
+  
+  // Filter by validation level if specified
+  if (validationLevel && [1, 2, 3].includes(validationLevel)) {
+    baseConditions.push(`ve.validationLevel = ${validationLevel}`);
   }
 
   // User-scope filters (client or specific user)

@@ -135,23 +135,24 @@ model Validation {
 }
 
 model ValidationError {
-  id             Int        @id @default(autoincrement())
-  validationId   Int
-  batchId        Int
-  orderId        Int?
-  executionId    Int?
-  validationCode String     @db.VarChar(100)
-  field          String     @db.VarChar(255)
-  message        String     @db.Text
-  code           String     @db.VarChar(100)
-  is_deduped     Int        @default(0)
-  is_validated   Int        @default(0)
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
-  batch          Batch      @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  execution      Execution? @relation(fields: [executionId], references: [id], onDelete: Cascade)
-  order          Order?     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  validation     Validation @relation(fields: [validationId], references: [id], onDelete: Cascade)
+  id              Int        @id @default(autoincrement())
+  validationId    Int
+  batchId         Int
+  orderId         Int?
+  executionId     Int?
+  validationCode  String     @db.VarChar(100)
+  validationLevel Int        @default(1) // 1, 2, or 3 to track which validation this error belongs to
+  field           String     @db.VarChar(255)
+  message         String     @db.Text
+  code            String     @db.VarChar(100)
+  is_deduped      Int        @default(0)
+  is_validated    Int        @default(0)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  batch           Batch      @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  execution       Execution? @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  order           Order?     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  validation      Validation @relation(fields: [validationId], references: [id], onDelete: Cascade)
 
   @@index([validationId])
   @@index([batchId])
@@ -160,6 +161,7 @@ model ValidationError {
   @@index([batchId, createdAt])
   @@index([code])
   @@index([validationCode])
+  @@index([validationLevel])
   @@index([createdAt])
   @@index([is_deduped])
   @@index([is_validated])
