@@ -774,8 +774,8 @@ const uploadExecutions = async (req, res, next) => {
             rowNumber: uploadType === 'excel' ? idx + 2 : null, // Excel row number (header is row 1)
             jsonIndex: uploadType === 'json' ? idx : null, // JSON array index
             executionId: executionData?.executionId || null,
-            rawData: executionData || null,
-            validationErrors: errorMessages,
+            rawData: executionData ? JSON.stringify(executionData) : null,
+            validationErrors: JSON.stringify(errorMessages),
             uploadType: uploadType,
           };
         });
