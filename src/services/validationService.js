@@ -1,6 +1,10 @@
 const prisma = require("../config/db");
 const { z } = require("zod");
 const { getValidationCode } = require("../constants/validationCodes");
+const {
+  classifyOrdersForBatch,
+  classifyExecutionsForBatch,
+} = require("./businessClassificationService");
 
  const markPreviousValidationErrorsDedupedForOrderBatch = async (batchId, userId) => {
   await prisma.$executeRaw`
@@ -891,6 +895,8 @@ const processValidation3ForBatch = async (batchId) => {
     }
     const allPassed = failCnt === 0;
     await prisma.batch.update({ where:{id:batchId}, data:{ validation_3: allPassed, validation_3_status: allPassed?'passed':'failed' } });
+    // Persist business classifications (order-level)
+    await classifyOrdersForBatch(batchId);
     console.log(`[Validation 3] Batch ${batchId} completed: ${passCnt} passed, ${failCnt} failed`);
   } catch (e) { console.error(`[Validation 3] Error batch ${batchId}`, e); throw e; }
 };
@@ -919,6 +925,8 @@ const processExecutionValidation3ForBatch = async (batchId, batch=null) => {
     }
     const allPassed = fail===0;
     await prisma.batch.update({ where:{id:batchId}, data:{ validation_3: allPassed, validation_3_status: allPassed?'passed':'failed' } });
+    // Persist business classifications (execution-level)
+    await classifyExecutionsForBatch(batchId);
     console.log(`[Validation 3] Execution Batch ${batchId} completed: ${pass} passed, ${fail} failed`);
   } catch(err){ console.error(`[Validation 3] Error execution batch ${batchId}`, err); throw err; }
 };
