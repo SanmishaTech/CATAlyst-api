@@ -571,8 +571,8 @@ model InstrumentsMapping {
   expirationDate  DateTime?
   contractSize    Int?
   underlyingSymbol String? @db.VarChar(128)
-  validFrom       DateTime?
-  validTo         DateTime?
+  validFrom       DateTime? @db.Date
+  validTo         DateTime? @db.Date
   active          Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
