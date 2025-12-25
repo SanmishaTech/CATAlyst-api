@@ -4,6 +4,44 @@ const router = express.Router();
 const clientController = require("../controllers/clientController");
 const auth = require("../middleware/auth");
 const acl = require("../middleware/acl");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
+const usBrokerDealerController = require("../controllers/usBrokerDealerController");
+
+const uploadDir = path.resolve(__dirname, "..", "uploads");
+try {
+  fs.mkdirSync(uploadDir, { recursive: true });
+} catch (e) {
+  console.error("Failed to ensure uploads directory:", e);
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, "usbd-" + uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({
+  storage,
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only .xlsx files are allowed"));
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+  },
+});
 
 /**
  * @swagger
@@ -669,5 +707,12 @@ router.get("/:id/validation-3-schema", auth, clientController.getValidation3Sche
 router.put("/:id/validation-3-schema", auth, clientController.updateValidation3Schema);
 router.get("/:id/execution-validation-3-schema", auth, clientController.getExecutionValidation3Schema);
 router.put("/:id/execution-validation-3-schema", auth, clientController.updateExecutionValidation3Schema);
+
+router.post(
+  "/:id/us-broker-dealers/upload",
+  auth,
+  upload.single("file"),
+  usBrokerDealerController.uploadUSBrokerDealers
+);
 
 module.exports = router;

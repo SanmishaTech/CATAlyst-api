@@ -523,8 +523,8 @@ model USBrokerDealer {
   address             String?  @db.Text
   taxId               String?  @db.VarChar(64)
   lei                 String?  @db.VarChar(64)
-  validFrom           DateTime?
-  validTo             DateTime?
+  validFrom           DateTime? @db.Date
+  validTo             DateTime? @db.Date
   activeFlag          Boolean  @default(true)
   membershipType      String?  @db.VarChar(64)
   account             String?  @db.VarChar(128)
