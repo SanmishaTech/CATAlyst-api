@@ -4,7 +4,7 @@
     "": {
       "name": "node-star",
       "dependencies": {
-        "@prisma/client": "^6.5.0",
+        "@prisma/client": "^6.11.1",
         "@scalar/express-api-reference": "^0.8.22",
         "@sendgrid/mail": "^8.1.4",
         "bcrypt": "^5.1.0",

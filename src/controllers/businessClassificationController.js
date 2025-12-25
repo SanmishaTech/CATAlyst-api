@@ -61,6 +61,31 @@ const buildExecutionWhere = ({ tradeDate, infoBarrier, executingEntity }) => {
   return clauses.length ? { AND: clauses } : {};
 };
 
+// Build classification-based filters for execution BC rows
+const buildExecutionBCFilters = (filters) => {
+  const map = {
+    executionProductType: "Execution Product Type",
+    executionCapacity: "Execution Capacity",
+    tradeType: "Trade Type",
+    priceImprovement: "Price Improvement",
+    manningExecutionType: "Manning Execution Type",
+    executionStatus: "Execution Status",
+    executionActionInitiation: "Execution Action Initiation",
+    clearingType: "Clearing Type",
+    executionEntityType: "Execution Entity Type",
+  };
+
+  const clauses = [];
+  Object.entries(map).forEach(([key, label]) => {
+    const value = filters[key];
+    if (value) {
+      clauses.push({ businessClassification: label, businessGroup: value });
+    }
+  });
+
+  return clauses;
+};
+
 /**
  * Client Edge Matrix search
  * 1) First check business classification tables (order/execution).
@@ -69,10 +94,44 @@ const buildExecutionWhere = ({ tradeDate, infoBarrier, executingEntity }) => {
  */
 const searchClientEdge = async (req, res, next) => {
   try {
-    const { tradeDate, infoBarrier, flowType, executingEntity } = req.query;
+    const {
+      tradeDate,
+      infoBarrier,
+      flowType,
+      executingEntity,
+      pageOrders = 1,
+      pageExecutions = 1,
+      pageSizeOrders = 10,
+      pageSizeExecutions = 10,
+      executionProductType,
+      executionCapacity,
+      tradeType: exeTradeType,
+      priceImprovement,
+      manningExecutionType,
+      executionStatus,
+      executionActionInitiation,
+      clearingType,
+      executionEntityType,
+    } = req.query;
+
+    const pOrders = Math.max(1, parseInt(pageOrders));
+    const pExecutions = Math.max(1, parseInt(pageExecutions));
+    const sizeOrders = Math.max(1, Math.min(100, parseInt(pageSizeOrders)));
+    const sizeExecutions = Math.max(1, Math.min(100, parseInt(pageSizeExecutions)));
 
     const orderWhere = buildOrderWhere({ tradeDate, infoBarrier, flowType, executingEntity });
     const executionWhere = buildExecutionWhere({ tradeDate, infoBarrier, executingEntity });
+    const executionBCClauses = buildExecutionBCFilters({
+      executionProductType,
+      executionCapacity,
+      tradeType: exeTradeType,
+      priceImprovement,
+      manningExecutionType,
+      executionStatus,
+      executionActionInitiation,
+      clearingType,
+      executionEntityType,
+    });
 
     const orderBC = await prisma.orderBusinessClassification.findMany({
       where: {
@@ -103,15 +162,24 @@ const searchClientEdge = async (req, res, next) => {
           },
         },
       },
-      take: 100,
+      skip: (pOrders - 1) * sizeOrders,
+      take: sizeOrders,
+    });
+
+    const orderTotal = await prisma.orderBusinessClassification.count({
+      where: { order: { ...orderWhere } },
     });
 
     const executionBC = await prisma.executionBusinessClassification.findMany({
-      where: {
-        execution: {
-          ...executionWhere,
-        },
-      },
+      where: Object.assign(
+        {},
+        executionBCClauses.length ? { AND: executionBCClauses } : {},
+        {
+          execution: {
+            ...executionWhere,
+          },
+        }
+      ),
       select: {
         id: true,
         businessClassification: true,
@@ -134,7 +202,18 @@ const searchClientEdge = async (req, res, next) => {
           },
         },
       },
-      take: 100,
+      skip: (pExecutions - 1) * sizeExecutions,
+      take: sizeExecutions,
+    });
+
+    const executionTotal = await prisma.executionBusinessClassification.count({
+      where: Object.assign(
+        {},
+        executionBCClauses.length ? { AND: executionBCClauses } : {},
+        {
+          execution: { ...executionWhere },
+        }
+      ),
     });
 
     const classificationHit = orderBC.length > 0 || executionBC.length > 0;
@@ -144,6 +223,10 @@ const searchClientEdge = async (req, res, next) => {
         classificationHit: false,
         orders: [],
         executions: [],
+        pagination: {
+          orders: { page: pOrders, pageSize: sizeOrders, total: orderTotal },
+          executions: { page: pExecutions, pageSize: sizeExecutions, total: executionTotal },
+        },
       });
     }
 
@@ -185,6 +268,10 @@ const searchClientEdge = async (req, res, next) => {
       classificationHit: true,
       orders,
       executions,
+      pagination: {
+        orders: { page: pOrders, pageSize: sizeOrders, total: orderTotal },
+        executions: { page: pExecutions, pageSize: sizeExecutions, total: executionTotal },
+      },
     });
   } catch (err) {
     console.error("[BusinessClassification] searchClientEdge error", err);

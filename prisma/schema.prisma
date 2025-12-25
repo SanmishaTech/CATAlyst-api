@@ -241,6 +241,7 @@ model Order {
   orderBidPrice                 Decimal?          @db.Decimal(18, 6)
   orderAskSize                  Decimal?          @db.Decimal(18, 6)
   orderAskPrice                 Decimal?          @db.Decimal(18, 6)
+  orderNetPrice                 Decimal?          @db.Decimal(18, 6)
   orderBasketId                 String?           @db.VarChar(128)
   orderCumQty                   Decimal?          @db.Decimal(18, 6)
   orderLeavesQty                Decimal?          @db.Decimal(18, 6)
