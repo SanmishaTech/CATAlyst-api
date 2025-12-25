@@ -507,3 +507,80 @@ model ExecutionBusinessClassification {
   @@index([businessGroup])
   @@map("execution_business_classifications")
 }
+
+model USBrokerDealer {
+  id                  Int      @id @default(autoincrement())
+  clientRefId         Int?
+  clientId            String?  @db.VarChar(128)
+  firmName            String?  @db.VarChar(255)
+  imid                String?  @db.VarChar(64)
+  crdId               String?  @db.VarChar(64)
+  exchangeId          String?  @db.VarChar(64)
+  foreignBrokerDealer Boolean  @default(false)
+  micValue            String?  @db.VarChar(32)
+  address             String?  @db.Text
+  taxId               String?  @db.VarChar(64)
+  lei                 String?  @db.VarChar(64)
+  validFrom           DateTime?
+  validTo             DateTime?
+  activeFlag          Boolean  @default(true)
+  membershipType      String?  @db.VarChar(64)
+  account             String?  @db.VarChar(128)
+  clearingAccount     String?  @db.VarChar(128)
+  clearingBroker      String?  @db.VarChar(128)
+  clearingType        String?  @db.VarChar(64)
+  region              String?  @db.VarChar(64)
+  brokerDealer        Boolean  @default(false)
+  atsFlag             Boolean  @default(false)
+  defaultImidFlag     Boolean  @default(false)
+  destinationCode     String?  @db.VarChar(64)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  client              Client?  @relation(fields: [clientRefId], references: [id], onDelete: Cascade)
+
+  @@index([clientRefId])
+  @@index([clientId])
+  @@index([destinationCode])
+  @@map("us_broker_dealer")
+}
+
+model InstrumentsMapping {
+  id               Int      @id @default(autoincrement())
+  clientRefId      Int?
+  instrumentId     String?  @db.VarChar(128)
+  symbol          String?  @db.VarChar(128)
+  description     String?  @db.VarChar(255)
+  cfiCode         String?  @db.VarChar(32)
+  ticker          String?  @db.VarChar(64)
+  country         String?  @db.VarChar(64)
+  tradeCurrency   String?  @db.VarChar(32)
+  osiSymbol       String?  @db.VarChar(128)
+  finraTicker     String?  @db.VarChar(128)
+  typeCode        String?  @db.VarChar(64)
+  exerciseType    String?  @db.VarChar(32)
+  strikePrice     Decimal? @db.Decimal(18, 6)
+  placement       String?  @db.VarChar(128)
+  isin            String?  @db.VarChar(32)
+  cusp            String?  @db.VarChar(32)
+  sedol           String?  @db.VarChar(32)
+  bbgcodeFigi     String?  @db.VarChar(64)
+  ric             String?  @db.VarChar(64)
+  expirationDate  DateTime?
+  contractSize    Int?
+  underlyingSymbol String? @db.VarChar(128)
+  validFrom       DateTime?
+  validTo         DateTime?
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  client          Client?  @relation(fields: [clientRefId], references: [id], onDelete: Cascade)
+
+  @@index([clientRefId])
+  @@index([instrumentId])
+  @@index([symbol])
+  @@index([ticker])
+  @@index([ric])
+  @@index([isin])
+  @@index([cfiCode])
+  @@map("instruments_mapping")
+}
