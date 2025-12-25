@@ -8,6 +8,7 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const usBrokerDealerController = require("../controllers/usBrokerDealerController");
+const instrumentsMappingController = require("../controllers/instrumentsMappingController");
 
 const uploadDir = path.resolve(__dirname, "..", "uploads");
 try {
@@ -713,6 +714,13 @@ router.post(
   auth,
   upload.single("file"),
   usBrokerDealerController.uploadUSBrokerDealers
+);
+
+router.post(
+  "/:id/instruments-mapping/upload",
+  auth,
+  upload.single("file"),
+  instrumentsMappingController.uploadInstrumentsMapping
 );
 
 module.exports = router;
