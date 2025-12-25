@@ -74,6 +74,8 @@ model Client {
   updatedAt                 DateTime                  @updatedAt
   users                     User[]                    @relation("ClientUsers")
   validationSchemaHistories ValidationSchemaHistory[]
+  usBrokerDealers           USBrokerDealer[]          @relation("ClientUSBrokerDealers")
+  instrumentMappings        InstrumentsMapping[]      @relation("ClientInstrumentMappings")
 
   @@map("clients")
 }
@@ -536,7 +538,7 @@ model USBrokerDealer {
   destinationCode     String?  @db.VarChar(64)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
-  client              Client?  @relation(fields: [clientRefId], references: [id], onDelete: Cascade)
+  client              Client?  @relation("ClientUSBrokerDealers", fields: [clientRefId], references: [id], onDelete: Cascade)
 
   @@index([clientRefId])
   @@index([clientId])
@@ -573,7 +575,7 @@ model InstrumentsMapping {
   active          Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  client          Client?  @relation(fields: [clientRefId], references: [id], onDelete: Cascade)
+  client          Client?  @relation("ClientInstrumentMappings", fields: [clientRefId], references: [id], onDelete: Cascade)
 
   @@index([clientRefId])
   @@index([instrumentId])
