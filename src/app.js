@@ -16,6 +16,7 @@ const executionRoutes = require("./routes/executions");
 const rejectedRecordsRoutes = require("./routes/rejectedRecords");
 const enumRoutes = require("./routes/enums");
 const qualityRoutes = require("./routes/quality");
+const businessClassificationRoutes = require("./routes/businessClassification");
 const swaggerRouter = require("./swagger");
 
 const app = express();
@@ -129,6 +130,7 @@ app.use("/api/executions", executionRoutes);
 app.use("/api/rejected-records", rejectedRecordsRoutes);
 app.use("/api/enums", enumRoutes);
 app.use("/api/quality", qualityRoutes);
+app.use("/api/business-classification", businessClassificationRoutes);
 app.use(swaggerRouter);
 
 app.get("*", (req, res, next) => {
