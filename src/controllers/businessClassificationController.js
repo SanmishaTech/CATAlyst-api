@@ -1,5 +1,5 @@
 const prisma = require("../config/db");
-const { orderFields } = require("../config/fieldClassificationMap");
+const { orderFields, executionFields } = require("../config/fieldClassificationMap");
 
 // Build dynamic where filters for orders
 const tradeDateVariants = (tradeDate) => {
@@ -261,9 +261,27 @@ const searchClientEdge = async (req, res, next) => {
         uniqueID: true,
         execution: {
           select: {
+            // Core identifiers and meta
             id: true,
             uniqueID: true,
             executionId: true,
+            createdAt: true,
+
+            // Identifier group
+            previousExecutionId: true,
+            executionEntityId: true,
+            executionVersion: true,
+            executionSeqNumber: true,
+            externalExecutionId: true,
+            linkedExecutionId: true,
+            executionIdInstance: true,
+            executionSession: true,
+            executionOrderIdInstance: true,
+            executionOrderIdSession: true,
+            executonOrderId: true,
+            executionOrderIdVersion: true,
+
+            // Economics & instrument/symbol
             executionSymbol: true,
             executionTradeDate: true,
             executionTransactionType: true,
@@ -271,7 +289,58 @@ const searchClientEdge = async (req, res, next) => {
             executionExecutingEntity: true,
             executionCapacity: true,
             executionAction: true,
-            createdAt: true,
+            executionSide: true,
+            executionPostingSide: true,
+            executionAllocationSide: true,
+            executionBrokerCapacity: true,
+            executionEventTime: true,
+            executionTime: true,
+            executionManualIndicator: true,
+            executionManualEventTime: true,
+            isMarketExecution: true,
+            executionLastMarket: true,
+            executionAccount: true,
+            executionBookingAccount: true,
+            executionBookingEntity: true,
+            executionTradingEntity: true,
+            executionDeskId: true,
+            executionOsi: true,
+            executionInstrumentId: true,
+            executionLinkedInstrumentId: true,
+            executionInstrumentReference: true,
+            executionInstrumentReferenceValue: true,
+            executionLastPrice: true,
+            executionLastQuantity: true,
+            executionContraBroker: true,
+            executionTradeExecutionSystem: true,
+            executionOmsSource: true,
+            executionBookingEligiblity: true,
+            executionCurrencyId: true,
+            executionPositionId: true,
+            executionSwapIndicator: true,
+            executionSettleDate: true,
+            executionCommisionFee: true,
+            executionRollupId: true,
+            executionSecondaryOffering: true,
+            executionCumQuantity: true,
+            executionTradeFactors: true,
+            executionRiskDate: true,
+            executionOrderComplianceId: true,
+            executonSessionActual: true,
+            executionStrategy: true,
+            executionLastLiquidityIndicator: true,
+            executionWaiverIndicator: true,
+            executionLifecycleType: true,
+            executionPackageIndicator: true,
+            executionRawLiquidityIndicator: true,
+            executionPackageId: true,
+            executionQuoteId: true,
+            executionYield: true,
+            executionSpread: true,
+            executionNegotiatedIndicator: true,
+            executionOpenCloseIndicator: true,
+            exchangeExecId: true,
+            executionCrossId: true,
           },
         },
       },
@@ -325,8 +394,10 @@ const searchClientEdge = async (req, res, next) => {
       classificationId: bc.id,
       businessClassification: bc.businessClassification,
       businessGroup: bc.businessGroup,
-      executionId: bc.execution?.executionId,
-      uniqueID: bc.execution?.uniqueID,
+      // expose all execution fields so frontend mappings can bind directly
+      ...(bc.execution || {}),
+
+      // keep convenient aliases used by the frontend table
       symbol: bc.execution?.executionSymbol,
       tradeDate: bc.execution?.executionTradeDate,
       flowType: bc.execution?.executionTransactionType,
@@ -334,7 +405,6 @@ const searchClientEdge = async (req, res, next) => {
       executingEntity: bc.execution?.executionExecutingEntity,
       capacity: bc.execution?.executionCapacity,
       action: bc.execution?.executionAction,
-      createdAt: bc.execution?.createdAt,
     }));
 
     return res.json({
@@ -671,6 +741,21 @@ module.exports = {
     );
 
     // Sort fields alphabetically for consistent UI
+    Object.keys(grouped).forEach((k) => grouped[k].sort());
+
+    res.json({ grouped });
+  },
+  // Returns execution fields grouped by their category for UI selection
+  getExecutionFieldsGrouped: (req, res) => {
+    const grouped = Object.entries(executionFields).reduce(
+      (acc, [field, category]) => {
+        if (!acc[category]) acc[category] = [];
+        acc[category].push(field);
+        return acc;
+      },
+      { Identifier: [], "Business Classification": [], Economics: [] }
+    );
+
     Object.keys(grouped).forEach((k) => grouped[k].sort());
 
     res.json({ grouped });
