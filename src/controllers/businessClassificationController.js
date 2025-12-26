@@ -43,6 +43,32 @@ const buildOrderWhere = ({ tradeDate, infoBarrier, flowType, executingEntity }) 
   return clauses.length ? { AND: clauses } : {};
 };
 
+const buildCounterPartyOrderWhere = ({ tradeDate, destination, orderCapacity }) => {
+  const clauses = [];
+
+  const dates = tradeDateVariants(tradeDate);
+  if (dates.length) {
+    clauses.push({ OR: dates.map((d) => ({ orderTradeDate: d })) });
+  }
+  if (destination) clauses.push({ orderDestination: destination });
+  if (orderCapacity) clauses.push({ orderCapacity });
+
+  return clauses.length ? { AND: clauses } : {};
+};
+
+const buildCounterPartyExecutionWhere = ({ tradeDate, contraBroker, executionCapacity }) => {
+  const clauses = [];
+
+  const dates = tradeDateVariants(tradeDate);
+  if (dates.length) {
+    clauses.push({ OR: dates.map((d) => ({ executionTradeDate: d })) });
+  }
+  if (contraBroker) clauses.push({ executionContraBroker: contraBroker });
+  if (executionCapacity) clauses.push({ executionCapacity });
+
+  return clauses.length ? { AND: clauses } : {};
+};
+
 // Build dynamic where filters for executions
 const buildExecutionWhere = ({ tradeDate, infoBarrier, executingEntity }) => {
   const clauses = [];
@@ -85,6 +111,52 @@ const buildExecutionBCFilters = (filters) => {
   });
 
   return clauses;
+};
+
+const buildBookingOrderWhere = ({ tradeDate, entity, executingEntity, positionAccount, infoBarrier }) => {
+  const clauses = [];
+
+  const dates = tradeDateVariants(tradeDate);
+  if (dates.length) {
+    clauses.push({ OR: dates.map((d) => ({ orderTradeDate: d })) });
+  }
+  if (entity) clauses.push({ orderEntityId: entity });
+  if (infoBarrier) clauses.push({ orderInfobarrierId: infoBarrier });
+
+  if (executingEntity) {
+    const asNumber = Number(executingEntity);
+    if (!Number.isNaN(asNumber)) clauses.push({ orderExecutingEntity: asNumber });
+  }
+
+  if (positionAccount) {
+    const asNumber = Number(positionAccount);
+    if (!Number.isNaN(asNumber)) clauses.push({ orderPositionAccount: asNumber });
+  }
+
+  return clauses.length ? { AND: clauses } : {};
+};
+
+const buildBookingExecutionWhere = ({ tradeDate, entity, executingEntity, positionAccount, infoBarrier }) => {
+  const clauses = [];
+
+  const dates = tradeDateVariants(tradeDate);
+  if (dates.length) {
+    clauses.push({ OR: dates.map((d) => ({ executionTradeDate: d })) });
+  }
+  if (entity) clauses.push({ executionEntityId: entity });
+  if (infoBarrier) clauses.push({ executionInfoBarrierId: infoBarrier });
+
+  if (executingEntity) {
+    const asNumber = Number(executingEntity);
+    if (!Number.isNaN(asNumber)) clauses.push({ executionExecutingEntity: asNumber });
+  }
+
+  if (positionAccount) {
+    const asNumber = Number(positionAccount);
+    if (!Number.isNaN(asNumber)) clauses.push({ executionPositionId: asNumber });
+  }
+
+  return clauses.length ? { AND: clauses } : {};
 };
 
 /**
@@ -350,8 +422,313 @@ const searchClientEdge = async (req, res, next) => {
   }
 };
 
+const searchCounterPartyMatrix = async (req, res, next) => {
+  try {
+    const {
+      tradeDate,
+      destination,
+      contraBroker,
+      orderCapacity,
+      executionCapacity,
+      pageOrders = 1,
+      pageExecutions = 1,
+      pageSizeOrders = 10,
+      pageSizeExecutions = 10,
+    } = req.query;
+
+    const pOrders = Math.max(1, parseInt(pageOrders));
+    const pExecutions = Math.max(1, parseInt(pageExecutions));
+    const sizeOrders = Math.max(1, Math.min(100, parseInt(pageSizeOrders)));
+    const sizeExecutions = Math.max(1, Math.min(100, parseInt(pageSizeExecutions)));
+
+    const orderWhere = buildCounterPartyOrderWhere({ tradeDate, destination, orderCapacity });
+    const executionWhere = buildCounterPartyExecutionWhere({ tradeDate, contraBroker, executionCapacity });
+
+    const orderBC = await prisma.orderBusinessClassification.findMany({
+      where: {
+        order: {
+          ...orderWhere,
+        },
+      },
+      select: {
+        id: true,
+        businessClassification: true,
+        businessGroup: true,
+        orderId: true,
+        uniqueID: true,
+        order: {
+          select: {
+            id: true,
+            uniqueID: true,
+            orderId: true,
+            orderSymbol: true,
+            orderTradeDate: true,
+            orderDestination: true,
+            orderCapacity: true,
+            createdAt: true,
+          },
+        },
+      },
+      skip: (pOrders - 1) * sizeOrders,
+      take: sizeOrders,
+    });
+
+    const orderTotal = await prisma.orderBusinessClassification.count({
+      where: { order: { ...orderWhere } },
+    });
+
+    const executionBC = await prisma.executionBusinessClassification.findMany({
+      where: {
+        execution: {
+          ...executionWhere,
+        },
+      },
+      select: {
+        id: true,
+        businessClassification: true,
+        businessGroup: true,
+        executionId: true,
+        uniqueID: true,
+        execution: {
+          select: {
+            id: true,
+            uniqueID: true,
+            executionId: true,
+            executionSymbol: true,
+            executionTradeDate: true,
+            executionContraBroker: true,
+            executionCapacity: true,
+            createdAt: true,
+          },
+        },
+      },
+      skip: (pExecutions - 1) * sizeExecutions,
+      take: sizeExecutions,
+    });
+
+    const executionTotal = await prisma.executionBusinessClassification.count({
+      where: { execution: { ...executionWhere } },
+    });
+
+    const classificationHit = orderBC.length > 0 || executionBC.length > 0;
+
+    if (!classificationHit) {
+      return res.json({
+        classificationHit: false,
+        orders: [],
+        executions: [],
+        pagination: {
+          orders: { page: pOrders, pageSize: sizeOrders, total: orderTotal },
+          executions: { page: pExecutions, pageSize: sizeExecutions, total: executionTotal },
+        },
+      });
+    }
+
+    const orders = orderBC.map((bc) => ({
+      classificationId: bc.id,
+      businessClassification: bc.businessClassification,
+      businessGroup: bc.businessGroup,
+      orderId: bc.order?.orderId,
+      uniqueID: bc.order?.uniqueID,
+      symbol: bc.order?.orderSymbol,
+      tradeDate: bc.order?.orderTradeDate,
+      flowType: bc.order?.orderDestination,
+      capacity: bc.order?.orderCapacity,
+      createdAt: bc.order?.createdAt,
+    }));
+
+    const executions = executionBC.map((bc) => ({
+      classificationId: bc.id,
+      businessClassification: bc.businessClassification,
+      businessGroup: bc.businessGroup,
+      executionId: bc.execution?.executionId,
+      uniqueID: bc.execution?.uniqueID,
+      symbol: bc.execution?.executionSymbol,
+      tradeDate: bc.execution?.executionTradeDate,
+      flowType: bc.execution?.executionContraBroker,
+      capacity: bc.execution?.executionCapacity,
+      createdAt: bc.execution?.createdAt,
+    }));
+
+    return res.json({
+      classificationHit: true,
+      orders,
+      executions,
+      pagination: {
+        orders: { page: pOrders, pageSize: sizeOrders, total: orderTotal },
+        executions: { page: pExecutions, pageSize: sizeExecutions, total: executionTotal },
+      },
+    });
+  } catch (err) {
+    console.error("[BusinessClassification] searchCounterPartyMatrix error", err);
+    next(err);
+  }
+};
+const searchBookingMatrix = async (req, res, next) => {
+  try {
+    const {
+      tradeDate,
+      entity,
+      executingEntity,
+      positionAccount,
+      infoBarrier,
+      pageOrders = 1,
+      pageExecutions = 1,
+      pageSizeOrders = 10,
+      pageSizeExecutions = 10,
+    } = req.query;
+
+    const pOrders = Math.max(1, parseInt(pageOrders));
+    const pExecutions = Math.max(1, parseInt(pageExecutions));
+    const sizeOrders = Math.max(1, Math.min(100, parseInt(pageSizeOrders)));
+    const sizeExecutions = Math.max(1, Math.min(100, parseInt(pageSizeExecutions)));
+
+    const orderWhere = buildBookingOrderWhere({ tradeDate, entity, executingEntity, positionAccount, infoBarrier });
+    const executionWhere = buildBookingExecutionWhere({ tradeDate, entity, executingEntity, positionAccount, infoBarrier });
+
+    const orderBC = await prisma.orderBusinessClassification.findMany({
+      where: {
+        order: {
+          ...orderWhere,
+        },
+      },
+      select: {
+        id: true,
+        businessClassification: true,
+        businessGroup: true,
+        orderId: true,
+        uniqueID: true,
+        order: {
+          select: {
+            id: true,
+            uniqueID: true,
+            orderId: true,
+            orderSymbol: true,
+            orderTradeDate: true,
+            orderFlowType: true,
+            orderInfobarrierId: true,
+            orderExecutingEntity: true,
+            orderEntityId: true,
+            orderPositionAccount: true,
+            orderAction: true,
+            orderStatus: true,
+            orderCapacity: true,
+            createdAt: true,
+          },
+        },
+      },
+      skip: (pOrders - 1) * sizeOrders,
+      take: sizeOrders,
+    });
+
+    const orderTotal = await prisma.orderBusinessClassification.count({
+      where: { order: { ...orderWhere } },
+    });
+
+    const executionBC = await prisma.executionBusinessClassification.findMany({
+      where: {
+        execution: {
+          ...executionWhere,
+        },
+      },
+      select: {
+        id: true,
+        businessClassification: true,
+        businessGroup: true,
+        executionId: true,
+        uniqueID: true,
+        execution: {
+          select: {
+            id: true,
+            uniqueID: true,
+            executionId: true,
+            executionSymbol: true,
+            executionTradeDate: true,
+            executionTransactionType: true,
+            executionInfoBarrierId: true,
+            executionExecutingEntity: true,
+            executionEntityId: true,
+            executionPositionId: true,
+            executionCapacity: true,
+            executionAction: true,
+            createdAt: true,
+          },
+        },
+      },
+      skip: (pExecutions - 1) * sizeExecutions,
+      take: sizeExecutions,
+    });
+
+    const executionTotal = await prisma.executionBusinessClassification.count({
+      where: { execution: { ...executionWhere } },
+    });
+
+    const classificationHit = orderBC.length > 0 || executionBC.length > 0;
+
+    if (!classificationHit) {
+      return res.json({
+        classificationHit: false,
+        orders: [],
+        executions: [],
+        pagination: {
+          orders: { page: pOrders, pageSize: sizeOrders, total: orderTotal },
+          executions: { page: pExecutions, pageSize: sizeExecutions, total: executionTotal },
+        },
+      });
+    }
+
+    const orders = orderBC.map((bc) => ({
+      classificationId: bc.id,
+      businessClassification: bc.businessClassification,
+      businessGroup: bc.businessGroup,
+      orderId: bc.order?.orderId,
+      uniqueID: bc.order?.uniqueID,
+      symbol: bc.order?.orderSymbol,
+      tradeDate: bc.order?.orderTradeDate,
+      flowType: bc.order?.orderFlowType,
+      infoBarrier: bc.order?.orderInfobarrierId,
+      executingEntity: bc.order?.orderExecutingEntity,
+      action: bc.order?.orderAction,
+      status: bc.order?.orderStatus,
+      capacity: bc.order?.orderCapacity,
+      createdAt: bc.order?.createdAt,
+    }));
+
+    const executions = executionBC.map((bc) => ({
+      classificationId: bc.id,
+      businessClassification: bc.businessClassification,
+      businessGroup: bc.businessGroup,
+      executionId: bc.execution?.executionId,
+      uniqueID: bc.execution?.uniqueID,
+      symbol: bc.execution?.executionSymbol,
+      tradeDate: bc.execution?.executionTradeDate,
+      flowType: bc.execution?.executionTransactionType,
+      infoBarrier: bc.execution?.executionInfoBarrierId,
+      executingEntity: bc.execution?.executionExecutingEntity,
+      capacity: bc.execution?.executionCapacity,
+      action: bc.execution?.executionAction,
+      createdAt: bc.execution?.createdAt,
+    }));
+
+    return res.json({
+      classificationHit: true,
+      orders,
+      executions,
+      pagination: {
+        orders: { page: pOrders, pageSize: sizeOrders, total: orderTotal },
+        executions: { page: pExecutions, pageSize: sizeExecutions, total: executionTotal },
+      },
+    });
+  } catch (err) {
+    console.error("[BusinessClassification] searchBookingMatrix error", err);
+    next(err);
+  }
+};
+
 module.exports = {
   searchClientEdge,
+  searchBookingMatrix,
+  searchCounterPartyMatrix,
   // Returns order fields grouped by their category for UI selection
   getOrderFieldsGrouped: (req, res) => {
     const grouped = Object.entries(orderFields).reduce(
