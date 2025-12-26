@@ -117,6 +117,13 @@ router.get("/template", auth, executionTemplateController.downloadExecutionTempl
 router.post("/upload", auth, upload.single("file"), executionController.uploadExecutions);
 
 
+router.post(
+  "/ai-filter-url",
+  auth,
+  executionController.generateExecutionsAiFilterUrl
+);
+
+
 /**
  * @swagger
  * /executions:
