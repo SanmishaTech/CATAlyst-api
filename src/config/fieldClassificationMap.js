@@ -53,7 +53,7 @@ const orderFields = {
   Order_Entity_ID: "Identifier",
   Order_Executing_Account: "Identifier",
   Order_Clearing_Account: "Identifier",
-  Order_Client_Order_ID: "Identifier", // Not Mentioned IN Excel
+  Order_Client_Order_ID: "Economics", 
   Order_Routed_Order_ID: "Economics",
   Order_Trading_Owner: "Business Classification",
   Order_Extended_Attribute: "Business Classification",

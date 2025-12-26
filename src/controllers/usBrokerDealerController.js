@@ -74,6 +74,17 @@ const parseBoolean = (v) => {
 
 const parseDate = (v) => {
   if (v === null || v === undefined || v === "") return undefined;
+  if (typeof v === "object" && !(v instanceof Date)) {
+    if (v && typeof v.result !== "undefined") return parseDate(v.result);
+    if (v && typeof v.text === "string") return parseDate(v.text);
+    if (v && Array.isArray(v.richText)) {
+      const t = v.richText
+        .map((p) => (p && typeof p.text === "string" ? p.text : ""))
+        .join("")
+        .trim();
+      if (t) return parseDate(t);
+    }
+  }
   // If ExcelJS already parsed as Date
   if (v instanceof Date) {
     const y = v.getUTCFullYear();
@@ -91,6 +102,17 @@ const parseDate = (v) => {
   }
   // Strict MM/DD/YYYY for strings
   const s = String(v).trim();
+
+  const iso = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+  if (iso) {
+    const year = parseInt(iso[1], 10);
+    const month = parseInt(iso[2], 10) - 1;
+    const day = parseInt(iso[3], 10);
+    if (month >= 0 && month <= 11 && day >= 1 && day <= 31) {
+      return new Date(Date.UTC(year, month, day));
+    }
+  }
+
   const m = s.match(
     /^([0][1-9]|1[0-2]|[1-9])\/([0][1-9]|[12][0-9]|3[01]|[1-9])\/(\d{4})$/
   );
@@ -100,6 +122,60 @@ const parseDate = (v) => {
     const year = parseInt(m[3], 10);
     if (month >= 0 && month <= 11) return new Date(Date.UTC(year, month, day));
   }
+
+  const dmy = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (dmy) {
+    let day = parseInt(dmy[1], 10);
+    let month = parseInt(dmy[2], 10) - 1;
+    const year = parseInt(dmy[3], 10);
+    if (month > 11 && day >= 1 && day <= 12) {
+      const tmp = day;
+      day = month + 1;
+      month = tmp - 1;
+    }
+    if (month >= 0 && month <= 11 && day >= 1 && day <= 31) {
+      return new Date(Date.UTC(year, month, day));
+    }
+  }
+
+  const dmon = s.match(/^\s*(\d{1,2})[-/\s]([A-Za-z]{3,})[-/\s](\d{2}|\d{4})\s*$/);
+  if (dmon) {
+    const day = parseInt(dmon[1], 10);
+    const monStr = String(dmon[2]).trim().toLowerCase();
+    const monthMap = {
+      jan: 0,
+      january: 0,
+      feb: 1,
+      february: 1,
+      mar: 2,
+      march: 2,
+      apr: 3,
+      april: 3,
+      may: 4,
+      jun: 5,
+      june: 5,
+      jul: 6,
+      july: 6,
+      aug: 7,
+      august: 7,
+      sep: 8,
+      sept: 8,
+      september: 8,
+      oct: 9,
+      october: 9,
+      nov: 10,
+      november: 10,
+      dec: 11,
+      december: 11,
+    };
+    const month = monthMap[monStr];
+    let year = parseInt(dmon[3], 10);
+    if (String(dmon[3]).length === 2) year = 2000 + year;
+    if (month !== undefined && day >= 1 && day <= 31) {
+      return new Date(Date.UTC(year, month, day));
+    }
+  }
+
   return undefined;
 };
 
@@ -184,7 +260,7 @@ async function uploadUSBrokerDealers(req, res, next) {
             errors.push({
               row: rowNumber,
               field,
-              message: `Invalid date for ${field}: '${raw}' (expected MM/DD/YYYY)`,
+              message: `Invalid date for ${field}: '${raw}' (expected Excel date, MM/DD/YYYY, DD-MMM-YY, DD-MM-YYYY, or YYYY-MM-DD)`,
             });
             return;
           }
@@ -231,10 +307,7 @@ async function uploadUSBrokerDealers(req, res, next) {
     let inserted = 0;
     if (records.length > 0) {
       // All-or-nothing insert
-      const result = await prisma.$transaction(async (tx) => {
-        const r = await tx.uSBrokerDealer.createMany({ data: records });
-        return r;
-      });
+      const result = await prisma.uSBrokerDealer.createMany({ data: records });
       inserted = result.count || 0;
     }
 
