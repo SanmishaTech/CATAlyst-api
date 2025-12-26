@@ -1,4 +1,5 @@
 const prisma = require("../config/db");
+const { orderFields } = require("../config/fieldClassificationMap");
 
 // Build dynamic where filters for orders
 const tradeDateVariants = (tradeDate) => {
@@ -281,4 +282,20 @@ const searchClientEdge = async (req, res, next) => {
 
 module.exports = {
   searchClientEdge,
+  // Returns order fields grouped by their category for UI selection
+  getOrderFieldsGrouped: (req, res) => {
+    const grouped = Object.entries(orderFields).reduce(
+      (acc, [field, category]) => {
+        if (!acc[category]) acc[category] = [];
+        acc[category].push(field);
+        return acc;
+      },
+      { Identifier: [], "Business Classification": [], Economics: [] }
+    );
+
+    // Sort fields alphabetically for consistent UI
+    Object.keys(grouped).forEach((k) => grouped[k].sort());
+
+    res.json({ grouped });
+  },
 };
