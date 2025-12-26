@@ -1,5 +1,5 @@
 const express = require("express");
-const { searchClientEdge, searchBookingMatrix, searchCounterPartyMatrix, getOrderFieldsGrouped } = require("../controllers/businessClassificationController");
+const { searchClientEdge, searchBookingMatrix, searchCounterPartyMatrix, getOrderFieldsGrouped, getExecutionFieldsGrouped } = require("../controllers/businessClassificationController");
 
 const router = express.Router();
 
