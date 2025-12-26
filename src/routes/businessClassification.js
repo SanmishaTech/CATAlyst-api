@@ -11,6 +11,7 @@ router.get("/counterparty-matrix", searchCounterPartyMatrix);
 // GET /api/business-classification/order-fields
 router.get("/order-fields", getOrderFieldsGrouped);
 
+// GET /api/business-classification/execution-fields
 router.get("/execution-fields", getExecutionFieldsGrouped);
 
 module.exports = router;
