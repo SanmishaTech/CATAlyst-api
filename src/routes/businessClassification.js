@@ -1,5 +1,5 @@
 const express = require("express");
-const { searchClientEdge, searchBookingMatrix, searchCounterPartyMatrix, getOrderFieldsGrouped } = require("../controllers/businessClassificationController");
+const { searchClientEdge, searchBookingMatrix, searchCounterPartyMatrix, getOrderFieldsGrouped, getExecutionFieldsGrouped } = require("../controllers/businessClassificationController");
 
 const router = express.Router();
 
@@ -10,5 +10,7 @@ router.get("/counterparty-matrix", searchCounterPartyMatrix);
 
 // GET /api/business-classification/order-fields
 router.get("/order-fields", getOrderFieldsGrouped);
+
+router.get("/execution-fields", getExecutionFieldsGrouped);
 
 module.exports = router;

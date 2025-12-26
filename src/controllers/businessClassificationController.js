@@ -1,5 +1,5 @@
 const prisma = require("../config/db");
-const { orderFields } = require("../config/fieldClassificationMap");
+const { orderFields, executionFields } = require("../config/fieldClassificationMap");
 
 // Build dynamic where filters for orders
 const tradeDateVariants = (tradeDate) => {
@@ -671,6 +671,20 @@ module.exports = {
     );
 
     // Sort fields alphabetically for consistent UI
+    Object.keys(grouped).forEach((k) => grouped[k].sort());
+
+    res.json({ grouped });
+  },
+  getExecutionFieldsGrouped: (req, res) => {
+    const grouped = Object.entries(executionFields).reduce(
+      (acc, [field, category]) => {
+        if (!acc[category]) acc[category] = [];
+        acc[category].push(field);
+        return acc;
+      },
+      { Identifier: [], "Business Classification": [], Economics: [] }
+    );
+
     Object.keys(grouped).forEach((k) => grouped[k].sort());
 
     res.json({ grouped });
