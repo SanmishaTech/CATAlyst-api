@@ -111,6 +111,8 @@ router.get("/template", auth, templateController.downloadOrderTemplate);
  */
 router.get("/template/large", auth, templateController.downloadLargeOrderTemplate);
 
+router.post("/ai-filter-url", auth, orderController.generateOrdersAiFilterUrl);
+
 /**
  * @swagger
  * /orders/upload:

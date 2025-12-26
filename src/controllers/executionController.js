@@ -1,6 +1,7 @@
 const ExcelJS = require("exceljs");
 const prisma = require("../config/db");
 const createError = require("http-errors");
+const https = require("https");
 const path = require("path");
 const fs = require("fs").promises;
 const crypto = require("crypto");
@@ -501,6 +502,149 @@ const getExecutions = async (req, res, next) => {
   }
 };
 
+const callGroqChatCompletions = async ({ apiKey, model, messages, temperature = 0 }) =>
+  new Promise((resolve, reject) => {
+    const payload = JSON.stringify({
+      model,
+      messages,
+      temperature,
+    });
+
+    const req_ = https.request(
+      {
+        method: "POST",
+        hostname: "api.groq.com",
+        path: "/openai/v1/chat/completions",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(payload),
+        },
+      },
+      (res_) => {
+        let data = "";
+        res_.on("data", (chunk) => {
+          data += chunk;
+        });
+        res_.on("end", () => {
+          try {
+            if (res_.statusCode && res_.statusCode >= 400) {
+              return reject(
+                createError(
+                  res_.statusCode,
+                  `Groq API error (${res_.statusCode}): ${data}`
+                )
+              );
+            }
+            resolve(JSON.parse(data));
+          } catch (e) {
+            reject(e);
+          }
+        });
+      }
+    );
+
+    req_.on("error", reject);
+    req_.write(payload);
+    req_.end();
+  });
+
+const getExecutionsAiBaseUrl = (req) => {
+  const forwardedProto = req?.headers?.["x-forwarded-proto"];
+  const forwardedHost = req?.headers?.["x-forwarded-host"];
+  const protocol = (forwardedProto || req.protocol || "http")
+    .toString()
+    .split(",")[0]
+    .trim();
+  const host = (forwardedHost || req.get("host"))
+    .toString()
+    .split(",")[0]
+    .trim();
+
+  return `${protocol}://${host}/api/executions`;
+};
+
+const generateExecutionsAiFilterUrl = async (req, res, next) => {
+  try {
+    const { prompt } = req.body || {};
+    if (!prompt || typeof prompt !== "string") {
+      return next(createError(400, "prompt is required"));
+    }
+
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) {
+      return next(createError(500, "GROQ_API_KEY is not configured"));
+    }
+
+    const model = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+    const executionsBaseUrl = getExecutionsAiBaseUrl(req);
+
+    const systemPrompt = `You are a specialized API Query String Generator. Your goal is to convert user requests into a single, valid URL for the Catalyst API.
+
+### BASE URL
+${executionsBaseUrl}
+
+### FIELD MAPPING RULES
+- "start date" or "since" -> fromDate (Format: YYYY-MM-DD)
+- "end date" or "until" -> toDate (Format: YYYY-MM-DD)
+- "id" or "reference" -> executionId
+- "currency" or "symbol" -> executionSymbol
+- "entity" or "account id" -> executingEntity
+- "count" or "amount" -> limit
+- "page number" -> page
+- "sort" -> sortBy
+- "direction" -> sortOrder (Values: "asc" or "desc")
+
+### OUTPUT RULES
+1. Return ONLY the full URL.
+2. Do not include introductory text, markdown code blocks, or explanations.
+3. Ensure all date parameters follow the ISO 8601 format (YYYY-MM-DD).
+4. If a parameter is missing, use these defaults: limit=50, page=1, sortBy=createdAt, sortOrder=desc.`;
+
+    const completion = await callGroqChatCompletions({
+      apiKey,
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0,
+    });
+
+    const content = completion?.choices?.[0]?.message?.content;
+    if (!content || typeof content !== "string") {
+      return next(createError(502, "Groq response did not include a URL"));
+    }
+
+    const raw = content.trim();
+    const candidate = raw.replace(/^['"]|['"]$/g, "");
+    const extracted = candidate.match(/https?:\/\/\S+/)?.[0];
+    const url = extracted || candidate;
+
+    try {
+      const parsedUrl = new URL(url);
+      if (!parsedUrl) {
+        return next(createError(502, `Groq returned an invalid URL: ${raw}`));
+      }
+
+      if (!/\/api\/executions\/?$/.test(parsedUrl.pathname)) {
+        return next(
+          createError(
+            502,
+            `Groq returned a URL that is not an executions endpoint: ${raw}`
+          )
+        );
+      }
+    } catch (e) {
+      return next(createError(502, `Groq returned an invalid URL: ${raw}`));
+    }
+
+    res.json({ url });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Parse Excel file and convert to JSON array
 const parseExcelToJson = async (filePath) => {
   const workbook = new ExcelJS.Workbook();
@@ -844,4 +988,5 @@ module.exports = {
   parseExcelToJson,
   uploadExecutions,
   getExecutions,
+  generateExecutionsAiFilterUrl,
 };
