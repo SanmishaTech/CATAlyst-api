@@ -108,10 +108,38 @@ The following environment variables are required:
 *   `SENDGRID_API_KEY`: The API key for SendGrid (required if `EMAIL_TRANSPORTER` is `sendgrid`).
 *   `MAILTRAP_HOST`: The host for Mailtrap (required if `EMAIL_TRANSPORTER` is `mailtrap`).
 *   `MAILTRAP_PORT`: The port for Mailtrap (required if `EMAIL_TRANSPORTER` is `mailtrap`).
-*   `MAILTRAP_USER`: The username for Mailtrap (required if `EMAIL_TRANSPORTER` is `mailtrap`).
-*   `MAILTRAP_PASSWORD`: The password for Mailtrap (required if `EMAIL_TRANSPORTER` is `mailtrap`).
 *   `ALLOW_REGISTRATION`:  Boolean value to enable or disable user registration (default: true).
 *   `DEFAULT_USER_ROLE`:  The default role assigned to newly registered users (default: 'user').
+
+### Additional settings used in this project
+
+```env
+# CORS Settings
+ALLOWED_ORIGINS="http://localhost:3000,http://localhost:3001,http://localhost:5173,"
+
+# Cron Settings
+CRON_ENABLED=true
+CRON_INTERVAL_MINUTES=1
+
+# Validation 2 Cron Settings
+CRON_VALIDATION_2_ENABLED=true
+CRON_VALIDATION_2_INTERVAL_MINUTES=2
+
+# Validation 3 Cron Settings
+CRON_VALIDATION_3_ENABLED=true
+CRON_VALIDATION_3_INTERVAL_MINUTES=3
+
+# Business classification cron (runs after Validation 3; default enabled)
+CRON_BUSINESS_CLASSIFICATION_ENABLED=true
+CRON_BUSINESS_CLASSIFICATION_MINUTES=4 # Interval in minutes (<=30 uses */N; >30 uses hourly schedule)
+
+# Groq AI (used for AI Filter -> URL generation)
+GROQ_API_KEY=""
+GROQ_MODEL="llama-3.3-70b-versatile"
+
+# Frontend Serving (set to 'true' if using separate React build)
+SERVE_FRONTEND=false
+```
 
 ## Database
 
