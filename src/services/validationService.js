@@ -775,7 +775,15 @@ const processExecutionValidation2ForBatch = async (batchId, batch = null) => {
     const failed = [];
 
     for (const exe of executions) {
-      const result = validateExecution(exe, client.exe_validation_2);
+      let result = validateExecution(exe, client.exe_validation_2);
+      // Apply Level-2 rules for executions
+      const ruleErrors = evaluateLevel2Rules(exe, client.exe_validation_2);
+      if (ruleErrors.length > 0) {
+        result = {
+          success: false,
+          errors: [...(result.errors || []), ...ruleErrors]
+        };
+      }
 
       // Persist validation result for each execution
       const validation = await prisma.validation.create({
@@ -932,7 +940,12 @@ const processExecutionValidation3ForBatch = async (batchId, batch=null) => {
     const executions = await prisma.execution.findMany({ where:{ batchId } });
     let pass=0, fail=0;
     for (const exe of executions) {
-      const result = validateExecution(exe, client.exe_validation_3);
+      let result = validateExecution(exe, client.exe_validation_3);
+      // Apply Level-2 rules for executions
+      const ruleErrors = evaluateLevel2Rules(exe, client.exe_validation_3);
+      if (ruleErrors.length > 0) {
+        result = { success: false, errors: [...(result.errors||[]), ...ruleErrors] };
+      }
       const validation = await prisma.validation.create({ data:{ executionId: exe.id, batchId, success: result.success, validatedAt:new Date() } });
       if (!result.success && result.errors?.length) {
         await prisma.validationError.createMany({ data: result.errors.map(err=>({ validationId:validation.id, validationLevel: 3, field: err.field||'unknown', message: err.message||'Validation 3 failed', code: err.code||'validation_3_error', batchId, executionId: exe.id, validationCode: getValidationCode('CTX_INVALID_COMBINATION').code, is_deduped:0, is_validated:0 })) });
