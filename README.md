@@ -88,6 +88,32 @@ A simple Node.js REST API project built with Express, Prisma, and JWT.
     npm run dev
     ```
 
+## Manual one-off cron runs (for testing)
+
+Run each validation/business classification cron once immediately (JS files, no ts-node needed):
+
+- Validation 1 (orders/executions):
+```bash
+node ./src/jobs/validationCron.js
+```
+
+- Validation 2:
+```bash
+node ./src/jobs/validation2Cron.js
+```
+
+- Validation 3:
+```bash
+node ./src/jobs/validation3Cron.js
+```
+
+- Business Classification:
+```bash
+node ./src/jobs/businessClassificationCron.js
+```
+
+These use your existing `.env`, Prisma client, and queue logic; they simply run the handlers once instead of waiting for the scheduled interval.
+
 ## API Documentation
 
 API documentation is available at `http://localhost:3000/api-docs` when the server is running.

@@ -841,7 +841,15 @@ const processExecutionValidation2ForBatch = async (batchId, batch = null) => {
       ? JSON.stringify({ type: 'execution_validation_2', failedExecutions: failed.slice(0, 100), totalFailed: failCount })
       : null;
 
-    await prisma.batch.update({ where: { id: batchId }, data: { validation_2: allPassed, errorLog: errorLog ?? batch.errorLog } });
+    const validationStatus = allPassed ? 'passed' : 'failed';
+    await prisma.batch.update({
+      where: { id: batchId },
+      data: {
+        validation_2: allPassed,
+        validation_2_status: validationStatus,
+        errorLog: errorLog ?? batch.errorLog
+      }
+    });
 
     await markPreviousValidationErrorsDedupedForExecutionBatch(batchId, batch.user.id);
     console.log(`[Validation 2] Execution Batch ${batchId} completed: ${successCount} passed, ${failCount} failed - Overall: ${allPassed ? 'PASSED' : 'FAILED'}`);
