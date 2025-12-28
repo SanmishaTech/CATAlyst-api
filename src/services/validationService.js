@@ -297,7 +297,7 @@ const processBatchValidation = async (batchId) => {
       console.log(`[Validation] User ${batch.userId} has no associated client`);
       await prisma.batch.update({
         where: { id: batchId },
-        data: { validation_1: true },
+        data: { validation_1: true, validation_1_status: 'passed' },
       });
       return;
     }
@@ -311,7 +311,7 @@ const processBatchValidation = async (batchId) => {
       console.log(`[Validation] Client has no validation schema configured`);
       await prisma.batch.update({
         where: { id: batchId },
-        data: { validation_1: true },
+        data: { validation_1: true, validation_1_status: 'passed' },
       });
       return;
     }
@@ -439,18 +439,18 @@ const processExecutionBatchValidation = async (batchId, batch = null) => {
     // Get client's execution validation schema
     if (!batch.user.clientId) {
       console.log(`[Validation] User ${batch.userId} has no associated client`);
-      await prisma.batch.update({ where: { id: batchId }, data: { validation_1: true } });
+      await prisma.batch.update({ where: { id: batchId }, data: { validation_1: true, validation_1_status: 'passed' } });
       return;
     }
 
     const client = await prisma.client.findUnique({
       where: { id: batch.user.clientId },
-      select: { exe_validation_1: true },
+      select: { exe_validation_1: true, validation_1: true },
     });
 
     if (!client || !client.exe_validation_1) {
       console.log(`[Validation] Client has no execution validation schema configured`);
-      await prisma.batch.update({ where: { id: batchId }, data: { validation_1: true } });
+      await prisma.batch.update({ where: { id: batchId }, data: { validation_1: true, validation_1_status: 'passed' } });
       return;
     }
 
@@ -529,7 +529,15 @@ const processExecutionBatchValidation = async (batchId, batch = null) => {
       ? JSON.stringify({ type: 'execution_validation', failedExecutions: failed.slice(0, 100), totalFailed: failCount })
       : null;
 
-    await prisma.batch.update({ where: { id: batchId }, data: { validation_1: allPassed, errorLog: errorLog ?? batch.errorLog } });
+    const validationStatus = allPassed ? 'passed' : 'failed';
+    await prisma.batch.update({
+      where: { id: batchId },
+      data: {
+        validation_1: allPassed,
+        validation_1_status: validationStatus,
+        errorLog: errorLog ?? batch.errorLog
+      }
+    });
 
     await markPreviousValidationErrorsDedupedForExecutionBatch(batchId, batch.user.id);
     console.log(`[Validation] Execution Batch ${batchId} completed: ${successCount} passed, ${failCount} failed - Overall: ${allPassed ? 'PASSED' : 'FAILED'}`);

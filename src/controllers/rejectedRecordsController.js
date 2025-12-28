@@ -44,7 +44,7 @@ const getRejectedOrders = async (req, res, next) => {
       }
     }
 
-    const [rejectedOrders, total] = await Promise.all([
+    const [rejectedOrders, total, excelCount, jsonCount] = await Promise.all([
       prisma.rejectedOrder.findMany({
         where,
         skip,
@@ -62,6 +62,8 @@ const getRejectedOrders = async (req, res, next) => {
         },
       }),
       prisma.rejectedOrder.count({ where }),
+      prisma.rejectedOrder.count({ where: { ...where, uploadType: 'excel' } }),
+      prisma.rejectedOrder.count({ where: { ...where, uploadType: 'json' } }),
     ]);
 
     res.json({
@@ -71,6 +73,11 @@ const getRejectedOrders = async (req, res, next) => {
         limit: parseInt(limit),
         total,
         pages: Math.ceil(total / parseInt(limit)),
+      },
+      stats: {
+        total,
+        fromExcel: excelCount,
+        fromJson: jsonCount,
       },
     });
   } catch (error) {
@@ -123,7 +130,7 @@ const getRejectedExecutions = async (req, res, next) => {
 
     // Try to fetch rejected executions (may fail if table doesn't exist)
     try {
-      const [rejectedExecutions, total] = await Promise.all([
+      const [rejectedExecutions, total, excelCount, jsonCount] = await Promise.all([
         prisma.rejectedExecution.findMany({
           where,
           skip,
@@ -141,6 +148,8 @@ const getRejectedExecutions = async (req, res, next) => {
           },
         }),
         prisma.rejectedExecution.count({ where }),
+        prisma.rejectedExecution.count({ where: { ...where, uploadType: 'excel' } }),
+        prisma.rejectedExecution.count({ where: { ...where, uploadType: 'json' } }),
       ]);
 
       res.json({
@@ -150,6 +159,11 @@ const getRejectedExecutions = async (req, res, next) => {
           limit: parseInt(limit),
           total,
           pages: Math.ceil(total / parseInt(limit)),
+        },
+        stats: {
+          total,
+          fromExcel: excelCount,
+          fromJson: jsonCount,
         },
       });
     } catch (tableError) {
