@@ -649,10 +649,16 @@ ${executionsBaseUrl}
 const parseExcelToJson = async (filePath) => {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.readFile(filePath);
-  const worksheet = workbook.getWorksheet(1);
 
+  // Prefer the first available worksheet (handles files where index 1 may be missing)
+  const worksheet = workbook.worksheets[0];
   if (!worksheet) {
-    throw new Error("Excel file is empty or invalid");
+    throw new Error(`Excel file has no worksheets (found ${workbook.worksheets.length}). Ensure it is a valid .xlsx with at least one sheet.`);
+  }
+
+  // Require at least a header row + one data row
+  if ((worksheet.rowCount || 0) < 2) {
+    throw new Error("Excel file is empty (no data rows found).");
   }
 
   // Get headers from first row

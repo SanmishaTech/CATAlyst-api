@@ -217,7 +217,7 @@ const createClient = async (req, res, next) => {
     }
 
     // Create client and user in a transaction
-    const bcrypt = require("bcrypt");
+    const bcrypt = require("bcryptjs");
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const result = await prisma.$transaction(async (tx) => {

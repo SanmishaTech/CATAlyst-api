@@ -727,40 +727,46 @@ const parseExcelToJson = async (filePath) => {
   try {
     workbook = new ExcelJS.Workbook();
     await workbook.xlsx.readFile(filePath);
-    const worksheet = workbook.getWorksheet(1);
 
+    // Prefer the first available worksheet (handles files where index 1 may be missing)
+    const worksheet = workbook.worksheets[0];
     if (!worksheet) {
-      throw new Error("Excel file is empty or invalid");
+      throw new Error(`Excel file has no worksheets (found ${workbook.worksheets.length}). Ensure it is a valid .xlsx with at least one sheet.`);
     }
 
-  // Get headers from first row
-  const headers = [];
-  worksheet.getRow(1).eachCell({ includeEmpty: true }, (cell) => {
-    const headerValue = cell.value ? cell.value.toString().toLowerCase().trim() : '';
-    headers.push(headerValue);
-  });
+    // Require at least a header row + one data row
+    if ((worksheet.rowCount || 0) < 2) {
+      throw new Error("Excel file is empty (no data rows found).");
+    }
 
-  // Validate required fields - accept both camelCase and snake_case
-  const hasOrderId = headers.includes("orderid") || headers.includes("order_id");
-  if (!hasOrderId) {
-    throw new Error("Excel file must contain 'orderId' or 'order_id' column");
-  }
+    // Get headers from first row
+    const headers = [];
+    worksheet.getRow(1).eachCell({ includeEmpty: true }, (cell) => {
+      const headerValue = cell.value ? cell.value.toString().toLowerCase().trim() : '';
+      headers.push(headerValue);
+    });
 
-  const orders = [];
-  const errors = [];
-  let rowNumber = 1;
+    // Validate required fields - accept both camelCase and snake_case
+    const hasOrderId = headers.includes("orderid") || headers.includes("order_id");
+    if (!hasOrderId) {
+      throw new Error("Excel file must contain 'orderId' or 'order_id' column");
+    }
 
-  // Parse rows
-  worksheet.eachRow((row, index) => {
-    if (index === 1) return; // Skip header row
-    rowNumber++;
+    const orders = [];
+    const errors = [];
+    let rowNumber = 1;
 
-    const orderData = {};
+    // Parse rows
+    worksheet.eachRow((row, index) => {
+      if (index === 1) return; // Skip header row
+      rowNumber++;
 
-    // Use eachCell with includeEmpty option to process all columns
-    row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-      const header = headers[colNumber - 1];
-      const mappedField = fieldMapping[header];
+      const orderData = {};
+
+      // Use eachCell with includeEmpty option to process all columns
+      row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        const header = headers[colNumber - 1];
+        const mappedField = fieldMapping[header];
 
       if (mappedField) {
         let value = cell.value;

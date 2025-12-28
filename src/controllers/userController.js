@@ -1,5 +1,5 @@
 const createError = require("http-errors");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const ExcelJS = require("exceljs");
 const prisma = require("../config/db");
 const validateRequest = require("../utils/validateRequest");

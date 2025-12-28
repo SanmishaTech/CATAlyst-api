@@ -161,24 +161,43 @@ const RouteRejectedFlagMapping = {
   'yes': 2,
 };
 
+// Order Flow Type (sheet values)
 const OrderFlowTypeMapping = {
-  'aggressive': 1,
-  'passive': 2,
-  'mixed': 3,
+  'algo': 2,
+  'sponsored access': 3,
+  'high touch': 4,
+  'low touch': 5,
 };
 
 const OrderInstrumentReferenceMapping = {
   'isin': 1,
   'cusip': 2,
   'sedol': 3,
-  'ticker': 4,
+  'ric code': 4,
 };
 
+// Order Action Initiated (sheet values)
 const OrderActionInitiatedMapping = {
-  'client': 1,
-  'firm': 2,
-  'exchange': 3,
-  'system': 4,
+  'firm': 1,
+  'exchange': 2,
+  'client': 3,
+  'broker': 4,
+};
+
+// Linked Order Type (sheet values)
+const LinkedOrderTypeMapping = {
+  'representative': 1,
+  'manual': 2,
+  'merge': 3,
+  'aggregated order': 4,
+  'synthetic order': 5,
+};
+
+// Order InfoBarrier ID (sheet values)
+const OrderInfoBarrierIdMapping = {
+  'sales': 1,
+  'trading': 2,
+  'proprietary': 3,
 };
 
 /**
