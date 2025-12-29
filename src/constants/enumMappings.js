@@ -253,5 +253,7 @@ module.exports = {
   OrderFlowTypeMapping,
   OrderInstrumentReferenceMapping,
   OrderActionInitiatedMapping,
+  LinkedOrderTypeMapping,
+  OrderInfoBarrierIdMapping,
   convertStringToEnum,
 };
