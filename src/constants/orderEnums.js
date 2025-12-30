@@ -115,7 +115,6 @@ const OrderOptionLegIndicator = {
 };
 
 const OrderNegotiatedIndicator = {
-  0: null,
   1: "Y",
   2: "N"
 };
@@ -282,7 +281,6 @@ const LinkedOrderType = {
 };
 
 const OrderInfobarrierId = {
-  0: null,
   1: "Sales",
   2: "Trading",
   3: "Proprietary"
@@ -292,6 +290,15 @@ const OrderInfobarrierId = {
 const validateEnum = (enumObj, value, enumName) => {
   if (value === null || value === undefined || value === "") {
     return { valid: true, value: null };
+  }
+
+  // Treat string "null"/"none" as 0 when enum defines it, otherwise as null
+  if (typeof value === "string") {
+    const lowered = value.trim().toLowerCase();
+    if (lowered === "null" || lowered === "none") {
+      const hasZeroKey = Object.prototype.hasOwnProperty.call(enumObj, "0");
+      return { valid: true, value: hasZeroKey ? 0 : null };
+    }
   }
 
   // Convert to number if it's a string that looks like a number
@@ -309,8 +316,24 @@ const validateEnum = (enumObj, value, enumName) => {
     return { valid: true, value: numValue };
   }
 
+  // Check if value matches an enum label (string)
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed !== '') {
+      const lowered = trimmed.toLowerCase();
+      for (const [key, label] of Object.entries(enumObj)) {
+        if (label === null || label === undefined) continue;
+        if (String(label).toLowerCase() === lowered) {
+          return { valid: true, value: parseInt(key, 10) };
+        }
+      }
+    }
+  }
+
   // Invalid value - return error with valid options
-  const validOptions = validKeys.join(", ");
+  const validOptions = validKeys
+    .map(k => `${k} (${enumObj[k] === null ? 'null' : enumObj[k]})`)
+    .join(", ");
   return { 
     valid: false, 
     error: `Invalid ${enumName} value: "${value}". Must be one of: ${validOptions}`
