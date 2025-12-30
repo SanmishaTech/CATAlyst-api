@@ -87,11 +87,24 @@ const validateOrder = (orderData, zodSchemaObj) => {
       };
     }
 
+    const normalizedData = { ...(orderData || {}) };
+
     // Build dynamic zod schema from stored configuration
     const schemaShape = {};
     
     for (const [fieldName, fieldConfig] of Object.entries(zodSchemaObj)) {
       if (!fieldConfig || typeof fieldConfig !== "object") continue;
+
+      if (fieldConfig.optional) {
+        const v = normalizedData[fieldName];
+        if (
+          v === null ||
+          v === undefined ||
+          (typeof v === "string" && v.trim() === "")
+        ) {
+          delete normalizedData[fieldName];
+        }
+      }
       
       let fieldSchema;
       
@@ -105,8 +118,7 @@ const validateOrder = (orderData, zodSchemaObj) => {
 
           let stringSchema = z.string();
 
-          // Enforce min only when not optional
-          if (!isOptional && fieldConfig.min !== undefined) {
+          if (fieldConfig.min !== undefined) {
             stringSchema = stringSchema.min(fieldConfig.min, fieldConfig.minMessage);
           }
           if (fieldConfig.max !== undefined) {
@@ -184,7 +196,7 @@ const validateOrder = (orderData, zodSchemaObj) => {
     const dynamicSchema = z.object(schemaShape);
     
     // Validate the order data
-    const result = dynamicSchema.safeParse(orderData);
+    const result = dynamicSchema.safeParse(normalizedData);
     
     if (result.success) {
       return { success: true };
