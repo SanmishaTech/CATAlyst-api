@@ -1,5 +1,10 @@
 const prisma = require("../config/db");
 const createError = require("http-errors");
+const {
+  processBatchValidation,
+  processValidation2ForBatch,
+  processValidation3ForBatch,
+} = require("../services/validationService");
 
 // Get all batches for the authenticated user
 const getBatches = async (req, res, next) => {
@@ -346,6 +351,60 @@ const getBatchValidationErrors = async (req, res, next) => {
   }
 };
 
+const revalidateBatch = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const batchId = parseInt(id);
+
+    if (Number.isNaN(batchId)) {
+      return next(createError(400, "Invalid batch id"));
+    }
+
+    const batch = await prisma.batch.findFirst({
+      where: {
+        id: batchId,
+        userId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!batch) {
+      return next(createError(404, "Batch not found"));
+    }
+
+    await prisma.$transaction([
+      prisma.validationError.deleteMany({ where: { batchId } }),
+      prisma.validation.deleteMany({ where: { batchId } }),
+      prisma.batch.update({
+        where: { id: batchId },
+        data: {
+          validation_1: null,
+          validation_1_status: null,
+          validation_2: null,
+          validation_2_status: null,
+          validation_3: null,
+          validation_3_status: null,
+        },
+      }),
+    ]);
+
+    await processBatchValidation(batchId);
+    await processValidation2ForBatch(batchId);
+    await processValidation3ForBatch(batchId);
+
+    res.json({
+      success: true,
+      message: "Batch revalidated successfully",
+      batchId,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Get batch statistics summary
 const getBatchStats = async (req, res, next) => {
   try {
@@ -429,4 +488,5 @@ module.exports = {
   deleteBatch,
   getBatchStats,
   getBatchValidationErrors,
+  revalidateBatch,
 };

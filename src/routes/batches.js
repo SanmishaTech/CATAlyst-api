@@ -266,6 +266,8 @@ router.get("/:id/orders", auth, batchController.getBatchOrders);
  */
 router.get("/:id/validation-errors", auth, batchController.getBatchValidationErrors);
 
+router.post("/:id/revalidate", auth, batchController.revalidateBatch);
+
 /**
  * @swagger
  * /batches/{id}:

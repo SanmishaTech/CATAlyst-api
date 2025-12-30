@@ -77,7 +77,13 @@ const validateOrder = (orderData, zodSchemaObj) => {
     if (!zodSchemaObj || typeof zodSchemaObj !== "object") {
       return {
         success: false,
-        errors: ["Invalid or missing validation schema"],
+        errors: [
+          {
+            field: "schema",
+            message: "Invalid or missing validation schema",
+            code: "schema_error",
+          },
+        ],
       };
     }
 
@@ -91,21 +97,41 @@ const validateOrder = (orderData, zodSchemaObj) => {
       
       // Handle different field types
       switch (fieldConfig.type) {
-        case "string":
-          fieldSchema = z.string();
-          if (fieldConfig.min !== undefined) {
-            fieldSchema = fieldSchema.min(fieldConfig.min, fieldConfig.minMessage);
+        case "string": {
+          // Optional behavior requested by user:
+          // - If optional and value is empty => no error
+          // - If optional and value is present => validate type + max (and other validators)
+          const isOptional = !!fieldConfig.optional;
+
+          let stringSchema = z.string();
+
+          // Enforce min only when not optional
+          if (!isOptional && fieldConfig.min !== undefined) {
+            stringSchema = stringSchema.min(fieldConfig.min, fieldConfig.minMessage);
           }
           if (fieldConfig.max !== undefined) {
-            fieldSchema = fieldSchema.max(fieldConfig.max, fieldConfig.maxMessage);
+            stringSchema = stringSchema.max(fieldConfig.max, fieldConfig.maxMessage);
           }
           if (fieldConfig.email) {
-            fieldSchema = fieldSchema.email(fieldConfig.emailMessage);
+            stringSchema = stringSchema.email(fieldConfig.emailMessage);
           }
           if (fieldConfig.regex) {
-            fieldSchema = fieldSchema.regex(new RegExp(fieldConfig.regex), fieldConfig.regexMessage);
+            try {
+              stringSchema = stringSchema.regex(
+                new RegExp(fieldConfig.regex),
+                fieldConfig.regexMessage
+              );
+            } catch (e) {
+              // Ignore invalid regex in schema config to avoid breaking entire validation
+            }
           }
+
+          // If optional, allow empty string to pass without triggering min/max/regex/email.
+          fieldSchema = isOptional
+            ? z.union([stringSchema, z.literal("")])
+            : stringSchema;
           break;
+        }
           
         case "number":
           fieldSchema = z.number();
@@ -129,8 +155,14 @@ const validateOrder = (orderData, zodSchemaObj) => {
           break;
           
         case "enum":
-          if (fieldConfig.values && Array.isArray(fieldConfig.values)) {
+          if (
+            fieldConfig.values &&
+            Array.isArray(fieldConfig.values) &&
+            fieldConfig.values.length > 0
+          ) {
             fieldSchema = z.enum(fieldConfig.values);
+          } else {
+            fieldSchema = z.any();
           }
           break;
           
@@ -169,7 +201,13 @@ const validateOrder = (orderData, zodSchemaObj) => {
   } catch (error) {
     return {
       success: false,
-      errors: [{ message: "Validation error", details: error.message }],
+      errors: [
+        {
+          field: "schema",
+          message: error?.message ? String(error.message) : "Validation error",
+          code: "validation_error",
+        },
+      ],
     };
   }
 };
