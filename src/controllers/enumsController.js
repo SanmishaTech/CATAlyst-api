@@ -26,7 +26,9 @@ const {
   OrderRestrictions,
   OrderInstrumentReference,
   OrderActionInitiated,
-  OrderFlowType
+  OrderFlowType,
+  LinkedOrderType,
+  OrderInfobarrierId
 } = require("../constants/orderEnums");
 
 /**
@@ -62,7 +64,9 @@ const getAllOrderEnums = async (req, res, next) => {
       OrderRestrictions,
       OrderInstrumentReference,
       OrderActionInitiated,
-      OrderFlowType
+      OrderFlowType,
+      LinkedOrderType,
+      OrderInfobarrierId
     });
   } catch (error) {
     next(error);
@@ -104,7 +108,9 @@ const getEnumByName = async (req, res, next) => {
       OrderRestrictions,
       OrderInstrumentReference,
       OrderActionInitiated,
-      OrderFlowType
+      OrderFlowType,
+      LinkedOrderType,
+      OrderInfobarrierId
     };
     
     const enumObj = enumMap[enumName];

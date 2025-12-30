@@ -34,6 +34,8 @@ const {
   OrderInstrumentReference,
   OrderActionInitiated,
   OrderFlowType,
+  LinkedOrderType,
+  OrderInfobarrierId,
   validateEnum
 } = require("../constants/orderEnums");
 
@@ -351,7 +353,9 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
     { field: 'routeRejectedFlag', enum: RouteRejectedFlag, name: 'Route_Rejected_Flag' },
     { field: 'orderFlowType', enum: OrderFlowType, name: 'Order_Flow_Type' },
     { field: 'orderInstrumentReference', enum: OrderInstrumentReference, name: 'Order_Instrument_Reference' },
-    { field: 'orderActionInitiated', enum: OrderActionInitiated, name: 'Order_Action_Initiated' }
+    { field: 'orderActionInitiated', enum: OrderActionInitiated, name: 'Order_Action_Initiated' },
+    { field: 'linkOrderType', enum: LinkedOrderType, name: 'Link_Order_Type' },
+    { field: 'orderInfobarrierId', enum: OrderInfobarrierId, name: 'Order_Infobarrier_ID' }
   ];
 
   // Validate each enum field and store validated value
@@ -399,7 +403,7 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
     parentOrderId: orderData.parentOrderId || null,
     cancelreplaceOrderId: orderData.cancelreplaceOrderId || orderData.cancelReplaceOrderId || null,
     linkedOrderId: orderData.linkedOrderId || null,
-    linkOrderType: orderData.linkOrderType || null,
+    linkOrderType: validatedEnumValues.linkOrderType || null,
     orderAction: validatedEnumValues.orderAction || null,
     orderStatus: validatedEnumValues.orderStatus || null,
     orderCapacity: validatedEnumValues.orderCapacity || null,
@@ -464,7 +468,7 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
     orderDiscretionPrice: orderData.orderDiscretionPrice || null,
     orderExdestinationInstruction: orderData.orderExdestinationInstruction || null,
     orderExecutionParameter: orderData.orderExecutionParameter || null,
-    orderInfobarrierId: orderData.orderInfobarrierId || null,
+    orderInfobarrierId: validatedEnumValues.orderInfobarrierId || null,
     orderLegRatio: orderData.orderLegRatio || null,
     orderLocateId: orderData.orderLocateId || null,
     orderNegotiatedIndicator: validatedEnumValues.orderNegotiatedIndicator || null,
@@ -718,6 +722,8 @@ const {
   OrderFlowTypeMapping,
   OrderInstrumentReferenceMapping,
   OrderActionInitiatedMapping,
+  LinkedOrderTypeMapping,
+  OrderInfoBarrierIdMapping,
   convertStringToEnum,
 } = require('../constants/enumMappings');
 
@@ -838,6 +844,8 @@ const parseExcelToJson = async (filePath) => {
             "orderFlowType",
             "orderInstrumentReference",
             "orderActionInitiated",
+            "linkOrderType",
+            "orderInfobarrierId",
           ].includes(mappedField)
         ) {
           // Map string values to numeric enum codes
@@ -866,6 +874,8 @@ const parseExcelToJson = async (filePath) => {
             orderFlowType: OrderFlowTypeMapping,
             orderInstrumentReference: OrderInstrumentReferenceMapping,
             orderActionInitiated: OrderActionInitiatedMapping,
+            linkOrderType: LinkedOrderTypeMapping,
+            orderInfobarrierId: OrderInfoBarrierIdMapping,
           };
           
           const mapping = enumMappings[mappedField];
@@ -1066,7 +1076,7 @@ const uploadOrders = async (req, res, next) => {
       'orderOptionLegIndicator', 'orderNegotiatedIndicator', 'orderOpenClose',
       'orderPackageIndicator', 'orderSecondaryOffering', 'orderParentChildType',
       'orderTradingSession', 'orderInstrumentReference', 'orderActionInitiated',
-      'orderFlowType', 'atsDisplayIndicator', 'orderSolicitationFlag',
+      'orderFlowType', 'orderInfobarrierId', 'atsDisplayIndicator', 'orderSolicitationFlag',
       'routeRejectedFlag'
     ];
 
