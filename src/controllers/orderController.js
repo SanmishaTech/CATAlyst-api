@@ -34,6 +34,8 @@ const {
   OrderInstrumentReference,
   OrderActionInitiated,
   OrderFlowType,
+  LinkedOrderType,
+  OrderInfobarrierId,
   validateEnum
 } = require("../constants/orderEnums");
 
@@ -346,12 +348,15 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
     { field: 'orderSecondaryOffering', enum: OrderSecondaryOffering, name: 'Order_Secondary_Offering' },
     { field: 'orderParentChildType', enum: OrderParentChildType, name: 'Order_Parent_Child_Type' },
     { field: 'orderTradingSession', enum: OrderTradingSession, name: 'Order_Trading_Session' },
+    { field: 'orderAttributes', enum: OrderAttributes, name: 'Order_Attributes' },
     { field: 'atsDisplayIndicator', enum: AtsDisplayIndicator, name: 'ATS_Display_Indicator' },
     { field: 'orderSolicitationFlag', enum: OrderSolicitationFlag, name: 'Order_Solicitation_Flag' },
     { field: 'routeRejectedFlag', enum: RouteRejectedFlag, name: 'Route_Rejected_Flag' },
     { field: 'orderFlowType', enum: OrderFlowType, name: 'Order_Flow_Type' },
     { field: 'orderInstrumentReference', enum: OrderInstrumentReference, name: 'Order_Instrument_Reference' },
-    { field: 'orderActionInitiated', enum: OrderActionInitiated, name: 'Order_Action_Initiated' }
+    { field: 'orderActionInitiated', enum: OrderActionInitiated, name: 'Order_Action_Initiated' },
+    { field: 'linkOrderType', enum: LinkedOrderType, name: 'Link_Order_Type' },
+    { field: 'orderInfobarrierId', enum: OrderInfobarrierId, name: 'Order_Infobarrier_ID' }
   ];
 
   // Validate each enum field and store validated value
@@ -399,7 +404,7 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
     parentOrderId: orderData.parentOrderId || null,
     cancelreplaceOrderId: orderData.cancelreplaceOrderId || orderData.cancelReplaceOrderId || null,
     linkedOrderId: orderData.linkedOrderId || null,
-    linkOrderType: orderData.linkOrderType || null,
+    linkOrderType: validatedEnumValues.linkOrderType || null,
     orderAction: validatedEnumValues.orderAction || null,
     orderStatus: validatedEnumValues.orderStatus || null,
     orderCapacity: validatedEnumValues.orderCapacity || null,
@@ -464,7 +469,7 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
     orderDiscretionPrice: orderData.orderDiscretionPrice || null,
     orderExdestinationInstruction: orderData.orderExdestinationInstruction || null,
     orderExecutionParameter: orderData.orderExecutionParameter || null,
-    orderInfobarrierId: orderData.orderInfobarrierId || null,
+    orderInfobarrierId: validatedEnumValues.orderInfobarrierId || null,
     orderLegRatio: orderData.orderLegRatio || null,
     orderLocateId: orderData.orderLocateId || null,
     orderNegotiatedIndicator: validatedEnumValues.orderNegotiatedIndicator || null,
@@ -692,35 +697,6 @@ const generateErrorExcel = async (ordersArray, errors) => {
   return filename;
 };
 
-// Import enum mappings
-const {
-  OrderStatusMapping,
-  OrderActionMapping,
-  OrderCapacityMapping,
-  OrderSideMapping,
-  OrderTypeMapping,
-  OrderTimeInforceMapping,
-  OrderClientCapacityMapping,
-  OrderManualIndicatorMapping,
-  OrderAuctionIndicatorMapping,
-  OrderSwapIndicatorMapping,
-  OrderOptionPutCallMapping,
-  OrderOptionLegIndicatorMapping,
-  OrderNegotiatedIndicatorMapping,
-  OrderOpenCloseMapping,
-  OrderPackageIndicatorMapping,
-  OrderSecondaryOfferingMapping,
-  OrderParentChildTypeMapping,
-  OrderTradingSessionMapping,
-  AtsDisplayIndicatorMapping,
-  OrderSolicitationFlagMapping,
-  RouteRejectedFlagMapping,
-  OrderFlowTypeMapping,
-  OrderInstrumentReferenceMapping,
-  OrderActionInitiatedMapping,
-  convertStringToEnum,
-} = require('../constants/enumMappings');
-
 // Parse Excel file and convert to JSON array
 const parseExcelToJson = async (filePath) => {
   let workbook = null;
@@ -838,39 +814,46 @@ const parseExcelToJson = async (filePath) => {
             "orderFlowType",
             "orderInstrumentReference",
             "orderActionInitiated",
+            "linkOrderType",
+            "orderInfobarrierId",
           ].includes(mappedField)
         ) {
-          // Map string values to numeric enum codes
+          // Single source of truth: use enum objects from orderEnums.js
           const enumMappings = {
-            orderStatus: OrderStatusMapping,
-            orderAction: OrderActionMapping,
-            orderCapacity: OrderCapacityMapping,
-            orderSide: OrderSideMapping,
-            orderType: OrderTypeMapping,
-            orderTimeInforce: OrderTimeInforceMapping,
-            orderClientCapacity: OrderClientCapacityMapping,
-            orderManualIndicator: OrderManualIndicatorMapping,
-            orderAuctionIndicator: OrderAuctionIndicatorMapping,
-            orderSwapIndicator: OrderSwapIndicatorMapping,
-            orderOptionPutCall: OrderOptionPutCallMapping,
-            orderOptionLegIndicator: OrderOptionLegIndicatorMapping,
-            orderNegotiatedIndicator: OrderNegotiatedIndicatorMapping,
-            orderOpenClose: OrderOpenCloseMapping,
-            orderPackageIndicator: OrderPackageIndicatorMapping,
-            orderSecondaryOffering: OrderSecondaryOfferingMapping,
-            orderParentChildType: OrderParentChildTypeMapping,
-            orderTradingSession: OrderTradingSessionMapping,
-            atsDisplayIndicator: AtsDisplayIndicatorMapping,
-            orderSolicitationFlag: OrderSolicitationFlagMapping,
-            routeRejectedFlag: RouteRejectedFlagMapping,
-            orderFlowType: OrderFlowTypeMapping,
-            orderInstrumentReference: OrderInstrumentReferenceMapping,
-            orderActionInitiated: OrderActionInitiatedMapping,
+            orderStatus: OrderStatus,
+            orderAction: OrderAction,
+            orderCapacity: OrderCapacity,
+            orderSide: OrderSide,
+            orderType: OrderType,
+            orderTimeInforce: OrderTimeInforce,
+            orderClientCapacity: OrderClientCapacity,
+            orderManualIndicator: OrderManualIndicator,
+            orderAuctionIndicator: OrderAuctionIndicator,
+            orderSwapIndicator: OrderSwapIndicator,
+            orderOptionPutCall: OrderOptionPutCall,
+            orderOptionLegIndicator: OrderOptionLegIndicator,
+            orderNegotiatedIndicator: OrderNegotiatedIndicator,
+            orderOpenClose: OrderOpenClose,
+            orderPackageIndicator: OrderPackageIndicator,
+            orderSecondaryOffering: OrderSecondaryOffering,
+            orderParentChildType: OrderParentChildType,
+            orderTradingSession: OrderTradingSession,
+            atsDisplayIndicator: AtsDisplayIndicator,
+            orderSolicitationFlag: OrderSolicitationFlag,
+            routeRejectedFlag: RouteRejectedFlag,
+            orderFlowType: OrderFlowType,
+            orderInstrumentReference: OrderInstrumentReference,
+            orderActionInitiated: OrderActionInitiated,
+            linkOrderType: LinkedOrderType,
+            orderInfobarrierId: OrderInfobarrierId,
           };
-          
-          const mapping = enumMappings[mappedField];
-          if (mapping && value !== null && value !== undefined && value !== '') {
-            value = convertStringToEnum(value, mapping);
+
+          const enumObj = enumMappings[mappedField];
+          if (enumObj && value !== null && value !== undefined && value !== '') {
+            const validation = validateEnum(enumObj, value, mappedField);
+            if (validation.valid) {
+              value = validation.value;
+            }
           }
         }
         // All other fields (including dates) are stored as strings
@@ -1021,12 +1004,60 @@ const uploadOrders = async (req, res, next) => {
       }
     }
 
-    // If no valid orders, return error WITHOUT creating batch
+    // If no valid orders, still create batch and store rejected orders
     if (validOrders.length === 0) {
       console.error('[ORDER VALIDATION] All orders failed validation:');
       errors.forEach((err, idx) => {
         console.error(`  [${idx + 1}] Row ${err.index + 2}, OrderID: ${err.orderId || 'N/A'} - ${err.error}`);
       });
+
+      // Create batch record to track this upload (status completed with 0 successes)
+      batch = await prisma.batch.create({
+        data: {
+          userId,
+          status: "completed",
+          fileName: fileNameForBatch,
+          tradeDate: req.body.tradeDate ? new Date(req.body.tradeDate) : null,
+          fileType: req.body.fileType || null,
+          totalOrders: ordersArray.length,
+          successfulOrders: 0,
+          failedOrders: errors.length,
+          errorLog: errors.length > 0 ? JSON.stringify(errors) : null,
+          completedAt: new Date(),
+        },
+      });
+
+      // Persist rejected orders
+      try {
+        const uploadType = req.file ? 'excel' : 'json';
+        const errorsByIndex = {};
+        errors.forEach(err => {
+          if (!errorsByIndex[err.index]) errorsByIndex[err.index] = [];
+          errorsByIndex[err.index].push(err.error);
+        });
+        const rejectedOrdersData = Object.keys(errorsByIndex).map(index => {
+          const idx = parseInt(index);
+          const orderData = ordersArray[idx];
+          const errorMessages = errorsByIndex[index];
+          return {
+            batchId: batch.id,
+            userId: userId,
+            rowNumber: uploadType === 'excel' ? idx + 2 : null,
+            jsonIndex: uploadType === 'json' ? idx : null,
+            orderId: orderData?.orderId || null,
+            rawData: orderData ? JSON.stringify(orderData) : null,
+            validationErrors: JSON.stringify(errorMessages),
+            uploadType: uploadType,
+          };
+        });
+        await prisma.rejectedOrder.createMany({
+          data: rejectedOrdersData,
+          skipDuplicates: false,
+        });
+        console.log(`[REJECTED ORDERS] Saved ${rejectedOrdersData.length} rejected orders to database`);
+      } catch (dbError) {
+        console.error('[REJECTED ORDERS] Failed to save rejected orders to database:', dbError);
+      }
 
       // Generate error Excel file
       let errorFile = null;
@@ -1037,11 +1068,13 @@ const uploadOrders = async (req, res, next) => {
         console.error('[ERROR EXCEL] Failed to generate error Excel:', excelError);
       }
 
-      return res.status(400).json({
-        message: "No valid orders found. Batch not created.",
+      return res.status(201).json({
+        message: "All records rejected (no valid orders). Batch created for tracking.",
         total: ordersArray.length,
+        imported: 0,
         failed: errors.length,
         errors,
+        batchId: batch.id,
         errorFile: errorFile ? `/uploads/excelerrors/${errorFile}` : null,
       });
     }
@@ -1066,7 +1099,7 @@ const uploadOrders = async (req, res, next) => {
       'orderOptionLegIndicator', 'orderNegotiatedIndicator', 'orderOpenClose',
       'orderPackageIndicator', 'orderSecondaryOffering', 'orderParentChildType',
       'orderTradingSession', 'orderInstrumentReference', 'orderActionInitiated',
-      'orderFlowType', 'atsDisplayIndicator', 'orderSolicitationFlag',
+      'orderFlowType', 'orderInfobarrierId', 'atsDisplayIndicator', 'orderSolicitationFlag',
       'routeRejectedFlag'
     ];
 

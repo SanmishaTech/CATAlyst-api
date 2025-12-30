@@ -41,7 +41,8 @@ const ExecutionCapacity = {
   1: "Agency",
   2: "Principal",
   3: "Cross as Agent",
-  4: "Cross as Principal"
+  4: "Cross as Principal",
+  5: "Riskless Principal"
 };
 
 const ExecutionManualIndicator = {
@@ -58,15 +59,20 @@ const ExecutionTransactionType = {
   1: "Street",
   2: "Client",
   3: "Internal",
-  4: "Indicative"
+  4: "Indicative",
+  5: "Allocation",
+  6: "Tape",
+  7: "Clearing"
 };
 
 const ExecutionBookingEligiblity = {
+  0: null,
   1: "Y",
   2: "N"
 };
 
 const ExecutionSwapIndicator = {
+  0: null,
   1: "Cash",
   2: "Swap"
 };
@@ -84,17 +90,20 @@ const ExecutonSessionActual = {
 };
 
 const ExecutionLastLiquidityIndicator = {
+  0: null,
   1: "Added Liquidity",
   2: "Removed Liquidity",
   3: "Liquidity Routed Out"
 };
 
 const ExecutionWaiverIndicator = {
+  0: null,
   1: "Y",
   2: "N"
 };
 
 const ExecutionPackageIndicator = {
+  0: null,
   1: "Package",
   2: "Leg"
 };
@@ -105,11 +114,13 @@ const ExecutionRawLiquidityIndicator = {
 };
 
 const ExecutionNegotiatedIndicator = {
+  0: null,
   1: "Y",
   2: "N"
 };
 
 const ExecutionOpenCloseIndicator = {
+  0: null,
   1: "Open",
   2: "Close"
 };
@@ -133,6 +144,11 @@ const validateEnum = (enumObj, value, enumName) => {
   if (value === null || value === undefined || value === "") {
     return { valid: true, value: null };
   }
+  // Treat string "null" as null code (0) when enum defines it
+  if (typeof value === "string" && value.trim().toLowerCase() === "null") {
+    const hasNullKey = Object.prototype.hasOwnProperty.call(enumObj, "0");
+    return { valid: true, value: hasNullKey ? 0 : null };
+  }
 
   // Convert to number if it's a string that looks like a number
   let numValue = value;
@@ -154,7 +170,7 @@ const validateEnum = (enumObj, value, enumName) => {
   if (typeof value === 'string') {
     const trimmedValue = value.trim();
     for (const [key, label] of Object.entries(enumObj)) {
-      if (label.toLowerCase() === trimmedValue.toLowerCase()) {
+      if (typeof label === 'string' && label.toLowerCase() === trimmedValue.toLowerCase()) {
         return { valid: true, value: parseInt(key, 10) };
       }
     }

@@ -17,11 +17,9 @@ const OrderAction = {
   11: "Order Cancel - Client Requested",
   12: "Order Cancel - Client Request Accepted",
   13: "Order Expired",
-  14: "Order External Route",
-  15: "Order Externally Routed Accepted",
-  16: "Order Rejected",
-  17: "Order Suspended",
-  18: "Done for day"
+  14: "Order Rejected",
+  15: "Order Suspended",
+  16: "Done for day"
 };
 
 const OrderStatus = {
@@ -85,32 +83,35 @@ const OrderTimeInforce = {
   5: "Fill Or Kill",
   6: "Good Till Crossing",
   7: "Good Till Date",
-  8: "At the Close"
+  8: "At the Close",
+  9: "Good Till Month",
+  10: "Immediate or Return",
+  11: "Good Till Time"
 };
 
 const OrderAuctionIndicator = {
-  1: "None",
-  2: "AOK",
-  3: "APCM",
-  4: "AUC"
+  0: null,
+  1: "AOK",
+  2: "APCM",
+  3: "AUC"
 };
 
 const OrderSwapIndicator = {
-  1: "None",
-  2: "Cash",
-  3: "Swap"
+  0: null,
+  1: "Cash",
+  2: "Swap"
 };
 
 const OrderOptionPutCall = {
-  1: "None",
-  2: "Put",
-  3: "Call"
+  0: null,
+  1: "Put",
+  2: "Call"
 };
 
 const OrderOptionLegIndicator = {
-  1: "None",
-  2: "Package",
-  3: "Leg"
+  0: null,
+  1: "Package",
+  2: "Leg"
 };
 
 const OrderNegotiatedIndicator = {
@@ -119,19 +120,19 @@ const OrderNegotiatedIndicator = {
 };
 
 const OrderOpenClose = {
-  1: "None",
-  2: "Open",
-  3: "Close"
+  0: null,
+  1: "Open",
+  2: "Close"
 };
 
 const OrderPackageIndicator = {
-  1: "None",
-  2: "Package",
-  3: "Leg"
+  0: null,
+  1: "Package",
+  2: "Leg"
 };
 
 const OrderSecondaryOffering = {
-  1: "None",
+  1: null,
   2: "PREIPO",
   3: "POSTIPO",
   4: "IPO"
@@ -166,9 +167,9 @@ const OrderSolicitationFlag = {
 };
 
 const RouteRejectedFlag = {
-  1: "None",
-  2: "Y",
-  3: "N"
+  0: null,
+  1: "Y",
+  2: "N"
 };
 
 const ExecutionSide = {
@@ -266,13 +267,38 @@ const OrderActionInitiated = {
 const OrderFlowType = {
   1: "DMA",
   2: "Algo",
-  3: "Sponsored Access"
+  3: "Sponsored Access",
+  4: "High Touch",
+  5: "Low Touch"
+};
+
+const LinkedOrderType = {
+  1: "Representative",
+  2: "Manual",
+  3: "Merge",
+  4: "Aggregated Order",
+  5: "Synthetic Order"
+};
+
+const OrderInfobarrierId = {
+  1: "Sales",
+  2: "Trading",
+  3: "Proprietary"
 };
 
 // Helper function to validate enum value
 const validateEnum = (enumObj, value, enumName) => {
   if (value === null || value === undefined || value === "") {
     return { valid: true, value: null };
+  }
+
+  // Treat string "null"/"none" as 0 when enum defines it, otherwise as null
+  if (typeof value === "string") {
+    const lowered = value.trim().toLowerCase();
+    if (lowered === "null" || lowered === "none") {
+      const hasZeroKey = Object.prototype.hasOwnProperty.call(enumObj, "0");
+      return { valid: true, value: hasZeroKey ? 0 : null };
+    }
   }
 
   // Convert to number if it's a string that looks like a number
@@ -290,8 +316,24 @@ const validateEnum = (enumObj, value, enumName) => {
     return { valid: true, value: numValue };
   }
 
+  // Check if value matches an enum label (string)
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed !== '') {
+      const lowered = trimmed.toLowerCase();
+      for (const [key, label] of Object.entries(enumObj)) {
+        if (label === null || label === undefined) continue;
+        if (String(label).toLowerCase() === lowered) {
+          return { valid: true, value: parseInt(key, 10) };
+        }
+      }
+    }
+  }
+
   // Invalid value - return error with valid options
-  const validOptions = validKeys.join(", ");
+  const validOptions = validKeys
+    .map(k => `${k} (${enumObj[k] === null ? 'null' : enumObj[k]})`)
+    .join(", ");
   return { 
     valid: false, 
     error: `Invalid ${enumName} value: "${value}". Must be one of: ${validOptions}`
@@ -328,5 +370,7 @@ module.exports = {
   OrderInstrumentReference,
   OrderActionInitiated,
   OrderFlowType,
+  LinkedOrderType,
+  OrderInfobarrierId,
   validateEnum
 };
