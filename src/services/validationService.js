@@ -235,64 +235,423 @@ const validateOrder = (orderData, zodSchemaObj) => {
 // Supports patterns:
 // 1. "<Field> should not be null when <DepField> in (x,y,...)"
 // 2. "<Field> should be null when <DepField> in (x,y,...)"
-// 3. "<Field> must be in (x,y,...)"
+// 3. "<Field> must be in (x,y,...)" or "<Field> must be in (1-38)" (range syntax)
+// 4. "<Field> should not be null when <DepField> is populated/not null/not empty"
+// 5. "<Field> should not be null when <DepField> is null"
+// 6. "<Field> should/must be only populated when <DepField> in (x,y,...)"
+// 7. "<Field> should be in (x,y) when not null"
+// 8. "<Field> must be populated when <DepField> is not null and <DepField2> in (x,y,...)"
+// 9. "<Field> should be null OR <Field> should not be null and must be in (x,y,...)"
+// 10. "<Field> should be null OR must be greater than 0"
+// 11. "<Field> should not be null and must be greater than 0"
+// 12. "<Field> less than <OtherField>" (field comparison)
+// 13. "<Field> not equal to <OtherField>" (field comparison)
 // returns array of { field, message }
 const evaluateLevel2Rules = (record, rulesObj) => {
   const errors = [];
-  // Build a lowercase->value map so that rule conditions can be case-insensitive
-  const recLower = {};
+  const normalizeKey = (k) => String(k || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+
+  const splitOutsideParens = (input, keyword) => {
+    const s = String(input || "");
+    const lower = s.toLowerCase();
+    const needle = ` ${String(keyword).toLowerCase()} `;
+    const parts = [];
+    let depth = 0;
+    let start = 0;
+
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i];
+      if (ch === "(") depth++;
+      if (ch === ")" && depth > 0) depth--;
+
+      if (depth === 0 && lower.slice(i, i + needle.length) === needle) {
+        parts.push(s.slice(start, i).trim());
+        start = i + needle.length;
+        i = start - 1;
+      }
+    }
+    parts.push(s.slice(start).trim());
+    return parts.filter(Boolean);
+  };
+
+  const hasValue = (v) => {
+    if (v === null || v === undefined) return false;
+    if (typeof v === "string") return v.trim() !== "";
+    return true;
+  };
+
+  const toNumber = (v) => {
+    if (typeof v === "number") return v;
+    const n = Number.parseFloat(String(v ?? "").trim());
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const parseList = (vals) => String(vals || "")
+    .split(",")
+    .map((v) => v.replace(/['"()]/g, "").trim())
+    .filter(Boolean);
+
+  // Parse range like "1-38" into array ["1","2",...,"38"]
+  const parseRange = (rangeStr) => {
+    const rangeMatch = /^(\d+)-(\d+)$/.exec(rangeStr.trim());
+    if (rangeMatch) {
+      const start = parseInt(rangeMatch[1], 10);
+      const end = parseInt(rangeMatch[2], 10);
+      const result = [];
+      for (let i = start; i <= end; i++) {
+        result.push(String(i));
+      }
+      return result;
+    }
+    return null;
+  };
+
+  // Parse list that may contain ranges like "(1-38)" or "(1,2,3)"
+  const parseListWithRanges = (vals) => {
+    const raw = String(vals || "").replace(/[()]/g, "").trim();
+    // Check if it's a range pattern
+    const rangeResult = parseRange(raw);
+    if (rangeResult) return rangeResult;
+    // Otherwise parse as comma-separated list
+    return raw.split(",").map((v) => v.replace(/['"]/g, "").trim()).filter(Boolean);
+  };
+
+  // Build a normalized->value map so that rule conditions can be case/underscore-insensitive
+  const recNorm = {};
   for (const [k, v] of Object.entries(record || {})) {
-    recLower[k.toLowerCase()] = v;
+    recNorm[normalizeKey(k)] = v;
   }
+
+  const getVal = (k) => recNorm[normalizeKey(k)];
   if (!rulesObj || typeof rulesObj !== 'object') return errors;
 
   for (const [field, rule] of Object.entries(rulesObj)) {
     if (!rule?.enabled || !rule.condition || rule.condition.trim() === '-' ) continue;
-    const cond = rule.condition.toLowerCase();
+    const condRaw = String(rule.condition);
+    const cond = condRaw.toLowerCase();
 
-    // Pattern 0: unconditional null requirement (no "when <depField>" clause)
-    if (!cond.includes(' when ')) {
-      const nullMatch = /^(?<target>[a-z0-9_]+).*?should\s+(?<neg>not\s+)?be null$/i.exec(cond);
-      if (nullMatch) {
-        const { target, neg } = nullMatch.groups;
-        const hasValue = recLower[target] !== null && recLower[target] !== undefined && String(recLower[target]).trim() !== '';
-        if (neg && !hasValue) {
-          errors.push({ field, message: `${field} should not be null` });
-        }
-        if (!neg && hasValue) {
-          errors.push({ field, message: `${field} should be null` });
-        }
-        continue; // processed this rule
-      }
-    }
+    // Try to detect the target field name from the condition; fallback to schema key
+    const targetMatch = /^\s*(?<target>[a-z0-9_]+)\b/i.exec(cond);
+    const target = targetMatch?.groups?.target || field;
 
-    // Pattern 1 & 2: population based on other field list
-    const popRegex = /^(?<target>[a-z0-9_]+).*?(?<should>should|must).*?(?<nullstate>not be null|be null).*?when (?<dep>[a-z0-9_]+) in \((?<vals>[^)]+)\)/;
-    const popMatch = cond.match(popRegex);
-    if (popMatch) {
-      const { target, dep, nullstate, vals } = popMatch.groups;
-      const list = vals.split(/[, ]+/).map(v => v.replace(/['"()]/g,'').trim()).filter(Boolean);
-      const depVal = String(recLower[dep] ?? '').trim();
-      const targetValPresent = recLower[target] !== null && recLower[target] !== undefined && String(recLower[target]).trim() !== '';
-      const depMatch = list.includes(depVal);
-      if (depMatch) {
-        if (nullstate === 'not be null' && !targetValPresent) {
-          errors.push({ field, message: `${field} should not be null when ${dep} in (${list.join(',')})`});
-        }
-        if (nullstate === 'be null' && targetValPresent) {
-          errors.push({ field, message: `${field} should be null when ${dep} in (${list.join(',')})`});
+    const v = getVal(target);
+    const present = hasValue(v);
+
+    // ============================================
+    // Handle "should be in (x,y) when not null" pattern
+    // Pattern: "<Field> should be in (x,y,...) when not null"
+    // Meaning: If field has a value, it must be in the list
+    // ============================================
+    const shouldBeInWhenNotNullMatch = /\b(should|must)\s+be\s+in\s*\((?<vals>[^)]+)\)\s+when\s+not\s+null\b/i.exec(condRaw);
+    if (shouldBeInWhenNotNullMatch?.groups) {
+      // Only validate if field has a value
+      if (present) {
+        const list = parseListWithRanges(shouldBeInWhenNotNullMatch.groups.vals);
+        const sVal = String(v ?? "").trim();
+        if (sVal && !list.includes(sVal)) {
+          errors.push({ field, message: `${field} value ${sVal} not in allowed list (${list.join(',')})` });
         }
       }
       continue;
     }
 
-    // Pattern 3: enum constraint "must be in (..)":
-    const enumRegex = /^(?<target>[a-z0-9_]+).*?must.*?in \((?<vals>[^)]+)\)/;
-    const enumMatch = cond.match(enumRegex);
-    if (enumMatch) {
-      const { target, vals } = enumMatch.groups;
-      const list = vals.split(/[, ]+/).map(v => v.replace(/['"()]/g,'').trim()).filter(Boolean);
-      const val = String(recLower[target] ?? '').trim();
+    // ============================================
+    // Handle "must be populated when <dep> is not null and <dep2> in (x,y,...)"
+    // Complex condition with multiple dependencies
+    // ============================================
+    const mustBePopulatedComplexMatch = /\b(must|should)\s+be\s+populated\s+when\s+(?<dep1>[a-z0-9_]+)\s+is\s+not\s+null\s+and\s+(?<dep2>[a-z0-9_]+)\s+in\s*\((?<vals>[^)]+)\)/i.exec(condRaw);
+    if (mustBePopulatedComplexMatch?.groups) {
+      const dep1Field = mustBePopulatedComplexMatch.groups.dep1;
+      const dep2Field = mustBePopulatedComplexMatch.groups.dep2;
+      const dep2List = parseListWithRanges(mustBePopulatedComplexMatch.groups.vals);
+      const dep1Val = getVal(dep1Field);
+      const dep2Val = String(getVal(dep2Field) ?? "").trim();
+      const dep1Present = hasValue(dep1Val);
+      const dep2InList = dep2Val !== "" && dep2List.includes(dep2Val);
+      
+      // Only apply if both conditions are met
+      if (dep1Present && dep2InList && !present) {
+        errors.push({
+          field,
+          message: `${field} must be populated when ${dep1Field} is not null and ${dep2Field} in (${dep2List.join(',')})`,
+        });
+      }
+      continue;
+    }
+
+    // ============================================
+    // Handle "only populated when" / "be only populated when" patterns
+    // Pattern: "<Field> should/must be only populated when <DepField> in (x,y,...)"
+    // Meaning: Field should be null UNLESS the condition is met
+    // ============================================
+    const onlyPopulatedWhenInMatch = /\b(should|must)\s+be\s+only\s+populated\s+when\s+(?<dep>[a-z0-9_]+)\s+in\s*\((?<vals>[^)]+)\)/i.exec(condRaw);
+    if (onlyPopulatedWhenInMatch?.groups) {
+      const depField = onlyPopulatedWhenInMatch.groups.dep;
+      const depList = parseListWithRanges(onlyPopulatedWhenInMatch.groups.vals);
+      const depVal = String(getVal(depField) ?? "").trim();
+      const conditionMet = depVal !== "" && depList.includes(depVal);
+      
+      // If condition is NOT met, field should be null
+      if (!conditionMet && present) {
+        errors.push({
+          field,
+          message: `${field} should only be populated when ${depField} in (${depList.join(',')})`,
+        });
+      }
+      continue;
+    }
+
+    // ============================================
+    // Handle "when <depField> is populated/not null/not empty"
+    // ============================================
+    const whenPopulatedMatch = /\bwhen\s+(?<dep>[a-z0-9_]+)\s+(is\s+populated|is\s+not\s+null|is\s+not\s+empty)\b/i.exec(cond);
+    if (whenPopulatedMatch?.groups) {
+      const depField = whenPopulatedMatch.groups.dep;
+      const depVal = getVal(depField);
+      const depPresent = hasValue(depVal);
+      
+      // Only apply rule if dependency field is populated
+      if (!depPresent) continue;
+      
+      // Check for "should not be null" requirement
+      const requiresNotNull = /\b(should|must)\s+not\s+be\s+null\b/i.test(condRaw);
+      if (requiresNotNull && !present) {
+        errors.push({
+          field,
+          message: `${field} should not be null when ${depField} is populated`,
+        });
+        continue;
+      }
+
+      // Check for "must be in" requirement
+      const mustInMatch = /\bmust\s+be\s+in\s*\((?<vals>[^)]+)\)/i.exec(condRaw);
+      if (mustInMatch?.groups?.vals && present) {
+        const list = parseListWithRanges(mustInMatch.groups.vals);
+        const sVal = String(v ?? "").trim();
+        if (sVal && !list.includes(sVal)) {
+          errors.push({ field, message: `${field} value ${sVal} not in allowed list (${list.join(',')})` });
+        }
+      }
+      continue;
+    }
+
+    // ============================================
+    // Handle "when <depField> is null"
+    // ============================================
+    const whenNullMatch = /\bwhen\s+(?<dep>[a-z0-9_]+)\s+is\s+null\b/i.exec(cond);
+    if (whenNullMatch?.groups) {
+      const depField = whenNullMatch.groups.dep;
+      const depVal = getVal(depField);
+      const depPresent = hasValue(depVal);
+      
+      // Only apply rule if dependency field is null
+      if (depPresent) continue;
+      
+      // Check for "should not be null" requirement
+      const requiresNotNull = /\b(should|must)\s+not\s+be\s+null\b/i.test(condRaw);
+      if (requiresNotNull && !present) {
+        errors.push({
+          field,
+          message: `${field} should not be null when ${depField} is null`,
+        });
+      }
+      continue;
+    }
+
+    // ============================================
+    // Handle "when <depField> in (x,y,...)"
+    // ============================================
+    const whenMatch = /\bwhen\s+(?<dep>[a-z0-9_]+)\s+in\s*\((?<vals>[^)]+)\)/i.exec(cond);
+    let applies = true;
+    let depField = null;
+    let depList = [];
+    if (whenMatch?.groups) {
+      depField = whenMatch.groups.dep;
+      depList = parseListWithRanges(whenMatch.groups.vals);
+      const depVal = String(getVal(depField) ?? "").trim();
+      applies = depVal !== "" && depList.includes(depVal);
+    }
+
+    if (!applies) continue;
+
+    // ============================================
+    // Handle "when <depField> not in (x,y,...)" - inverse condition
+    // ============================================
+    const whenNotInMatch = /\bwhen\s+(?<dep>[a-z0-9_]+)\s+not\s+in\s*\((?<vals>[^)]+)\)/i.exec(cond);
+    if (whenNotInMatch?.groups) {
+      const notInDepField = whenNotInMatch.groups.dep;
+      const notInDepList = parseListWithRanges(whenNotInMatch.groups.vals);
+      const notInDepVal = String(getVal(notInDepField) ?? "").trim();
+      // Skip if the value IS in the list (condition not met)
+      if (notInDepVal !== "" && notInDepList.includes(notInDepVal)) continue;
+    }
+
+    const evalAtom = (atomRaw) => {
+      const atom = String(atomRaw || "").trim();
+      const atomLower = atom.toLowerCase();
+
+      let atomField = target;
+      let rest = atom;
+      const prefix = /^\s*(?<f>[a-z0-9_]+)\s+(?<r>.+)$/i.exec(atom);
+      if (prefix?.groups?.f && prefix?.groups?.r) {
+        // Only treat the leading token as a field name if it exists on the record.
+        // This prevents phrases like "must be greater than 0" from treating "must" as a field.
+        const candidate = prefix.groups.f;
+        const candidateExists = Object.prototype.hasOwnProperty.call(recNorm, normalizeKey(candidate));
+        if (candidateExists) {
+          atomField = candidate;
+          rest = prefix.groups.r.trim();
+        }
+      }
+
+      const restLower = rest.toLowerCase();
+      const val = getVal(atomField);
+      const valPresent = hasValue(val);
+
+      // Handle "should/must be null" or "is null"
+      if (/^(should|must)\s+be\s+null$/i.test(restLower) || /^is\s+null$/i.test(restLower)) {
+        return !valPresent;
+      }
+      // Handle "should/must not be null" or "is not null" or "is populated" or "is not empty"
+      if (/^(should|must)\s+not\s+be\s+null$/i.test(restLower) || 
+          /^is\s+not\s+null$/i.test(restLower) ||
+          /^is\s+populated$/i.test(restLower) ||
+          /^is\s+not\s+empty$/i.test(restLower)) {
+        return valPresent;
+      }
+
+      // Handle "in (x,y,...)" or "must be in (x,y,...)"
+      const inMatch = /\b(in|must\s+be\s+in)\s*\((?<vals>[^)]+)\)/i.exec(rest);
+      if (inMatch?.groups?.vals) {
+        const list = parseListWithRanges(inMatch.groups.vals);
+        const sVal = String(val ?? "").trim();
+        // If value is empty and field is optional (has "OR" in condition), this is OK
+        if (sVal === "") return true; // Empty values don't need to match the list
+        return list.includes(sVal);
+      }
+
+      const gteMatch = /\bgreater\s+than\s+or\s+equal\s+to\s+(?<num>-?\d+(?:\.\d+)?)\b/i.exec(rest);
+      if (gteMatch?.groups?.num) {
+        const n = toNumber(val);
+        const rhs = Number.parseFloat(gteMatch.groups.num);
+        if (n === null) return !valPresent; // null is OK if not present
+        return n >= rhs;
+      }
+
+      const gtMatch = /\bgreater\s+than\s+(?<num>-?\d+(?:\.\d+)?)\b/i.exec(rest);
+      if (gtMatch?.groups?.num) {
+        const n = toNumber(val);
+        const rhs = Number.parseFloat(gtMatch.groups.num);
+        if (n === null) return !valPresent; // null is OK if not present
+        return n > rhs;
+      }
+
+      // Handle "less than or equal to <num>"
+      const lteNumMatch = /\bless\s+than\s+or\s+equal\s+to\s+(?<num>-?\d+(?:\.\d+)?)\b/i.exec(rest);
+      if (lteNumMatch?.groups?.num) {
+        const n = toNumber(val);
+        const rhs = Number.parseFloat(lteNumMatch.groups.num);
+        if (n === null) return !valPresent;
+        return n <= rhs;
+      }
+
+      // Handle "less than <num>"
+      const ltNumMatch = /\bless\s+than\s+(?<num>-?\d+(?:\.\d+)?)\b/i.exec(rest);
+      if (ltNumMatch?.groups?.num) {
+        const n = toNumber(val);
+        const rhs = Number.parseFloat(ltNumMatch.groups.num);
+        if (n === null) return !valPresent;
+        return n < rhs;
+      }
+
+      // Handle "less than <field>" (comparison between two fields)
+      const ltFieldMatch = /\bless\s+than\s+(?<other>[a-z0-9_]+)\b/i.exec(restLower);
+      if (ltFieldMatch?.groups?.other) {
+        const left = toNumber(val);
+        const right = toNumber(getVal(ltFieldMatch.groups.other));
+        if (left === null || right === null) return true; // null values pass
+        return left < right;
+      }
+
+      const neqMatch = /\bnot\s+equal\s+to\s+(?<other>[a-z0-9_]+)\b/i.exec(restLower);
+      if (neqMatch?.groups?.other) {
+        const otherVal = getVal(neqMatch.groups.other);
+        const leftS = String(val ?? "").trim();
+        const rightS = String(otherVal ?? "").trim();
+        // If either is empty, they're not equal (pass)
+        if (leftS === "" || rightS === "") return true;
+        return leftS !== rightS;
+      }
+
+      // Handle "should be in (x,y,...)" pattern at atom level
+      const shouldBeInMatch = /\b(should|must)\s+be\s+in\s*\((?<vals>[^)]+)\)/i.exec(rest);
+      if (shouldBeInMatch?.groups?.vals) {
+        const list = parseListWithRanges(shouldBeInMatch.groups.vals);
+        const sVal = String(val ?? "").trim();
+        if (sVal === "") return true; // Empty values are OK
+        return list.includes(sVal);
+      }
+
+      return null;
+    };
+
+    const condForEval = whenMatch ? condRaw.replace(whenMatch[0], "").trim() : condRaw.trim();
+    const hasLogic = /\s+or\s+/i.test(condForEval) || /\s+and\s+/i.test(condForEval) || /greater\s+than|less\s+than|not\s+equal|\bin\s*\(/i.test(condForEval);
+    if (hasLogic) {
+      const orTerms = splitOutsideParens(condForEval, "or");
+      let parseable = true;
+      const valid = orTerms.some((orTerm) => {
+        const andTerms = splitOutsideParens(orTerm, "and");
+        const andRes = andTerms.map((a) => evalAtom(a));
+        if (andRes.some((r) => r === null)) {
+          parseable = false;
+          return false;
+        }
+        return andRes.every(Boolean);
+      });
+
+      if (parseable) {
+        if (!valid) {
+          errors.push({ field, message: `${field} does not satisfy rule: ${condRaw}` });
+        }
+        continue;
+      }
+
+      continue;
+    }
+
+    const requiresNotNull = /\b(should|must)\s+not\s+be\s+null\b/i.test(condRaw);
+    const requiresNull = !requiresNotNull && /\b(should|must)\s+be\s+null\b/i.test(condRaw);
+
+    if (requiresNotNull && !present) {
+      errors.push({
+        field,
+        message: depField
+          ? `${field} should not be null when ${depField} in (${depList.join(',')})`
+          : `${field} should not be null`,
+      });
+      continue;
+    }
+
+    if (requiresNull && present) {
+      errors.push({
+        field,
+        message: depField
+          ? `${field} should be null when ${depField} in (${depList.join(',')})`
+          : `${field} should be null`,
+      });
+      continue;
+    }
+
+    // Handle "must be in (x-y)" with range syntax
+    const mustInMatch = /\bmust\b[^()]*\bin\s*\((?<vals>[^)]+)\)/i.exec(condRaw);
+    const plainInMatch = new RegExp(`\\b${String(target).replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\s+(should\\s+be\\s+)?in\\s*\\((?<vals>[^)]+)\\)`, "i").exec(condRaw);
+    const listVals = mustInMatch?.groups?.vals || plainInMatch?.groups?.vals || null;
+    if (listVals) {
+      const list = parseListWithRanges(listVals);
+      const val = String(v ?? "").trim();
       if (val && !list.includes(val)) {
         errors.push({ field, message: `${field} value ${val} not in allowed list (${list.join(',')})`});
       }
