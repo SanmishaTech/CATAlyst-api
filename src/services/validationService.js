@@ -1,10 +1,34 @@
 const prisma = require("../config/db");
 const { z } = require("zod");
 const { getValidationCode } = require("../constants/validationCodes");
+const defaultValidation2OrderConditions = require("../config/validation2OrderConditions");
+const defaultValidation2ExecutionConditions = require("../config/validation2ExecutionConditions");
 const {
   classifyOrdersForBatch,
   classifyExecutionsForBatch,
 } = require("./businessClassificationService");
+
+const buildEffectiveLevel2Schema = (defaults, clientSchema) => {
+  const defaultsObj = defaults && typeof defaults === "object" ? defaults : {};
+  const clientObj = clientSchema && typeof clientSchema === "object" ? clientSchema : {};
+  const effective = {};
+
+  for (const [field, def] of Object.entries(defaultsObj)) {
+    const clientVal = clientObj[field] && typeof clientObj[field] === "object" ? clientObj[field] : {};
+    effective[field] = {
+      enabled: clientVal.enabled ?? def.enabled ?? true,
+      condition: def.condition ?? clientVal.condition ?? "-",
+      required: def.required ?? clientVal.required ?? false,
+    };
+  }
+
+  for (const [field, val] of Object.entries(clientObj)) {
+    if (effective[field] !== undefined) continue;
+    effective[field] = val;
+  }
+
+  return effective;
+};
 
  const markPreviousValidationErrorsDedupedForOrderBatch = async (batchId, userId) => {
   await prisma.$executeRaw`
@@ -318,6 +342,18 @@ const evaluateLevel2Rules = (record, rulesObj) => {
     return raw.split(",").map((v) => v.replace(/['"]/g, "").trim()).filter(Boolean);
   };
 
+  const listIncludes = (value, list) => {
+    const s = String(value ?? "").trim();
+    if (s === "") return false;
+    if (list.includes(s)) return true;
+    const n = toNumber(s);
+    if (n === null) return false;
+    return list.some((item) => {
+      const ni = toNumber(item);
+      return ni !== null && ni === n;
+    });
+  };
+
   // Build a normalized->value map so that rule conditions can be case/underscore-insensitive
   const recNorm = {};
   for (const [k, v] of Object.entries(record || {})) {
@@ -333,8 +369,9 @@ const evaluateLevel2Rules = (record, rulesObj) => {
     const cond = condRaw.toLowerCase();
 
     // Try to detect the target field name from the condition; fallback to schema key
-    const targetMatch = /^\s*(?<target>[a-z0-9_]+)\b/i.exec(cond);
-    const target = targetMatch?.groups?.target || field;
+    // First try to match against the original condition (preserves case)
+    const targetMatchOriginal = /^\s*(?<target>[a-z0-9_]+)\b/i.exec(condRaw);
+    const target = targetMatchOriginal?.groups?.target || field;
 
     const v = getVal(target);
     const present = hasValue(v);
@@ -470,8 +507,7 @@ const evaluateLevel2Rules = (record, rulesObj) => {
     if (whenMatch?.groups) {
       depField = whenMatch.groups.dep;
       depList = parseListWithRanges(whenMatch.groups.vals);
-      const depVal = String(getVal(depField) ?? "").trim();
-      applies = depVal !== "" && depList.includes(depVal);
+      applies = listIncludes(getVal(depField), depList);
     }
 
     if (!applies) continue;
@@ -483,9 +519,8 @@ const evaluateLevel2Rules = (record, rulesObj) => {
     if (whenNotInMatch?.groups) {
       const notInDepField = whenNotInMatch.groups.dep;
       const notInDepList = parseListWithRanges(whenNotInMatch.groups.vals);
-      const notInDepVal = String(getVal(notInDepField) ?? "").trim();
       // Skip if the value IS in the list (condition not met)
-      if (notInDepVal !== "" && notInDepList.includes(notInDepVal)) continue;
+      if (listIncludes(getVal(notInDepField), notInDepList)) continue;
     }
 
     const evalAtom = (atomRaw) => {
@@ -557,6 +592,18 @@ const evaluateLevel2Rules = (record, rulesObj) => {
         return n <= rhs;
       }
 
+      // Handle "less than or equal to <field>" (comparison between two fields)
+      const lteFieldMatch = /\bless\s+than\s+or\s+equal\s+to\s+(?<other>[a-z0-9_]+)\b/i.exec(restLower);
+      if (lteFieldMatch?.groups?.other) {
+        const left = toNumber(val);
+        const right = toNumber(getVal(lteFieldMatch.groups.other));
+        // If left is null/undefined, this condition passes (null is OK)
+        if (left === null) return true;
+        // If right is null/undefined, we can't compare, so pass
+        if (right === null) return true;
+        return left <= right;
+      }
+
       // Handle "less than <num>"
       const ltNumMatch = /\bless\s+than\s+(?<num>-?\d+(?:\.\d+)?)\b/i.exec(rest);
       if (ltNumMatch?.groups?.num) {
@@ -567,11 +614,15 @@ const evaluateLevel2Rules = (record, rulesObj) => {
       }
 
       // Handle "less than <field>" (comparison between two fields)
-      const ltFieldMatch = /\bless\s+than\s+(?<other>[a-z0-9_]+)\b/i.exec(restLower);
+      // Exclude the "less than or equal to" variant handled above.
+      const ltFieldMatch = /\bless\s+than\s+(?!or\s+equal\s+to\s)(?<other>[a-z0-9_]+)\b/i.exec(restLower);
       if (ltFieldMatch?.groups?.other) {
         const left = toNumber(val);
         const right = toNumber(getVal(ltFieldMatch.groups.other));
-        if (left === null || right === null) return true; // null values pass
+        // If left is null/undefined, this condition passes (null is OK)
+        if (left === null) return true;
+        // If right is null/undefined, we can't compare, so pass
+        if (right === null) return true;
         return left < right;
       }
 
@@ -597,7 +648,9 @@ const evaluateLevel2Rules = (record, rulesObj) => {
       return null;
     };
 
-    const condForEval = whenMatch ? condRaw.replace(whenMatch[0], "").trim() : condRaw.trim();
+    const condForEval = condRaw
+      .replace(/\bwhen\s+[a-z0-9_]+\s+(?:not\s+)?in\s*\([^)]+\)/ig, "")
+      .trim();
     const hasLogic = /\s+or\s+/i.test(condForEval) || /\s+and\s+/i.test(condForEval) || /greater\s+than|less\s+than|not\s+equal|\bin\s*\(/i.test(condForEval);
     if (hasLogic) {
       const orTerms = splitOutsideParens(condForEval, "or");
@@ -1006,7 +1059,7 @@ const processValidation2ForBatch = async (batchId) => {
       console.log(`[Validation 2] User ${batch.userId} has no associated client`);
       await prisma.batch.update({
         where: { id: batchId },
-        data: { validation_2: true },
+        data: { validation_2: true, validation_2_status: 'passed' },
       });
       return;
     }
@@ -1020,10 +1073,15 @@ const processValidation2ForBatch = async (batchId) => {
       console.log(`[Validation 2] Client has no validation_2 schema configured`);
       await prisma.batch.update({
         where: { id: batchId },
-        data: { validation_2: true },
+        data: { validation_2: true, validation_2_status: 'passed' },
       });
       return;
     }
+
+    const effectiveSchema = buildEffectiveLevel2Schema(
+      defaultValidation2OrderConditions,
+      client.validation_2
+    );
 
     // Get all orders for this batch
     const orders = await prisma.order.findMany({
@@ -1036,9 +1094,9 @@ const processValidation2ForBatch = async (batchId) => {
     const validationResults = [];
     
     for (const order of orders) {
-      let validationResult = validateOrder(order, client.validation_2);
+      let validationResult = validateOrder(order, effectiveSchema);
       // Apply simple Level-2 rules
-      const ruleErrors = evaluateLevel2Rules(order, client.validation_2);
+      const ruleErrors = evaluateLevel2Rules(order, effectiveSchema);
       if (ruleErrors.length > 0) {
         validationResult = {
           success: false,
@@ -1160,7 +1218,7 @@ const processExecutionValidation2ForBatch = async (batchId, batch = null) => {
     // Get client's execution validation_2 schema
     if (!batch.user.clientId) {
       console.log(`[Validation 2] User ${batch.userId} has no associated client`);
-      await prisma.batch.update({ where: { id: batchId }, data: { validation_2: true } });
+      await prisma.batch.update({ where: { id: batchId }, data: { validation_2: true, validation_2_status: 'passed' } });
       return;
     }
 
@@ -1171,9 +1229,14 @@ const processExecutionValidation2ForBatch = async (batchId, batch = null) => {
 
     if (!client || !client.exe_validation_2) {
       console.log(`[Validation 2] Client has no execution validation_2 schema configured`);
-      await prisma.batch.update({ where: { id: batchId }, data: { validation_2: true } });
+      await prisma.batch.update({ where: { id: batchId }, data: { validation_2: true, validation_2_status: 'passed' } });
       return;
     }
+
+    const effectiveExeSchema = buildEffectiveLevel2Schema(
+      defaultValidation2ExecutionConditions,
+      client.exe_validation_2
+    );
 
     // Get all executions for this batch
     const executions = await prisma.execution.findMany({ where: { batchId } });
@@ -1184,9 +1247,9 @@ const processExecutionValidation2ForBatch = async (batchId, batch = null) => {
     const failed = [];
 
     for (const exe of executions) {
-      let result = validateExecution(exe, client.exe_validation_2);
+      let result = validateExecution(exe, effectiveExeSchema);
       // Apply Level-2 rules for executions
-      const ruleErrors = evaluateLevel2Rules(exe, client.exe_validation_2);
+      const ruleErrors = evaluateLevel2Rules(exe, effectiveExeSchema);
       if (ruleErrors.length > 0) {
         result = {
           success: false,
@@ -1303,12 +1366,12 @@ const processValidation3ForBatch = async (batchId) => {
 
     // no client association
     if (!batch.user.clientId) {
-      await prisma.batch.update({ where: { id: batchId }, data: { validation_3: true } });
+      await prisma.batch.update({ where: { id: batchId }, data: { validation_3: true, validation_3_status: 'passed' } });
       return;
     }
     const client = await prisma.client.findUnique({ where: { id: batch.user.clientId }, select: { validation_3: true } });
     if (!client || !client.validation_3) {
-      await prisma.batch.update({ where: { id: batchId }, data: { validation_3: true } });
+      await prisma.batch.update({ where: { id: batchId }, data: { validation_3: true, validation_3_status: 'passed' } });
       return;
     }
 
@@ -1342,9 +1405,9 @@ const processExecutionValidation3ForBatch = async (batchId, batch=null) => {
     if (batch.validation_2_status !== 'passed') return console.log(`[Validation 3] Execution batch ${batchId} – validation_2_status not 'passed', skip`);
     if (batch.validation_3 !== null) return console.log(`[Validation 3] Execution batch ${batchId} already validated`);
 
-    if (!batch.user.clientId) { await prisma.batch.update({ where:{id:batchId}, data:{ validation_3:true } }); return; }
+    if (!batch.user.clientId) { await prisma.batch.update({ where:{id:batchId}, data:{ validation_3:true, validation_3_status: 'passed' } }); return; }
     const client = await prisma.client.findUnique({ where:{id:batch.user.clientId}, select:{ exe_validation_3:true } });
-    if (!client || !client.exe_validation_3) { await prisma.batch.update({ where:{id:batchId}, data:{ validation_3:true } }); return; }
+    if (!client || !client.exe_validation_3) { await prisma.batch.update({ where:{id:batchId}, data:{ validation_3:true, validation_3_status: 'passed' } }); return; }
 
     const executions = await prisma.execution.findMany({ where:{ batchId } });
     let pass=0, fail=0;

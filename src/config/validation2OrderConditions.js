@@ -187,7 +187,7 @@ module.exports = {
   
   orderPrice: {
     enabled: true,
-    condition: "orderPrice should not be null and must be greater than 0 when orderType not in (1,5)",
+    condition: "orderPrice should not be null and must be greater than or equal to 0 when orderType not in (1,5)",
     required: true
   },
   
@@ -419,15 +419,17 @@ module.exports = {
     required: true
   },
   
+
+  //changed less than eqaul to 
   orderCumQty: {
     enabled: true,
-    condition: "orderCumQty should be null OR orderCumQty less than orderQuantity",
+    condition: "orderCumQty should be null OR orderCumQty less than or equal to orderQuantity",
     required: false
   },
   
   orderLeavesQty: {
     enabled: true,
-    condition: "orderLeavesQty should be null OR orderLeavesQty less than orderQuantity",
+    condition: "orderLeavesQty should be null OR orderLeavesQty less than or equal to orderQuantity",
     required: false
   },
   
@@ -491,6 +493,8 @@ module.exports = {
     required: true
   },
   
+
+  //change
   orderActionInitiated: {
     enabled: true,
     condition: "orderActionInitiated should not be null and must be in (1,2,3,4)",
