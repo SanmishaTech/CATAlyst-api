@@ -3,6 +3,8 @@ const { z } = require("zod");
 const { getValidationCode } = require("../constants/validationCodes");
 const defaultValidation2OrderConditions = require("../config/validation2OrderConditions");
 const defaultValidation2ExecutionConditions = require("../config/validation2ExecutionConditions");
+const defaultValidation3OrderConditions = require("../config/validation3OrderConditions");
+const defaultValidation3ExecutionConditions = require("../config/validation3ExecutionConditions");
 const {
   classifyOrdersForBatch,
   classifyExecutionsForBatch,
@@ -13,13 +15,31 @@ const buildEffectiveLevel2Schema = (defaults, clientSchema) => {
   const clientObj = clientSchema && typeof clientSchema === "object" ? clientSchema : {};
   const effective = {};
 
-  for (const [field, def] of Object.entries(defaultsObj)) {
-    const clientVal = clientObj[field] && typeof clientObj[field] === "object" ? clientObj[field] : {};
-    effective[field] = {
-      enabled: clientVal.enabled ?? def.enabled ?? true,
-      condition: def.condition ?? clientVal.condition ?? "-",
-      required: def.required ?? clientVal.required ?? false,
-    };
+  for (const [field, defaultVal] of Object.entries(defaultsObj)) {
+    const clientVal = clientObj[field];
+    if (defaultVal && typeof defaultVal === "object") {
+      effective[field] = {
+        ...defaultVal,
+        ...(clientVal && typeof clientVal === "object" ? clientVal : {}),
+      };
+      // Preserve default condition if client didn't supply one.
+      // (Fixes stale configs where DB only stores enabled toggles but not updated condition strings.)
+      const clientCondition =
+        clientVal && typeof clientVal === "object" ? clientVal.condition : undefined;
+      if (
+        defaultVal.condition &&
+        (!clientVal ||
+          typeof clientVal !== "object" ||
+          clientCondition === undefined ||
+          clientCondition === null ||
+          String(clientCondition).trim() === "" ||
+          String(clientCondition).trim() === "-")
+      ) {
+        effective[field].condition = defaultVal.condition;
+      }
+    } else {
+      effective[field] = clientVal !== undefined ? clientVal : defaultVal;
+    }
   }
 
   for (const [field, val] of Object.entries(clientObj)) {
@@ -28,6 +48,91 @@ const buildEffectiveLevel2Schema = (defaults, clientSchema) => {
   }
 
   return effective;
+};
+
+const buildEffectiveLevelSchemaPreferDefaultConditions = (defaults, clientSchema) => {
+  const effective = buildEffectiveLevel2Schema(defaults, clientSchema);
+  const defaultsObj = defaults && typeof defaults === "object" ? defaults : {};
+  for (const [field, defaultVal] of Object.entries(defaultsObj)) {
+    if (!defaultVal || typeof defaultVal !== "object") continue;
+    if (!defaultVal.condition) continue;
+    if (effective[field] && typeof effective[field] === "object") {
+      effective[field].condition = defaultVal.condition;
+    }
+  }
+  return effective;
+};
+
+const toMs = (v) => {
+  if (v === null || v === undefined) return null;
+  if (v instanceof Date) return v.getTime();
+  const s = String(v).trim();
+  if (!s) return null;
+  const t = Date.parse(s);
+  return Number.isFinite(t) ? t : null;
+};
+
+const evaluateOrderValidation3ReferenceRules = (order, schema, ctx) => {
+  const errors = [];
+  if (!schema || typeof schema !== "object") return errors;
+  const exchangeDestinations = ctx?.exchangeDestinations;
+  const validFirmIds = ctx?.validFirmIds;
+
+  const addRuleError = (field) => {
+    const cond = schema?.[field]?.condition;
+    errors.push({
+      field,
+      message: `${field} does not satisfy rule: ${cond ?? ""}`.trim(),
+    });
+  };
+
+  if (schema.orderDestination?.enabled) {
+    const dest = String(order?.orderDestination ?? "").trim();
+    if (!dest) {
+      addRuleError("orderDestination");
+    } else if (exchangeDestinations instanceof Set && !exchangeDestinations.has(dest)) {
+      addRuleError("orderDestination");
+    }
+  }
+
+  if (schema.orderRoutedOrderId?.enabled) {
+    const dest = String(order?.orderDestination ?? "").trim();
+    const routedId = String(order?.orderRoutedOrderId ?? "").trim();
+    const isExchange = exchangeDestinations instanceof Set && dest && exchangeDestinations.has(dest);
+    if (isExchange && !routedId) {
+      addRuleError("orderRoutedOrderId");
+    }
+  }
+
+  if (schema.orderExecutingEntity?.enabled) {
+    const v = order?.orderExecutingEntity;
+    const n = typeof v === "number" ? v : Number.parseInt(String(v ?? "").trim(), 10);
+    if (!Number.isFinite(n)) {
+      addRuleError("orderExecutingEntity");
+    } else if (validFirmIds instanceof Set && validFirmIds.size > 0 && !validFirmIds.has(n)) {
+      addRuleError("orderExecutingEntity");
+    }
+  }
+
+  if (schema.orderBookingEntity?.enabled) {
+    const v = order?.orderBookingEntity;
+    const n = typeof v === "number" ? v : Number.parseInt(String(v ?? "").trim(), 10);
+    if (!Number.isFinite(n)) {
+      addRuleError("orderBookingEntity");
+    } else if (validFirmIds instanceof Set && validFirmIds.size > 0 && !validFirmIds.has(n)) {
+      addRuleError("orderBookingEntity");
+    }
+  }
+
+  if (schema.orderStartTime?.enabled) {
+    const start = toMs(order?.orderStartTime);
+    const evt = toMs(order?.orderEventTime);
+    if (start !== null && evt !== null && start < evt) {
+      addRuleError("orderStartTime");
+    }
+  }
+
+  return errors;
 };
 
  const markPreviousValidationErrorsDedupedForOrderBatch = async (batchId, userId) => {
@@ -1078,7 +1183,7 @@ const processValidation2ForBatch = async (batchId) => {
       return;
     }
 
-    const effectiveSchema = buildEffectiveLevel2Schema(
+    const effectiveSchema = buildEffectiveLevelSchemaPreferDefaultConditions(
       defaultValidation2OrderConditions,
       client.validation_2
     );
@@ -1233,7 +1338,7 @@ const processExecutionValidation2ForBatch = async (batchId, batch = null) => {
       return;
     }
 
-    const effectiveExeSchema = buildEffectiveLevel2Schema(
+    const effectiveExeSchema = buildEffectiveLevelSchemaPreferDefaultConditions(
       defaultValidation2ExecutionConditions,
       client.exe_validation_2
     );
@@ -1375,13 +1480,55 @@ const processValidation3ForBatch = async (batchId) => {
       return;
     }
 
+    const effectiveSchema = buildEffectiveLevelSchemaPreferDefaultConditions(
+      defaultValidation3OrderConditions,
+      client.validation_3
+    );
+
     const orders = await prisma.order.findMany({ where: { batchId } });
+    const exchangeRows = await prisma.uSBrokerDealer.findMany({
+      where: {
+        membershipType: 'Exchange',
+        clientId: { not: null },
+      },
+      select: { clientId: true },
+    });
+    const exchangeDestinations = new Set(
+      (exchangeRows || [])
+        .map((r) => String(r.clientId ?? '').trim())
+        .filter(Boolean)
+    );
+
+    const firmIdsToCheck = new Set();
+    for (const o of orders) {
+      const exec = typeof o.orderExecutingEntity === 'number'
+        ? o.orderExecutingEntity
+        : Number.parseInt(String(o.orderExecutingEntity ?? '').trim(), 10);
+      const book = typeof o.orderBookingEntity === 'number'
+        ? o.orderBookingEntity
+        : Number.parseInt(String(o.orderBookingEntity ?? '').trim(), 10);
+      if (Number.isFinite(exec)) firmIdsToCheck.add(exec);
+      if (Number.isFinite(book)) firmIdsToCheck.add(book);
+    }
+    const firmRows = firmIdsToCheck.size
+      ? await prisma.client.findMany({
+          where: { id: { in: Array.from(firmIdsToCheck) } },
+          select: { id: true },
+        })
+      : [];
+    const validFirmIds = new Set((firmRows || []).map((r) => r.id));
+
     let passCnt = 0, failCnt = 0;
     for (const order of orders) {
-      let result = validateOrder(order, client.validation_3);
-      const ruleErrors = evaluateLevel2Rules(order, client.validation_3) || [];
-      if (ruleErrors.length) {
-        result = { success: false, errors: [...(result.errors||[]), ...ruleErrors] };
+      let result = validateOrder(order, effectiveSchema);
+      const ruleErrors = evaluateLevel2Rules(order, effectiveSchema) || [];
+      const refErrors = evaluateOrderValidation3ReferenceRules(order, effectiveSchema, {
+        exchangeDestinations,
+        validFirmIds,
+      });
+      const allErrors = [...(result.errors || []), ...ruleErrors, ...refErrors];
+      if (allErrors.length) {
+        result = { success: false, errors: allErrors };
       }
       const validation = await prisma.validation.create({ data: { orderId: order.id, batchId, success: result.success, validatedAt: new Date() } });
       if (!result.success && result.errors?.length) {
@@ -1409,12 +1556,17 @@ const processExecutionValidation3ForBatch = async (batchId, batch=null) => {
     const client = await prisma.client.findUnique({ where:{id:batch.user.clientId}, select:{ exe_validation_3:true } });
     if (!client || !client.exe_validation_3) { await prisma.batch.update({ where:{id:batchId}, data:{ validation_3:true, validation_3_status: 'passed' } }); return; }
 
+    const effectiveExeSchema = buildEffectiveLevelSchemaPreferDefaultConditions(
+      defaultValidation3ExecutionConditions,
+      client.exe_validation_3
+    );
+
     const executions = await prisma.execution.findMany({ where:{ batchId } });
     let pass=0, fail=0;
     for (const exe of executions) {
-      let result = validateExecution(exe, client.exe_validation_3);
+      let result = validateExecution(exe, effectiveExeSchema);
       // Apply Level-2 rules for executions
-      const ruleErrors = evaluateLevel2Rules(exe, client.exe_validation_3);
+      const ruleErrors = evaluateLevel2Rules(exe, effectiveExeSchema);
       if (ruleErrors.length > 0) {
         result = { success: false, errors: [...(result.errors||[]), ...ruleErrors] };
       }
