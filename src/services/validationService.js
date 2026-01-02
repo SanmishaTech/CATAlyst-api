@@ -1,5 +1,5 @@
 const prisma = require("../config/db");
-const { z } = require("zod");
+const { z, ZodIssueCode } = require("zod");
 const { getValidationCode } = require("../constants/validationCodes");
 const defaultValidation2OrderConditions = require("../config/validation2OrderConditions");
 const defaultValidation2ExecutionConditions = require("../config/validation2ExecutionConditions");
@@ -227,9 +227,25 @@ const validateOrder = (orderData, zodSchemaObj) => {
 
     // Build dynamic zod schema from stored configuration
     const schemaShape = {};
-    
+
+    // Normalize inputs so optional fields can be "empty" (null/undefined/blank string)
+    // IMPORTANT: For optional fields we must treat `null` as missing. If we apply `.optional()`
+    // outside `z.preprocess`, Zod checks the ORIGINAL input (null) and does not short-circuit,
+    // causing a required_error after preprocess converts null -> undefined.
+    const emptyToUndefined = (value, nullable = false) => {
+      if (value === undefined) return undefined;
+      if (value === null) return nullable ? null : undefined;
+      if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (trimmed === "") return undefined;
+        return trimmed;
+      }
+      return value;
+    };
+
     for (const [fieldName, fieldConfig] of Object.entries(zodSchemaObj)) {
       if (!fieldConfig || typeof fieldConfig !== "object") continue;
+
 
       if (fieldConfig.optional) {
         const v = normalizedData[fieldName];
@@ -247,85 +263,203 @@ const validateOrder = (orderData, zodSchemaObj) => {
       // Handle different field types
       switch (fieldConfig.type) {
         case "string": {
-          // Optional behavior requested by user:
-          // - If optional and value is empty => no error
-          // - If optional and value is present => validate type + max (and other validators)
-          const isOptional = !!fieldConfig.optional;
-
-          let stringSchema = z.string();
+          let stringSchema = z.string({
+            required_error: "required",
+            invalid_type_error: "invalid format",
+          });
 
           if (fieldConfig.min !== undefined) {
+
             stringSchema = stringSchema.min(fieldConfig.min, fieldConfig.minMessage);
+
           }
           if (fieldConfig.max !== undefined) {
-            stringSchema = stringSchema.max(fieldConfig.max, fieldConfig.maxMessage);
+            stringSchema = stringSchema.max(
+              fieldConfig.max,
+              fieldConfig.maxMessage || "invalid format"
+            );
           }
           if (fieldConfig.email) {
-            stringSchema = stringSchema.email(fieldConfig.emailMessage);
+            stringSchema = stringSchema.email(
+              fieldConfig.emailMessage || "invalid format"
+            );
           }
           if (fieldConfig.regex) {
             try {
               stringSchema = stringSchema.regex(
                 new RegExp(fieldConfig.regex),
-                fieldConfig.regexMessage
+                fieldConfig.regexMessage || "invalid format"
               );
             } catch (e) {
-              // Ignore invalid regex in schema config to avoid breaking entire validation
+              // ignore invalid regex config
             }
           }
 
-          // If optional, allow empty string to pass without triggering min/max/regex/email.
-          fieldSchema = isOptional
-            ? z.union([stringSchema, z.literal("")])
-            : stringSchema;
+          innerSchema = stringSchema;
           break;
         }
-          
-        case "number":
-          fieldSchema = z.number();
+
+        case "number": {
+          let numberSchema = z.number({
+            required_error: "required",
+            invalid_type_error: "invalid format",
+          });
           if (fieldConfig.min !== undefined) {
-            fieldSchema = fieldSchema.min(fieldConfig.min, fieldConfig.minMessage);
+            numberSchema = numberSchema.min(
+              fieldConfig.min,
+              fieldConfig.minMessage || "value out of range"
+            );
           }
           if (fieldConfig.max !== undefined) {
-            fieldSchema = fieldSchema.max(fieldConfig.max, fieldConfig.maxMessage);
+            numberSchema = numberSchema.max(
+              fieldConfig.max,
+              fieldConfig.maxMessage || "value out of range"
+            );
           }
           if (fieldConfig.int) {
-            fieldSchema = fieldSchema.int(fieldConfig.intMessage);
+            numberSchema = numberSchema.int(
+              fieldConfig.intMessage || "invalid format"
+            );
           }
+
+          innerSchema = numberSchema;
           break;
-          
-        case "boolean":
-          fieldSchema = z.boolean();
+        }
+
+        case "boolean": {
+          innerSchema = z.boolean({
+            required_error: "required",
+            invalid_type_error: "invalid format",
+          });
           break;
-          
-        case "date":
-          fieldSchema = z.string().datetime(fieldConfig.datetimeMessage);
+        }
+
+        case "date": {
+          innerSchema = z
+            .string({
+              required_error: "required",
+              invalid_type_error: "invalid format",
+            })
+            .datetime(fieldConfig.datetimeMessage || "invalid format");
           break;
-          
-        case "enum":
+        }
+
+        case "decimal": {
+          const decimalSchema = z
+            .string({
+              required_error: "required",
+              invalid_type_error: "invalid format",
+            })
+            .superRefine((val, ctx) => {
+              const str = String(val).trim();
+              if (!/^[+-]?\d+(?:\.\d+)?$/.test(str)) {
+                ctx.addIssue({ code: ZodIssueCode.custom, message: "invalid format" });
+                return;
+              }
+
+              const unsigned = str.replace(/^[+-]/, "");
+              const parts = unsigned.split(".");
+              const intPart = parts[0] || "0";
+              const fracPart = parts[1] || "";
+              const intDigitsRaw = intPart.replace(/^0+/, "");
+              const intDigits = intDigitsRaw.length === 0 ? 1 : intDigitsRaw.length;
+              const fracDigits = fracPart.length;
+              const totalDigits = intDigits + fracDigits;
+
+              if (fieldConfig.scale !== undefined && fracDigits > fieldConfig.scale) {
+                ctx.addIssue({ code: ZodIssueCode.custom, message: "invalid format" });
+                return;
+              }
+              if (
+                fieldConfig.precision !== undefined &&
+                totalDigits > fieldConfig.precision
+              ) {
+                ctx.addIssue({ code: ZodIssueCode.custom, message: "invalid format" });
+                return;
+              }
+
+              const num = Number(str);
+              if (!Number.isFinite(num)) {
+                ctx.addIssue({ code: ZodIssueCode.custom, message: "invalid format" });
+                return;
+              }
+
+              if (fieldConfig.min !== undefined && num < fieldConfig.min) {
+                ctx.addIssue({ code: ZodIssueCode.custom, message: "value out of range" });
+                return;
+              }
+              if (fieldConfig.max !== undefined && num > fieldConfig.max) {
+                ctx.addIssue({ code: ZodIssueCode.custom, message: "value out of range" });
+              }
+            });
+
+          innerSchema = decimalSchema;
+          break;
+        }
+
+        case "enum": {
           if (
             fieldConfig.values &&
             Array.isArray(fieldConfig.values) &&
             fieldConfig.values.length > 0
           ) {
-            fieldSchema = z.enum(fieldConfig.values);
+            innerSchema = z.enum(fieldConfig.values, {
+              required_error: "required",
+              invalid_type_error: "invalid format",
+            });
           } else {
-            fieldSchema = z.any();
+            innerSchema = z.any();
           }
           break;
-          
+        }
+
         default:
-          fieldSchema = z.any();
+          innerSchema = z.any();
       }
-      
-      // Handle optional/required
-      if (fieldConfig.optional) {
-        fieldSchema = fieldSchema.optional();
+
+      // Apply optional/nullable to the INNER schema so preprocess runs first.
+      if (isOptional) {
+        innerSchema = innerSchema.optional();
       }
-      if (fieldConfig.nullable) {
-        fieldSchema = fieldSchema.nullable();
+      if (isNullable) {
+        innerSchema = innerSchema.nullable();
       }
-      
+
+      // Preprocess values into the appropriate normalized representation.
+      let fieldSchema;
+      if (fieldConfig.type === "number") {
+        fieldSchema = z.preprocess(
+          (value) => {
+            const v = emptyToUndefined(value, isNullable);
+            if (v === undefined || v === null) return v;
+            if (typeof v === "string") {
+              const n = Number(v);
+              return Number.isFinite(n) ? n : v;
+            }
+            return v;
+          },
+          innerSchema
+        );
+      } else if (fieldConfig.type === "decimal") {
+        fieldSchema = z.preprocess(
+          (value) => {
+            const v = emptyToUndefined(value, isNullable);
+            if (v === undefined || v === null) return v;
+            if (typeof v === "object" && v && typeof v.toString === "function") {
+              return v.toString();
+            }
+            if (typeof v === "number") return String(v);
+            return v;
+          },
+          innerSchema
+        );
+      } else {
+        fieldSchema = z.preprocess(
+          (value) => emptyToUndefined(value, isNullable),
+          innerSchema
+        );
+      }
+
       schemaShape[fieldName] = fieldSchema;
     }
     
