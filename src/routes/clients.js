@@ -9,6 +9,9 @@ const path = require("path");
 const fs = require("fs");
 const usBrokerDealerController = require("../controllers/usBrokerDealerController");
 const instrumentsMappingController = require("../controllers/instrumentsMappingController");
+const accountMappingController = require("../controllers/accountMappingController");
+const currencyCodesController = require("../controllers/currencyCodesController");
+const firmEntityController = require("../controllers/firmEntityController");
 
 const uploadDir = path.resolve(__dirname, "..", "uploads");
 try {
@@ -23,7 +26,7 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, "usbd-" + uniqueSuffix + path.extname(file.originalname));
+    cb(null, "upload-" + uniqueSuffix + path.extname(file.originalname));
   },
 });
 
@@ -721,6 +724,27 @@ router.post(
   auth,
   upload.single("file"),
   instrumentsMappingController.uploadInstrumentsMapping
+);
+
+router.post(
+  "/:id/account-mapping/upload",
+  auth,
+  upload.single("file"),
+  accountMappingController.uploadAccountMapping
+);
+
+router.post(
+  "/:id/currency-codes/upload",
+  auth,
+  upload.single("file"),
+  currencyCodesController.uploadCurrencyCodes
+);
+
+router.post(
+  "/:id/firm-entities/upload",
+  auth,
+  upload.single("file"),
+  firmEntityController.uploadFirmEntities
 );
 
 module.exports = router;

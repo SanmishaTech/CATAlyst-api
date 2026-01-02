@@ -153,21 +153,59 @@ const getBatchReport = async (batchId, limit) => {
 
 const main = async () => {
   const { templateBatchId, limit, skipRun } = parseArgs(process.argv.slice(2));
-  const tplBatchId = Number.parseInt(String(templateBatchId ?? "47").trim(), 10);
-  if (!Number.isFinite(tplBatchId)) throw new Error(`Invalid --templateBatchId: ${templateBatchId}`);
+  let tplBatchId = Number.parseInt(String(templateBatchId ?? "").trim(), 10);
+  if (!Number.isFinite(tplBatchId)) tplBatchId = NaN;
   const topN = Math.max(1, Number.parseInt(String(limit ?? "10"), 10) || 10);
 
-  const templateBatch = await prisma.batch.findUnique({
-    where: { id: tplBatchId },
-    select: {
-      id: true,
-      userId: true,
-      fileType: true,
-      validation_1_status: true,
-    },
-  });
+  let templateBatch = null;
+  if (Number.isFinite(tplBatchId)) {
+    templateBatch = await prisma.batch.findUnique({
+      where: { id: tplBatchId },
+      select: {
+        id: true,
+        userId: true,
+        fileType: true,
+        validation_1: true,
+        validation_1_status: true,
+      },
+    });
+  }
 
-  if (!templateBatch) throw new Error(`Template batch not found: ${tplBatchId}`);
+  if (!templateBatch) {
+    const fallback = await prisma.batch.findFirst({
+      where: {
+        OR: [
+          { fileType: null },
+          { fileType: { not: "execution" } },
+        ],
+        validation_1: true,
+      },
+      orderBy: { id: "desc" },
+      select: {
+        id: true,
+        userId: true,
+        fileType: true,
+        validation_1: true,
+        validation_1_status: true,
+      },
+    });
+    if (!fallback) {
+      throw new Error(
+        `Template batch not found${Number.isFinite(tplBatchId) ? `: ${tplBatchId}` : ""} and no fallback orders batch with validation_1=true was found.`
+      );
+    }
+    if (Number.isFinite(tplBatchId)) {
+      console.log(
+        `[createValidationScenarioBatches] Template batch ${tplBatchId} not found; using latest passed orders template batch ${fallback.id} instead.`
+      );
+    } else {
+      console.log(
+        `[createValidationScenarioBatches] Using latest passed orders template batch ${fallback.id} (no --templateBatchId provided).`
+      );
+    }
+    templateBatch = fallback;
+    tplBatchId = fallback.id;
+  }
   if (templateBatch.fileType === "execution") throw new Error("Template batch must be an orders batch");
 
   const templateOrder = await prisma.order.findFirst({
@@ -177,8 +215,10 @@ const main = async () => {
 
   if (!templateOrder) throw new Error(`No orders found in template batch: ${tplBatchId}`);
 
-  if (templateBatch.validation_1_status !== "passed") {
-    throw new Error(`Template batch validation_1_status must be 'passed' (got ${templateBatch.validation_1_status})`);
+  if (templateBatch.validation_1 !== true) {
+    throw new Error(
+      `Template batch validation_1 must be true (got ${templateBatch.validation_1}, status=${templateBatch.validation_1_status})`
+    );
   }
 
   const exchangeDest = await getExchangeDestinationSample();

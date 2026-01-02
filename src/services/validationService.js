@@ -87,11 +87,18 @@ const evaluateOrderValidation3ReferenceRules = (order, schema, ctx) => {
   };
 
   if (schema.orderDestination?.enabled) {
-    const dest = String(order?.orderDestination ?? "").trim();
-    if (!dest) {
-      addRuleError("orderDestination");
-    } else if (exchangeDestinations instanceof Set && !exchangeDestinations.has(dest)) {
-      addRuleError("orderDestination");
+    const actionStr = String(order?.orderAction ?? "").trim();
+    const actionNum = Number.parseInt(actionStr, 10);
+    const isExternalRouteAction = actionNum === 5 || actionNum === 6 || actionStr === "5" || actionStr === "6";
+
+    // Apply this reference-data validation only for Order_Action in (5,6)
+    if (isExternalRouteAction) {
+      const dest = String(order?.orderDestination ?? "").trim();
+      if (!dest) {
+        addRuleError("orderDestination");
+      } else if (exchangeDestinations instanceof Set && !exchangeDestinations.has(dest)) {
+        addRuleError("orderDestination");
+      }
     }
   }
 
@@ -1511,12 +1518,16 @@ const processValidation3ForBatch = async (batchId) => {
       if (Number.isFinite(book)) firmIdsToCheck.add(book);
     }
     const firmRows = firmIdsToCheck.size
-      ? await prisma.client.findMany({
-          where: { id: { in: Array.from(firmIdsToCheck) } },
-          select: { id: true },
+      ? await prisma.firmEntity.findMany({
+          where: {
+            clientRefId: batch.user.clientId,
+            firmId: { in: Array.from(firmIdsToCheck) },
+            activeFlag: true,
+          },
+          select: { firmId: true },
         })
       : [];
-    const validFirmIds = new Set((firmRows || []).map((r) => r.id));
+    const validFirmIds = new Set((firmRows || []).map((r) => r.firmId));
 
     let passCnt = 0, failCnt = 0;
     for (const order of orders) {

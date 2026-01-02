@@ -7,7 +7,7 @@
 module.exports = {
   "orderDestination": {
     "enabled": true,
-    "condition": "Order_Destination must present in Reference Data - US Broker Dealer.ClientID and Reference Data - US Broker Dealer.Membership Type = 'Exchange'",
+    "condition": "Order_Destination must present in Reference Data - US Broker Dealer.ClientID when Order_Action in (5,6) and Reference Data - US Broker Dealer.Membership Type = 'Exchange'",
     "required": true
   },
   "orderExecutingEntity": {
