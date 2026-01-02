@@ -257,9 +257,7 @@ const validateOrder = (orderData, zodSchemaObj) => {
           delete normalizedData[fieldName];
         }
       }
-      
-      let fieldSchema;
-      
+
       // Handle different field types
       switch (fieldConfig.type) {
         case "string": {
