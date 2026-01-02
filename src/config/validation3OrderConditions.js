@@ -7,42 +7,42 @@
 module.exports = {
   "orderDestination": {
     "enabled": true,
-    "condition": "Order_Destination must be provided when order is routed to external destination, exchanges or external/internal venue and Order_Destination must be in (Reference Data - Exchange Codes — ISO 10383 Market Identifier Code.MIC",
+    "condition": "Order_Destination must present in Reference Data - US Broker Dealer.ClientID when Order_Action in (5,6) and Reference Data - US Broker Dealer.Membership Type = 'Exchange'",
     "required": true
   },
   "orderExecutingEntity": {
     "enabled": true,
-    "condition": "Order_Executing_Entity should not be null and Order_Executing_Entity must be in (Reference Data - Client Mapping.Firm Details.FirmID)",
+    "condition": "Order_Executing_Entity should not be null and Order_Executing_Entity must be present in Reference Data - Firm Entity.FirmID",
     "required": true
   },
   "orderBookingEntity": {
     "enabled": true,
-    "condition": "nst",
+    "condition": "Order_Booking_Entity should not be null and Order_Booking_Entity must be present in Reference Data - Firm Entity.FirmID",
     "required": true
   },
   "orderPositionAccount": {
     "enabled": true,
-    "condition": "Order_Position_Account should not be null",
+    "condition": "Order_Position_Account should not be null and Order_Position_Account must be present in Referance Data - Account Mapping.AccountNo",
     "required": true
   },
   "orderCurrencyId": {
     "enabled": true,
-    "condition": "Order_Currency_ID should not be null and must be in (Reference Data - ISO 4217 Currency Codes)",
+    "condition": "Order_Currency_ID should not be null and Order_Currency_ID must be present in Reference Data - ISO 4217 Currency Codes.Code",
     "required": true
   },
   "orderExecutingAccount": {
     "enabled": true,
-    "condition": "(Order_Executing_Account should be null OR (Order_Executing_Account should not be null and it must be present in (Lookup table)))",
+    "condition": "((Order_Executing_Account should be null) OR (Order_Executing_Account should not be null and Order_Executing_Account must be present in Referance Data - Account Mapping.AccountNo))",
     "required": true
   },
   "orderClearingAccount": {
     "enabled": true,
-    "condition": "(Order_Clearing_Account should be null OR (Order_Clearing_Account should not be null and it must be present in (Lookup table)))",
+    "condition": "((Order_Clearing_Account should be null) OR (Order_Clearing_Account should not be null and Order_Clearing_Account must be present in Referance Data - Account Mapping.AccountNo))",
     "required": true
   },
   "orderRoutedOrderId": {
     "enabled": true,
-    "condition": "Must be populated when Ex_Destination is not null and Order_Exdestination_Instruction in ('Internal','External') and Ex_Destination in (Reference Data - Exchange Codes — ISO 10383 Market Identifier Code.MICCode)",
+    "condition": "Must be populated when Order_Destination is not null and Order_Destination is present in Reference Data - US Broker Dealer.ClientID and Reference Data - US Broker Dealer.Membership Type = 'Exchange'",
     "required": true
   },
   "orderStartTime": {

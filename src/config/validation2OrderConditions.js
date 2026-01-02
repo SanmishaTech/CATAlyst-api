@@ -7,7 +7,17 @@
  * Supported patterns:
  * 1. "<Field> should not be null when <DepField> in (x,y,...)"
  * 2. "<Field> should be null when <DepField> in (x,y,...)"
- * 3. "<Field> must be in (x,y,...)"
+ * 3. "<Field> must be in (x,y,...)" or "<Field> must be in (1-38)" (range syntax)
+ * 4. "<Field> should not be null when <DepField> is populated/not null/not empty"
+ * 5. "<Field> should not be null when <DepField> is null"
+ * 6. "<Field> should/must be only populated when <DepField> in (x,y,...)"
+ * 7. "<Field> should be in (x,y) when not null"
+ * 8. "<Field> must be populated when <DepField> is not null and <DepField2> in (x,y,...)"
+ * 9. "<Field> should be null OR <Field> should not be null and must be in (x,y,...)"
+ * 10. "<Field> should be null OR must be greater than 0"
+ * 11. "<Field> should not be null and must be greater than 0"
+ * 12. "<Field> less than <OtherField>" (field comparison)
+ * 13. "<Field> not equal to <OtherField>" (field comparison)
  * 
  * @type {Object<string, {enabled: boolean, condition: string, required: boolean}>}
  */
@@ -177,7 +187,7 @@ module.exports = {
   
   orderPrice: {
     enabled: true,
-    condition: "orderPrice should not be null and must be greater than 0 when orderType not in (1,5)",
+    condition: "orderPrice should not be null and must be greater than or equal to 0 when orderType not in (1,5)",
     required: true
   },
   
@@ -409,15 +419,17 @@ module.exports = {
     required: true
   },
   
+
+  //changed less than eqaul to 
   orderCumQty: {
     enabled: true,
-    condition: "orderCumQty should be null OR orderCumQty less than orderQuantity",
+    condition: "orderCumQty should be null OR orderCumQty less than or equal to orderQuantity",
     required: false
   },
   
   orderLeavesQty: {
     enabled: true,
-    condition: "orderLeavesQty should be null OR orderLeavesQty less than orderQuantity",
+    condition: "orderLeavesQty should be null OR orderLeavesQty less than or equal to orderQuantity",
     required: false
   },
   
@@ -481,6 +493,8 @@ module.exports = {
     required: true
   },
   
+
+  //change
   orderActionInitiated: {
     enabled: true,
     condition: "orderActionInitiated should not be null and must be in (1,2,3,4)",

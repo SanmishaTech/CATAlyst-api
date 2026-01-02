@@ -1,10 +1,146 @@
 const prisma = require("../config/db");
 const { z, ZodIssueCode } = require("zod");
 const { getValidationCode } = require("../constants/validationCodes");
+const defaultValidation2OrderConditions = require("../config/validation2OrderConditions");
+const defaultValidation2ExecutionConditions = require("../config/validation2ExecutionConditions");
+const defaultValidation3OrderConditions = require("../config/validation3OrderConditions");
+const defaultValidation3ExecutionConditions = require("../config/validation3ExecutionConditions");
 const {
   classifyOrdersForBatch,
   classifyExecutionsForBatch,
 } = require("./businessClassificationService");
+
+const buildEffectiveLevel2Schema = (defaults, clientSchema) => {
+  const defaultsObj = defaults && typeof defaults === "object" ? defaults : {};
+  const clientObj = clientSchema && typeof clientSchema === "object" ? clientSchema : {};
+  const effective = {};
+
+  for (const [field, defaultVal] of Object.entries(defaultsObj)) {
+    const clientVal = clientObj[field];
+    if (defaultVal && typeof defaultVal === "object") {
+      effective[field] = {
+        ...defaultVal,
+        ...(clientVal && typeof clientVal === "object" ? clientVal : {}),
+      };
+      // Preserve default condition if client didn't supply one.
+      // (Fixes stale configs where DB only stores enabled toggles but not updated condition strings.)
+      const clientCondition =
+        clientVal && typeof clientVal === "object" ? clientVal.condition : undefined;
+      if (
+        defaultVal.condition &&
+        (!clientVal ||
+          typeof clientVal !== "object" ||
+          clientCondition === undefined ||
+          clientCondition === null ||
+          String(clientCondition).trim() === "" ||
+          String(clientCondition).trim() === "-")
+      ) {
+        effective[field].condition = defaultVal.condition;
+      }
+    } else {
+      effective[field] = clientVal !== undefined ? clientVal : defaultVal;
+    }
+  }
+
+  for (const [field, val] of Object.entries(clientObj)) {
+    if (effective[field] !== undefined) continue;
+    effective[field] = val;
+  }
+
+  return effective;
+};
+
+const buildEffectiveLevelSchemaPreferDefaultConditions = (defaults, clientSchema) => {
+  const effective = buildEffectiveLevel2Schema(defaults, clientSchema);
+  const defaultsObj = defaults && typeof defaults === "object" ? defaults : {};
+  for (const [field, defaultVal] of Object.entries(defaultsObj)) {
+    if (!defaultVal || typeof defaultVal !== "object") continue;
+    if (!defaultVal.condition) continue;
+    if (effective[field] && typeof effective[field] === "object") {
+      effective[field].condition = defaultVal.condition;
+    }
+  }
+  return effective;
+};
+
+const toMs = (v) => {
+  if (v === null || v === undefined) return null;
+  if (v instanceof Date) return v.getTime();
+  const s = String(v).trim();
+  if (!s) return null;
+  const t = Date.parse(s);
+  return Number.isFinite(t) ? t : null;
+};
+
+const evaluateOrderValidation3ReferenceRules = (order, schema, ctx) => {
+  const errors = [];
+  if (!schema || typeof schema !== "object") return errors;
+  const exchangeDestinations = ctx?.exchangeDestinations;
+  const validFirmIds = ctx?.validFirmIds;
+
+  const addRuleError = (field) => {
+    const cond = schema?.[field]?.condition;
+    errors.push({
+      field,
+      message: `${field} does not satisfy rule: ${cond ?? ""}`.trim(),
+    });
+  };
+
+  if (schema.orderDestination?.enabled) {
+    const actionStr = String(order?.orderAction ?? "").trim();
+    const actionNum = Number.parseInt(actionStr, 10);
+    const isExternalRouteAction = actionNum === 5 || actionNum === 6 || actionStr === "5" || actionStr === "6";
+
+    // Apply this reference-data validation only for Order_Action in (5,6)
+    if (isExternalRouteAction) {
+      const dest = String(order?.orderDestination ?? "").trim();
+      if (!dest) {
+        addRuleError("orderDestination");
+      } else if (exchangeDestinations instanceof Set && !exchangeDestinations.has(dest)) {
+        addRuleError("orderDestination");
+      }
+    }
+  }
+
+  if (schema.orderRoutedOrderId?.enabled) {
+    const dest = String(order?.orderDestination ?? "").trim();
+    const routedId = String(order?.orderRoutedOrderId ?? "").trim();
+    const isExchange = exchangeDestinations instanceof Set && dest && exchangeDestinations.has(dest);
+    if (isExchange && !routedId) {
+      addRuleError("orderRoutedOrderId");
+    }
+  }
+
+  if (schema.orderExecutingEntity?.enabled) {
+    const v = order?.orderExecutingEntity;
+    const n = typeof v === "number" ? v : Number.parseInt(String(v ?? "").trim(), 10);
+    if (!Number.isFinite(n)) {
+      addRuleError("orderExecutingEntity");
+    } else if (validFirmIds instanceof Set && validFirmIds.size > 0 && !validFirmIds.has(n)) {
+      addRuleError("orderExecutingEntity");
+    }
+  }
+
+  if (schema.orderBookingEntity?.enabled) {
+    const v = order?.orderBookingEntity;
+    const n = typeof v === "number" ? v : Number.parseInt(String(v ?? "").trim(), 10);
+    if (!Number.isFinite(n)) {
+      addRuleError("orderBookingEntity");
+    } else if (validFirmIds instanceof Set && validFirmIds.size > 0 && !validFirmIds.has(n)) {
+      addRuleError("orderBookingEntity");
+    }
+  }
+
+  if (schema.orderStartTime?.enabled) {
+    const start = toMs(order?.orderStartTime);
+    const evt = toMs(order?.orderEventTime);
+    if (start !== null && evt !== null && start < evt) {
+      addRuleError("orderStartTime");
+    }
+  }
+
+  return errors;
+};
 
  const markPreviousValidationErrorsDedupedForOrderBatch = async (batchId, userId) => {
   await prisma.$executeRaw`
@@ -87,6 +223,8 @@ const validateOrder = (orderData, zodSchemaObj) => {
       };
     }
 
+    const normalizedData = { ...(orderData || {}) };
+
     // Build dynamic zod schema from stored configuration
     const schemaShape = {};
 
@@ -108,11 +246,20 @@ const validateOrder = (orderData, zodSchemaObj) => {
     for (const [fieldName, fieldConfig] of Object.entries(zodSchemaObj)) {
       if (!fieldConfig || typeof fieldConfig !== "object") continue;
 
-      const isNullable = !!fieldConfig.nullable;
-      const isOptional = !!fieldConfig.optional;
 
-      let innerSchema;
-
+      if (fieldConfig.optional) {
+        const v = normalizedData[fieldName];
+        if (
+          v === null ||
+          v === undefined ||
+          (typeof v === "string" && v.trim() === "")
+        ) {
+          delete normalizedData[fieldName];
+        }
+      }
+      
+      let fieldSchema;
+      
       // Handle different field types
       switch (fieldConfig.type) {
         case "string": {
@@ -122,10 +269,9 @@ const validateOrder = (orderData, zodSchemaObj) => {
           });
 
           if (fieldConfig.min !== undefined) {
-            stringSchema = stringSchema.min(
-              fieldConfig.min,
-              fieldConfig.minMessage || "invalid format"
-            );
+
+            stringSchema = stringSchema.min(fieldConfig.min, fieldConfig.minMessage);
+
           }
           if (fieldConfig.max !== undefined) {
             stringSchema = stringSchema.max(
@@ -320,7 +466,7 @@ const validateOrder = (orderData, zodSchemaObj) => {
     const dynamicSchema = z.object(schemaShape);
     
     // Validate the order data
-    const result = dynamicSchema.safeParse(orderData);
+    const result = dynamicSchema.safeParse(normalizedData);
     
     if (result.success) {
       return { success: true };
@@ -359,64 +505,452 @@ const validateOrder = (orderData, zodSchemaObj) => {
 // Supports patterns:
 // 1. "<Field> should not be null when <DepField> in (x,y,...)"
 // 2. "<Field> should be null when <DepField> in (x,y,...)"
-// 3. "<Field> must be in (x,y,...)"
+// 3. "<Field> must be in (x,y,...)" or "<Field> must be in (1-38)" (range syntax)
+// 4. "<Field> should not be null when <DepField> is populated/not null/not empty"
+// 5. "<Field> should not be null when <DepField> is null"
+// 6. "<Field> should/must be only populated when <DepField> in (x,y,...)"
+// 7. "<Field> should be in (x,y) when not null"
+// 8. "<Field> must be populated when <DepField> is not null and <DepField2> in (x,y,...)"
+// 9. "<Field> should be null OR <Field> should not be null and must be in (x,y,...)"
+// 10. "<Field> should be null OR must be greater than 0"
+// 11. "<Field> should not be null and must be greater than 0"
+// 12. "<Field> less than <OtherField>" (field comparison)
+// 13. "<Field> not equal to <OtherField>" (field comparison)
 // returns array of { field, message }
 const evaluateLevel2Rules = (record, rulesObj) => {
   const errors = [];
-  // Build a lowercase->value map so that rule conditions can be case-insensitive
-  const recLower = {};
+  const normalizeKey = (k) => String(k || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+
+  const splitOutsideParens = (input, keyword) => {
+    const s = String(input || "");
+    const lower = s.toLowerCase();
+    const needle = ` ${String(keyword).toLowerCase()} `;
+    const parts = [];
+    let depth = 0;
+    let start = 0;
+
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i];
+      if (ch === "(") depth++;
+      if (ch === ")" && depth > 0) depth--;
+
+      if (depth === 0 && lower.slice(i, i + needle.length) === needle) {
+        parts.push(s.slice(start, i).trim());
+        start = i + needle.length;
+        i = start - 1;
+      }
+    }
+    parts.push(s.slice(start).trim());
+    return parts.filter(Boolean);
+  };
+
+  const hasValue = (v) => {
+    if (v === null || v === undefined) return false;
+    if (typeof v === "string") return v.trim() !== "";
+    return true;
+  };
+
+  const toNumber = (v) => {
+    if (typeof v === "number") return v;
+    const n = Number.parseFloat(String(v ?? "").trim());
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const parseList = (vals) => String(vals || "")
+    .split(",")
+    .map((v) => v.replace(/['"()]/g, "").trim())
+    .filter(Boolean);
+
+  // Parse range like "1-38" into array ["1","2",...,"38"]
+  const parseRange = (rangeStr) => {
+    const rangeMatch = /^(\d+)-(\d+)$/.exec(rangeStr.trim());
+    if (rangeMatch) {
+      const start = parseInt(rangeMatch[1], 10);
+      const end = parseInt(rangeMatch[2], 10);
+      const result = [];
+      for (let i = start; i <= end; i++) {
+        result.push(String(i));
+      }
+      return result;
+    }
+    return null;
+  };
+
+  // Parse list that may contain ranges like "(1-38)" or "(1,2,3)"
+  const parseListWithRanges = (vals) => {
+    const raw = String(vals || "").replace(/[()]/g, "").trim();
+    // Check if it's a range pattern
+    const rangeResult = parseRange(raw);
+    if (rangeResult) return rangeResult;
+    // Otherwise parse as comma-separated list
+    return raw.split(",").map((v) => v.replace(/['"]/g, "").trim()).filter(Boolean);
+  };
+
+  const listIncludes = (value, list) => {
+    const s = String(value ?? "").trim();
+    if (s === "") return false;
+    if (list.includes(s)) return true;
+    const n = toNumber(s);
+    if (n === null) return false;
+    return list.some((item) => {
+      const ni = toNumber(item);
+      return ni !== null && ni === n;
+    });
+  };
+
+  // Build a normalized->value map so that rule conditions can be case/underscore-insensitive
+  const recNorm = {};
   for (const [k, v] of Object.entries(record || {})) {
-    recLower[k.toLowerCase()] = v;
+    recNorm[normalizeKey(k)] = v;
   }
+
+  const getVal = (k) => recNorm[normalizeKey(k)];
   if (!rulesObj || typeof rulesObj !== 'object') return errors;
 
   for (const [field, rule] of Object.entries(rulesObj)) {
     if (!rule?.enabled || !rule.condition || rule.condition.trim() === '-' ) continue;
-    const cond = rule.condition.toLowerCase();
+    const condRaw = String(rule.condition);
+    const cond = condRaw.toLowerCase();
 
-    // Pattern 0: unconditional null requirement (no "when <depField>" clause)
-    if (!cond.includes(' when ')) {
-      const nullMatch = /^(?<target>[a-z0-9_]+).*?should\s+(?<neg>not\s+)?be null$/i.exec(cond);
-      if (nullMatch) {
-        const { target, neg } = nullMatch.groups;
-        const hasValue = recLower[target] !== null && recLower[target] !== undefined && String(recLower[target]).trim() !== '';
-        if (neg && !hasValue) {
-          errors.push({ field, message: `${field} should not be null` });
-        }
-        if (!neg && hasValue) {
-          errors.push({ field, message: `${field} should be null` });
-        }
-        continue; // processed this rule
-      }
-    }
+    // Try to detect the target field name from the condition; fallback to schema key
+    // First try to match against the original condition (preserves case)
+    const targetMatchOriginal = /^\s*(?<target>[a-z0-9_]+)\b/i.exec(condRaw);
+    const target = targetMatchOriginal?.groups?.target || field;
 
-    // Pattern 1 & 2: population based on other field list
-    const popRegex = /^(?<target>[a-z0-9_]+).*?(?<should>should|must).*?(?<nullstate>not be null|be null).*?when (?<dep>[a-z0-9_]+) in \((?<vals>[^)]+)\)/;
-    const popMatch = cond.match(popRegex);
-    if (popMatch) {
-      const { target, dep, nullstate, vals } = popMatch.groups;
-      const list = vals.split(/[, ]+/).map(v => v.replace(/['"()]/g,'').trim()).filter(Boolean);
-      const depVal = String(recLower[dep] ?? '').trim();
-      const targetValPresent = recLower[target] !== null && recLower[target] !== undefined && String(recLower[target]).trim() !== '';
-      const depMatch = list.includes(depVal);
-      if (depMatch) {
-        if (nullstate === 'not be null' && !targetValPresent) {
-          errors.push({ field, message: `${field} should not be null when ${dep} in (${list.join(',')})`});
-        }
-        if (nullstate === 'be null' && targetValPresent) {
-          errors.push({ field, message: `${field} should be null when ${dep} in (${list.join(',')})`});
+    const v = getVal(target);
+    const present = hasValue(v);
+
+    // ============================================
+    // Handle "should be in (x,y) when not null" pattern
+    // Pattern: "<Field> should be in (x,y,...) when not null"
+    // Meaning: If field has a value, it must be in the list
+    // ============================================
+    const shouldBeInWhenNotNullMatch = /\b(should|must)\s+be\s+in\s*\((?<vals>[^)]+)\)\s+when\s+not\s+null\b/i.exec(condRaw);
+    if (shouldBeInWhenNotNullMatch?.groups) {
+      // Only validate if field has a value
+      if (present) {
+        const list = parseListWithRanges(shouldBeInWhenNotNullMatch.groups.vals);
+        const sVal = String(v ?? "").trim();
+        if (sVal && !list.includes(sVal)) {
+          errors.push({ field, message: `${field} value ${sVal} not in allowed list (${list.join(',')})` });
         }
       }
       continue;
     }
 
-    // Pattern 3: enum constraint "must be in (..)":
-    const enumRegex = /^(?<target>[a-z0-9_]+).*?must.*?in \((?<vals>[^)]+)\)/;
-    const enumMatch = cond.match(enumRegex);
-    if (enumMatch) {
-      const { target, vals } = enumMatch.groups;
-      const list = vals.split(/[, ]+/).map(v => v.replace(/['"()]/g,'').trim()).filter(Boolean);
-      const val = String(recLower[target] ?? '').trim();
+    // ============================================
+    // Handle "must be populated when <dep> is not null and <dep2> in (x,y,...)"
+    // Complex condition with multiple dependencies
+    // ============================================
+    const mustBePopulatedComplexMatch = /\b(must|should)\s+be\s+populated\s+when\s+(?<dep1>[a-z0-9_]+)\s+is\s+not\s+null\s+and\s+(?<dep2>[a-z0-9_]+)\s+in\s*\((?<vals>[^)]+)\)/i.exec(condRaw);
+    if (mustBePopulatedComplexMatch?.groups) {
+      const dep1Field = mustBePopulatedComplexMatch.groups.dep1;
+      const dep2Field = mustBePopulatedComplexMatch.groups.dep2;
+      const dep2List = parseListWithRanges(mustBePopulatedComplexMatch.groups.vals);
+      const dep1Val = getVal(dep1Field);
+      const dep2Val = String(getVal(dep2Field) ?? "").trim();
+      const dep1Present = hasValue(dep1Val);
+      const dep2InList = dep2Val !== "" && dep2List.includes(dep2Val);
+      
+      // Only apply if both conditions are met
+      if (dep1Present && dep2InList && !present) {
+        errors.push({
+          field,
+          message: `${field} must be populated when ${dep1Field} is not null and ${dep2Field} in (${dep2List.join(',')})`,
+        });
+      }
+      continue;
+    }
+
+    // ============================================
+    // Handle "only populated when" / "be only populated when" patterns
+    // Pattern: "<Field> should/must be only populated when <DepField> in (x,y,...)"
+    // Meaning: Field should be null UNLESS the condition is met
+    // ============================================
+    const onlyPopulatedWhenInMatch = /\b(should|must)\s+be\s+only\s+populated\s+when\s+(?<dep>[a-z0-9_]+)\s+in\s*\((?<vals>[^)]+)\)/i.exec(condRaw);
+    if (onlyPopulatedWhenInMatch?.groups) {
+      const depField = onlyPopulatedWhenInMatch.groups.dep;
+      const depList = parseListWithRanges(onlyPopulatedWhenInMatch.groups.vals);
+      const depVal = String(getVal(depField) ?? "").trim();
+      const conditionMet = depVal !== "" && depList.includes(depVal);
+      
+      // If condition is NOT met, field should be null
+      if (!conditionMet && present) {
+        errors.push({
+          field,
+          message: `${field} should only be populated when ${depField} in (${depList.join(',')})`,
+        });
+      }
+      continue;
+    }
+
+    // ============================================
+    // Handle "when <depField> is populated/not null/not empty"
+    // ============================================
+    const whenPopulatedMatch = /\bwhen\s+(?<dep>[a-z0-9_]+)\s+(is\s+populated|is\s+not\s+null|is\s+not\s+empty)\b/i.exec(cond);
+    if (whenPopulatedMatch?.groups) {
+      const depField = whenPopulatedMatch.groups.dep;
+      const depVal = getVal(depField);
+      const depPresent = hasValue(depVal);
+      
+      // Only apply rule if dependency field is populated
+      if (!depPresent) continue;
+      
+      // Check for "should not be null" requirement
+      const requiresNotNull = /\b(should|must)\s+not\s+be\s+null\b/i.test(condRaw);
+      if (requiresNotNull && !present) {
+        errors.push({
+          field,
+          message: `${field} should not be null when ${depField} is populated`,
+        });
+        continue;
+      }
+
+      // Check for "must be in" requirement
+      const mustInMatch = /\bmust\s+be\s+in\s*\((?<vals>[^)]+)\)/i.exec(condRaw);
+      if (mustInMatch?.groups?.vals && present) {
+        const list = parseListWithRanges(mustInMatch.groups.vals);
+        const sVal = String(v ?? "").trim();
+        if (sVal && !list.includes(sVal)) {
+          errors.push({ field, message: `${field} value ${sVal} not in allowed list (${list.join(',')})` });
+        }
+      }
+      continue;
+    }
+
+    // ============================================
+    // Handle "when <depField> is null"
+    // ============================================
+    const whenNullMatch = /\bwhen\s+(?<dep>[a-z0-9_]+)\s+is\s+null\b/i.exec(cond);
+    if (whenNullMatch?.groups) {
+      const depField = whenNullMatch.groups.dep;
+      const depVal = getVal(depField);
+      const depPresent = hasValue(depVal);
+      
+      // Only apply rule if dependency field is null
+      if (depPresent) continue;
+      
+      // Check for "should not be null" requirement
+      const requiresNotNull = /\b(should|must)\s+not\s+be\s+null\b/i.test(condRaw);
+      if (requiresNotNull && !present) {
+        errors.push({
+          field,
+          message: `${field} should not be null when ${depField} is null`,
+        });
+      }
+      continue;
+    }
+
+    // ============================================
+    // Handle "when <depField> in (x,y,...)"
+    // ============================================
+    const whenMatch = /\bwhen\s+(?<dep>[a-z0-9_]+)\s+in\s*\((?<vals>[^)]+)\)/i.exec(cond);
+    let applies = true;
+    let depField = null;
+    let depList = [];
+    if (whenMatch?.groups) {
+      depField = whenMatch.groups.dep;
+      depList = parseListWithRanges(whenMatch.groups.vals);
+      applies = listIncludes(getVal(depField), depList);
+    }
+
+    if (!applies) continue;
+
+    // ============================================
+    // Handle "when <depField> not in (x,y,...)" - inverse condition
+    // ============================================
+    const whenNotInMatch = /\bwhen\s+(?<dep>[a-z0-9_]+)\s+not\s+in\s*\((?<vals>[^)]+)\)/i.exec(cond);
+    if (whenNotInMatch?.groups) {
+      const notInDepField = whenNotInMatch.groups.dep;
+      const notInDepList = parseListWithRanges(whenNotInMatch.groups.vals);
+      // Skip if the value IS in the list (condition not met)
+      if (listIncludes(getVal(notInDepField), notInDepList)) continue;
+    }
+
+    const evalAtom = (atomRaw) => {
+      const atom = String(atomRaw || "").trim();
+      const atomLower = atom.toLowerCase();
+
+      let atomField = target;
+      let rest = atom;
+      const prefix = /^\s*(?<f>[a-z0-9_]+)\s+(?<r>.+)$/i.exec(atom);
+      if (prefix?.groups?.f && prefix?.groups?.r) {
+        // Only treat the leading token as a field name if it exists on the record.
+        // This prevents phrases like "must be greater than 0" from treating "must" as a field.
+        const candidate = prefix.groups.f;
+        const candidateExists = Object.prototype.hasOwnProperty.call(recNorm, normalizeKey(candidate));
+        if (candidateExists) {
+          atomField = candidate;
+          rest = prefix.groups.r.trim();
+        }
+      }
+
+      const restLower = rest.toLowerCase();
+      const val = getVal(atomField);
+      const valPresent = hasValue(val);
+
+      // Handle "should/must be null" or "is null"
+      if (/^(should|must)\s+be\s+null$/i.test(restLower) || /^is\s+null$/i.test(restLower)) {
+        return !valPresent;
+      }
+      // Handle "should/must not be null" or "is not null" or "is populated" or "is not empty"
+      if (/^(should|must)\s+not\s+be\s+null$/i.test(restLower) || 
+          /^is\s+not\s+null$/i.test(restLower) ||
+          /^is\s+populated$/i.test(restLower) ||
+          /^is\s+not\s+empty$/i.test(restLower)) {
+        return valPresent;
+      }
+
+      // Handle "in (x,y,...)" or "must be in (x,y,...)"
+      const inMatch = /\b(in|must\s+be\s+in)\s*\((?<vals>[^)]+)\)/i.exec(rest);
+      if (inMatch?.groups?.vals) {
+        const list = parseListWithRanges(inMatch.groups.vals);
+        const sVal = String(val ?? "").trim();
+        // If value is empty and field is optional (has "OR" in condition), this is OK
+        if (sVal === "") return true; // Empty values don't need to match the list
+        return list.includes(sVal);
+      }
+
+      const gteMatch = /\bgreater\s+than\s+or\s+equal\s+to\s+(?<num>-?\d+(?:\.\d+)?)\b/i.exec(rest);
+      if (gteMatch?.groups?.num) {
+        const n = toNumber(val);
+        const rhs = Number.parseFloat(gteMatch.groups.num);
+        if (n === null) return !valPresent; // null is OK if not present
+        return n >= rhs;
+      }
+
+      const gtMatch = /\bgreater\s+than\s+(?<num>-?\d+(?:\.\d+)?)\b/i.exec(rest);
+      if (gtMatch?.groups?.num) {
+        const n = toNumber(val);
+        const rhs = Number.parseFloat(gtMatch.groups.num);
+        if (n === null) return !valPresent; // null is OK if not present
+        return n > rhs;
+      }
+
+      // Handle "less than or equal to <num>"
+      const lteNumMatch = /\bless\s+than\s+or\s+equal\s+to\s+(?<num>-?\d+(?:\.\d+)?)\b/i.exec(rest);
+      if (lteNumMatch?.groups?.num) {
+        const n = toNumber(val);
+        const rhs = Number.parseFloat(lteNumMatch.groups.num);
+        if (n === null) return !valPresent;
+        return n <= rhs;
+      }
+
+      // Handle "less than or equal to <field>" (comparison between two fields)
+      const lteFieldMatch = /\bless\s+than\s+or\s+equal\s+to\s+(?<other>[a-z0-9_]+)\b/i.exec(restLower);
+      if (lteFieldMatch?.groups?.other) {
+        const left = toNumber(val);
+        const right = toNumber(getVal(lteFieldMatch.groups.other));
+        // If left is null/undefined, this condition passes (null is OK)
+        if (left === null) return true;
+        // If right is null/undefined, we can't compare, so pass
+        if (right === null) return true;
+        return left <= right;
+      }
+
+      // Handle "less than <num>"
+      const ltNumMatch = /\bless\s+than\s+(?<num>-?\d+(?:\.\d+)?)\b/i.exec(rest);
+      if (ltNumMatch?.groups?.num) {
+        const n = toNumber(val);
+        const rhs = Number.parseFloat(ltNumMatch.groups.num);
+        if (n === null) return !valPresent;
+        return n < rhs;
+      }
+
+      // Handle "less than <field>" (comparison between two fields)
+      // Exclude the "less than or equal to" variant handled above.
+      const ltFieldMatch = /\bless\s+than\s+(?!or\s+equal\s+to\s)(?<other>[a-z0-9_]+)\b/i.exec(restLower);
+      if (ltFieldMatch?.groups?.other) {
+        const left = toNumber(val);
+        const right = toNumber(getVal(ltFieldMatch.groups.other));
+        // If left is null/undefined, this condition passes (null is OK)
+        if (left === null) return true;
+        // If right is null/undefined, we can't compare, so pass
+        if (right === null) return true;
+        return left < right;
+      }
+
+      const neqMatch = /\bnot\s+equal\s+to\s+(?<other>[a-z0-9_]+)\b/i.exec(restLower);
+      if (neqMatch?.groups?.other) {
+        const otherVal = getVal(neqMatch.groups.other);
+        const leftS = String(val ?? "").trim();
+        const rightS = String(otherVal ?? "").trim();
+        // If either is empty, they're not equal (pass)
+        if (leftS === "" || rightS === "") return true;
+        return leftS !== rightS;
+      }
+
+      // Handle "should be in (x,y,...)" pattern at atom level
+      const shouldBeInMatch = /\b(should|must)\s+be\s+in\s*\((?<vals>[^)]+)\)/i.exec(rest);
+      if (shouldBeInMatch?.groups?.vals) {
+        const list = parseListWithRanges(shouldBeInMatch.groups.vals);
+        const sVal = String(val ?? "").trim();
+        if (sVal === "") return true; // Empty values are OK
+        return list.includes(sVal);
+      }
+
+      return null;
+    };
+
+    const condForEval = condRaw
+      .replace(/\bwhen\s+[a-z0-9_]+\s+(?:not\s+)?in\s*\([^)]+\)/ig, "")
+      .trim();
+    const hasLogic = /\s+or\s+/i.test(condForEval) || /\s+and\s+/i.test(condForEval) || /greater\s+than|less\s+than|not\s+equal|\bin\s*\(/i.test(condForEval);
+    if (hasLogic) {
+      const orTerms = splitOutsideParens(condForEval, "or");
+      let parseable = true;
+      const valid = orTerms.some((orTerm) => {
+        const andTerms = splitOutsideParens(orTerm, "and");
+        const andRes = andTerms.map((a) => evalAtom(a));
+        if (andRes.some((r) => r === null)) {
+          parseable = false;
+          return false;
+        }
+        return andRes.every(Boolean);
+      });
+
+      if (parseable) {
+        if (!valid) {
+          errors.push({ field, message: `${field} does not satisfy rule: ${condRaw}` });
+        }
+        continue;
+      }
+
+      continue;
+    }
+
+    const requiresNotNull = /\b(should|must)\s+not\s+be\s+null\b/i.test(condRaw);
+    const requiresNull = !requiresNotNull && /\b(should|must)\s+be\s+null\b/i.test(condRaw);
+
+    if (requiresNotNull && !present) {
+      errors.push({
+        field,
+        message: depField
+          ? `${field} should not be null when ${depField} in (${depList.join(',')})`
+          : `${field} should not be null`,
+      });
+      continue;
+    }
+
+    if (requiresNull && present) {
+      errors.push({
+        field,
+        message: depField
+          ? `${field} should be null when ${depField} in (${depList.join(',')})`
+          : `${field} should be null`,
+      });
+      continue;
+    }
+
+    // Handle "must be in (x-y)" with range syntax
+    const mustInMatch = /\bmust\b[^()]*\bin\s*\((?<vals>[^)]+)\)/i.exec(condRaw);
+    const plainInMatch = new RegExp(`\\b${String(target).replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")}\\s+(should\\s+be\\s+)?in\\s*\\((?<vals>[^)]+)\\)`, "i").exec(condRaw);
+    const listVals = mustInMatch?.groups?.vals || plainInMatch?.groups?.vals || null;
+    if (listVals) {
+      const list = parseListWithRanges(listVals);
+      const val = String(v ?? "").trim();
       if (val && !list.includes(val)) {
         errors.push({ field, message: `${field} value ${val} not in allowed list (${list.join(',')})`});
       }
@@ -771,7 +1305,7 @@ const processValidation2ForBatch = async (batchId) => {
       console.log(`[Validation 2] User ${batch.userId} has no associated client`);
       await prisma.batch.update({
         where: { id: batchId },
-        data: { validation_2: true },
+        data: { validation_2: true, validation_2_status: 'passed' },
       });
       return;
     }
@@ -785,10 +1319,15 @@ const processValidation2ForBatch = async (batchId) => {
       console.log(`[Validation 2] Client has no validation_2 schema configured`);
       await prisma.batch.update({
         where: { id: batchId },
-        data: { validation_2: true },
+        data: { validation_2: true, validation_2_status: 'passed' },
       });
       return;
     }
+
+    const effectiveSchema = buildEffectiveLevelSchemaPreferDefaultConditions(
+      defaultValidation2OrderConditions,
+      client.validation_2
+    );
 
     // Get all orders for this batch
     const orders = await prisma.order.findMany({
@@ -801,9 +1340,9 @@ const processValidation2ForBatch = async (batchId) => {
     const validationResults = [];
     
     for (const order of orders) {
-      let validationResult = validateOrder(order, client.validation_2);
+      let validationResult = validateOrder(order, effectiveSchema);
       // Apply simple Level-2 rules
-      const ruleErrors = evaluateLevel2Rules(order, client.validation_2);
+      const ruleErrors = evaluateLevel2Rules(order, effectiveSchema);
       if (ruleErrors.length > 0) {
         validationResult = {
           success: false,
@@ -925,7 +1464,7 @@ const processExecutionValidation2ForBatch = async (batchId, batch = null) => {
     // Get client's execution validation_2 schema
     if (!batch.user.clientId) {
       console.log(`[Validation 2] User ${batch.userId} has no associated client`);
-      await prisma.batch.update({ where: { id: batchId }, data: { validation_2: true } });
+      await prisma.batch.update({ where: { id: batchId }, data: { validation_2: true, validation_2_status: 'passed' } });
       return;
     }
 
@@ -936,9 +1475,14 @@ const processExecutionValidation2ForBatch = async (batchId, batch = null) => {
 
     if (!client || !client.exe_validation_2) {
       console.log(`[Validation 2] Client has no execution validation_2 schema configured`);
-      await prisma.batch.update({ where: { id: batchId }, data: { validation_2: true } });
+      await prisma.batch.update({ where: { id: batchId }, data: { validation_2: true, validation_2_status: 'passed' } });
       return;
     }
+
+    const effectiveExeSchema = buildEffectiveLevelSchemaPreferDefaultConditions(
+      defaultValidation2ExecutionConditions,
+      client.exe_validation_2
+    );
 
     // Get all executions for this batch
     const executions = await prisma.execution.findMany({ where: { batchId } });
@@ -949,9 +1493,9 @@ const processExecutionValidation2ForBatch = async (batchId, batch = null) => {
     const failed = [];
 
     for (const exe of executions) {
-      let result = validateExecution(exe, client.exe_validation_2);
+      let result = validateExecution(exe, effectiveExeSchema);
       // Apply Level-2 rules for executions
-      const ruleErrors = evaluateLevel2Rules(exe, client.exe_validation_2);
+      const ruleErrors = evaluateLevel2Rules(exe, effectiveExeSchema);
       if (ruleErrors.length > 0) {
         result = {
           success: false,
@@ -1068,22 +1612,68 @@ const processValidation3ForBatch = async (batchId) => {
 
     // no client association
     if (!batch.user.clientId) {
-      await prisma.batch.update({ where: { id: batchId }, data: { validation_3: true } });
+      await prisma.batch.update({ where: { id: batchId }, data: { validation_3: true, validation_3_status: 'passed' } });
       return;
     }
     const client = await prisma.client.findUnique({ where: { id: batch.user.clientId }, select: { validation_3: true } });
     if (!client || !client.validation_3) {
-      await prisma.batch.update({ where: { id: batchId }, data: { validation_3: true } });
+      await prisma.batch.update({ where: { id: batchId }, data: { validation_3: true, validation_3_status: 'passed' } });
       return;
     }
 
+    const effectiveSchema = buildEffectiveLevelSchemaPreferDefaultConditions(
+      defaultValidation3OrderConditions,
+      client.validation_3
+    );
+
     const orders = await prisma.order.findMany({ where: { batchId } });
+    const exchangeRows = await prisma.uSBrokerDealer.findMany({
+      where: {
+        membershipType: 'Exchange',
+        clientId: { not: null },
+      },
+      select: { clientId: true },
+    });
+    const exchangeDestinations = new Set(
+      (exchangeRows || [])
+        .map((r) => String(r.clientId ?? '').trim())
+        .filter(Boolean)
+    );
+
+    const firmIdsToCheck = new Set();
+    for (const o of orders) {
+      const exec = typeof o.orderExecutingEntity === 'number'
+        ? o.orderExecutingEntity
+        : Number.parseInt(String(o.orderExecutingEntity ?? '').trim(), 10);
+      const book = typeof o.orderBookingEntity === 'number'
+        ? o.orderBookingEntity
+        : Number.parseInt(String(o.orderBookingEntity ?? '').trim(), 10);
+      if (Number.isFinite(exec)) firmIdsToCheck.add(exec);
+      if (Number.isFinite(book)) firmIdsToCheck.add(book);
+    }
+    const firmRows = firmIdsToCheck.size
+      ? await prisma.firmEntity.findMany({
+          where: {
+            clientRefId: batch.user.clientId,
+            firmId: { in: Array.from(firmIdsToCheck) },
+            activeFlag: true,
+          },
+          select: { firmId: true },
+        })
+      : [];
+    const validFirmIds = new Set((firmRows || []).map((r) => r.firmId));
+
     let passCnt = 0, failCnt = 0;
     for (const order of orders) {
-      let result = validateOrder(order, client.validation_3);
-      const ruleErrors = evaluateLevel2Rules(order, client.validation_3) || [];
-      if (ruleErrors.length) {
-        result = { success: false, errors: [...(result.errors||[]), ...ruleErrors] };
+      let result = validateOrder(order, effectiveSchema);
+      const ruleErrors = evaluateLevel2Rules(order, effectiveSchema) || [];
+      const refErrors = evaluateOrderValidation3ReferenceRules(order, effectiveSchema, {
+        exchangeDestinations,
+        validFirmIds,
+      });
+      const allErrors = [...(result.errors || []), ...ruleErrors, ...refErrors];
+      if (allErrors.length) {
+        result = { success: false, errors: allErrors };
       }
       const validation = await prisma.validation.create({ data: { orderId: order.id, batchId, success: result.success, validatedAt: new Date() } });
       if (!result.success && result.errors?.length) {
@@ -1107,16 +1697,21 @@ const processExecutionValidation3ForBatch = async (batchId, batch=null) => {
     if (batch.validation_2_status !== 'passed') return console.log(`[Validation 3] Execution batch ${batchId} – validation_2_status not 'passed', skip`);
     if (batch.validation_3 !== null) return console.log(`[Validation 3] Execution batch ${batchId} already validated`);
 
-    if (!batch.user.clientId) { await prisma.batch.update({ where:{id:batchId}, data:{ validation_3:true } }); return; }
+    if (!batch.user.clientId) { await prisma.batch.update({ where:{id:batchId}, data:{ validation_3:true, validation_3_status: 'passed' } }); return; }
     const client = await prisma.client.findUnique({ where:{id:batch.user.clientId}, select:{ exe_validation_3:true } });
-    if (!client || !client.exe_validation_3) { await prisma.batch.update({ where:{id:batchId}, data:{ validation_3:true } }); return; }
+    if (!client || !client.exe_validation_3) { await prisma.batch.update({ where:{id:batchId}, data:{ validation_3:true, validation_3_status: 'passed' } }); return; }
+
+    const effectiveExeSchema = buildEffectiveLevelSchemaPreferDefaultConditions(
+      defaultValidation3ExecutionConditions,
+      client.exe_validation_3
+    );
 
     const executions = await prisma.execution.findMany({ where:{ batchId } });
     let pass=0, fail=0;
     for (const exe of executions) {
-      let result = validateExecution(exe, client.exe_validation_3);
+      let result = validateExecution(exe, effectiveExeSchema);
       // Apply Level-2 rules for executions
-      const ruleErrors = evaluateLevel2Rules(exe, client.exe_validation_3);
+      const ruleErrors = evaluateLevel2Rules(exe, effectiveExeSchema);
       if (ruleErrors.length > 0) {
         result = { success: false, errors: [...(result.errors||[]), ...ruleErrors] };
       }

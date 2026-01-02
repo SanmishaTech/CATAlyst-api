@@ -200,6 +200,8 @@ const fieldMapping = {
   order_participant_priority_code: "orderParticipantPriorityCode",
   orderactioninitiated: "orderActionInitiated",
   order_action_initiated: "orderActionInitiated",
+  orderactioninitiated_: "orderActionInitiated",
+  order_action_initiated_: "orderActionInitiated",
   orderpackageindicator: "orderPackageIndicator",
   order_package_indicator: "orderPackageIndicator",
   orderpackageid: "orderPackageId",
@@ -398,7 +400,6 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
     clientId,
     uniqueID,
     orderId: orderData.orderId || null,
-    // Use nullish-coalescing for numeric/decimal fields so 0 is preserved
     orderIdVersion: orderData.orderIdVersion ?? null,
     orderIdSession: orderData.orderIdSession || null,
     orderIdInstance: orderData.orderIdInstance || null,

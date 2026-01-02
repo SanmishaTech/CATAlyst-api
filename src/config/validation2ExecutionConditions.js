@@ -261,7 +261,7 @@ module.exports = {
   
   executionBookingEligiblity: {
     enabled: true,
-    condition: "executionBookingEligiblity should be null OR must be in (Y,N)",
+    condition: "executionBookingEligiblity should be null OR must be in (1,2)",
     required: true
   },
   

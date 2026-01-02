@@ -94,22 +94,22 @@ Run each validation/business classification cron once immediately (JS files, no 
 
 - Validation 1 (orders/executions):
 ```bash
-node ./src/jobs/validationCron.js
+node .\runValidation.js
 ```
 
 - Validation 2:
 ```bash
-node ./src/jobs/validation2Cron.js
+node -e "require('dotenv').config(); const { triggerValidation2 } = require('./src/jobs/validation2Cron'); triggerValidation2().then(()=>process.exit(0)).catch(e=>{console.error(e);process.exit(1)});"
 ```
 
 - Validation 3:
 ```bash
-node ./src/jobs/validation3Cron.js
+node -e "require('dotenv').config(); const { triggerValidation3 } = require('./src/jobs/validation3Cron'); triggerValidation3().then(()=>process.exit(0)).catch(e=>{console.error(e);process.exit(1)});"
 ```
 
 - Business Classification:
 ```bash
-node ./src/jobs/businessClassificationCron.js
+node -e "require('dotenv').config(); const { triggerBusinessClassification } = require('./src/jobs/businessClassificationCron'); triggerBusinessClassification().then(()=>process.exit(0)).catch(e=>{console.error(e);process.exit(1)});"
 ```
 
 These use your existing `.env`, Prisma client, and queue logic; they simply run the handlers once instead of waiting for the scheduled interval.

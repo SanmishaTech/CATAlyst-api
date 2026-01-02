@@ -18,6 +18,26 @@ const processValidation2Queue = async () => {
     isRunning = true;
     console.log("[Validation 2 Cron] Starting validation_2 check...");
 
+    // Backfill any batches where validation_2 has a value but validation_2_status is missing.
+    await prisma.batch.updateMany({
+      where: {
+        validation_2: true,
+        validation_2_status: null,
+      },
+      data: {
+        validation_2_status: 'passed',
+      },
+    });
+    await prisma.batch.updateMany({
+      where: {
+        validation_2: false,
+        validation_2_status: null,
+      },
+      data: {
+        validation_2_status: 'failed',
+      },
+    });
+
     // Find all batches that passed validation_1 and need validation_2
     const pendingBatches = await prisma.batch.findMany({
       where: {

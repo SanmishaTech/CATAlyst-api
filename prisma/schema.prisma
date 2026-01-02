@@ -76,6 +76,9 @@ model Client {
   validationSchemaHistories ValidationSchemaHistory[]
   usBrokerDealers           USBrokerDealer[]          @relation("ClientUSBrokerDealers")
   instrumentMappings        InstrumentsMapping[]      @relation("ClientInstrumentMappings")
+  accountMappings           AccountMapping[]          @relation("ClientAccountMappings")
+  currencyCodes             CurrencyCode[]            @relation("ClientCurrencyCodes")
+  firmEntities              FirmEntity[]              @relation("ClientFirmEntities")
 
   @@map("clients")
 }
@@ -547,6 +550,55 @@ model USBrokerDealer {
   @@map("us_broker_dealer")
 }
 
+model AccountMapping {
+  id             Int       @id @default(autoincrement())
+  clientRefId    Int?
+  clientId       String?   @db.VarChar(128)
+  accountNo      String?   @db.VarChar(128)
+  accountType    String?   @db.VarChar(64)
+  clearingType   String?   @db.VarChar(64)
+  desk           String?   @db.VarChar(128)
+  infoBarrier    String?   @db.VarChar(128)
+  owner          String?   @db.VarChar(255)
+  entity         String?   @db.VarChar(255)
+  settlementType String?   @db.VarChar(64)
+  clearingBroker String?   @db.VarChar(128)
+  agreement      String?   @db.VarChar(255)
+  agreementType  String?   @db.VarChar(128)
+  primaryParty   String?   @db.VarChar(255)
+  counterParty   String?   @db.VarChar(255)
+  activeFlag     Boolean   @default(true)
+  validFrom      DateTime? @db.Date
+  validTo        DateTime? @db.Date
+  region         String?   @db.VarChar(64)
+  updatedBy      String?   @db.VarChar(255)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  client         Client?   @relation("ClientAccountMappings", fields: [clientRefId], references: [id], onDelete: Cascade)
+
+  @@index([clientRefId])
+  @@index([clientId])
+  @@index([accountNo])
+  @@map("account_mapping")
+}
+
+model CurrencyCode {
+  id          Int      @id @default(autoincrement())
+  clientRefId Int?
+  clientId    String?  @db.VarChar(128)
+  country     String?  @db.VarChar(128)
+  currency    String?  @db.VarChar(128)
+  code        String?  @db.VarChar(16)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  client      Client?  @relation("ClientCurrencyCodes", fields: [clientRefId], references: [id], onDelete: Cascade)
+
+  @@index([clientRefId])
+  @@index([clientId])
+  @@index([code])
+  @@map("iso_4217_currency_codes")
+}
+
 model InstrumentsMapping {
   id               Int      @id @default(autoincrement())
   clientRefId      Int?
@@ -586,4 +638,34 @@ model InstrumentsMapping {
   @@index([isin])
   @@index([cfiCode])
   @@map("instruments_mapping")
+}
+
+model FirmEntity {
+  id              Int       @id @default(autoincrement())
+  clientRefId     Int?
+  firmId          Int
+  firmName        String?   @db.VarChar(255)
+  imid            String?   @db.VarChar(64)
+  crdId           String?   @db.VarChar(64)
+  address         String?   @db.Text
+  taxId           String?   @db.VarChar(64)
+  lei             String?   @db.VarChar(64)
+  validFrom       DateTime? @db.Date
+  validTo         DateTime? @db.Date
+  activeFlag      Boolean   @default(true)
+  type            String?   @db.VarChar(64)
+  account         String?   @db.VarChar(128)
+  clearingAccount String?   @db.VarChar(128)
+  clearingBroker  String?   @db.VarChar(128)
+  clearingType    String?   @db.VarChar(64)
+  region          String?   @db.VarChar(64)
+  brokerDealer    Boolean   @default(false)
+  affiliateFlag   Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  client          Client?   @relation("ClientFirmEntities", fields: [clientRefId], references: [id], onDelete: Cascade)
+
+  @@index([clientRefId])
+  @@index([firmId])
+  @@map("firm_entity")
 }

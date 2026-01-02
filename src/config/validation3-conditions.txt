@@ -1,0 +1,9 @@
+Order_Destination -   Order_Destination must present in Reference Data - US Broker Dealer.ClientID and Reference Data - US Broker Dealer.Membership Type = 'Exchange'
+orderExecutingEntity - Order_Executing_Entity should not be null and Order_Executing_Entity must be present in Reference Data - Firm Entity.FirmID
+orderBookingEntity - Order_Booking_Entity should not be null and Order_Booking_Entity must be present in Reference Data - Firm Entity.FirmID
+orderPositionAccount - Order_Position_Account should not be null and Order_Position_Account must be present in Referance Data - Account Mapping.AccountNo
+orderCurrencyId - Order_Currency_ID should not be null and Order_Currency_ID must be present in Reference Data - ISO 4217 Currency Codes.Code
+orderExecutingAccount - ((Order_Executing_Account should be null) OR (Order_Executing_Account should not be null and Order_Executing_Account must be present in Referance Data - Account Mapping.AccountNo))
+orderClearingAccount - ((Order_Clearing_Account should be null) OR (Order_Clearing_Account should not be null and Order_Clearing_Account must be present in Referance Data - Account Mapping.AccountNo))
+orderRoutedOrderId - Must be populated when Order_Destination is not null and Order_Destination is present in Reference Data - US Broker Dealer.ClientID and Reference Data - US Broker Dealer.Membership Type = 'Exchange'
+orderStartTime - Order_Start_Time should not be less than Order_Event_Time
