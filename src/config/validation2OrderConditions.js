@@ -34,19 +34,6 @@ module.exports = {
     condition: "orderIdVersion should not be null",
     required: true
   },
-  
-  orderIdSession: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
-  orderIdInstance: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
   parentOrderId: {
     enabled: true,
     condition: "parentOrderId should not be null when orderParentChildType in (C)",
@@ -100,13 +87,7 @@ module.exports = {
     condition: "orderClientRef should not be null when orderAction in (14) and orderClientRef should be null when orderCapacity in (2,4)",
     required: true
   },
-  
-  orderClientRefDetails: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
+
   orderExecutingEntity: {
     enabled: true,
     condition: "orderExecutingEntity should not be null",
@@ -160,25 +141,13 @@ module.exports = {
     condition: "orderManualTimestamp must be in nano seconds and should not be null when orderManualIndicator in (1)",
     required: true
   },
-  
-  orderOmsSource: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
+ 
   orderPublishingTime: {
     enabled: true,
     condition: "orderPublishingTime must be in nano seconds",
     required: false
   },
-  
-  orderTradeDate: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
+
   orderQuantity: {
     enabled: true,
     condition: "orderQuantity should not be null and must be greater than 0",
@@ -286,25 +255,7 @@ module.exports = {
     condition: "orderInstrumentReferenceValue should not be null when orderInstrumentReference is not null",
     required: true
   },
-  
-  orderOptionPutCall: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
-  orderOptionStrikePrice: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
-  orderOptionLegIndicator: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
+ 
   orderComplianceId: {
     enabled: true,
     condition: "orderComplianceId must be the same throughout the life cycle of an order",
@@ -322,13 +273,7 @@ module.exports = {
     condition: "orderExecutingAccount should be null OR must be present in lookup table",
     required: false
   },
-  
-  orderClearingAccount: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
+
   orderClientOrderId: {
     enabled: true,
     condition: "orderClientOrderId should not be null when orderAction in (1,2,8,9,10)",
@@ -340,43 +285,7 @@ module.exports = {
     condition: "orderRoutedOrderId must be populated when orderDestination is not null and orderExdestinationInstruction in (Internal,External)",
     required: true
   },
-  
-  orderTradingOwner: {
-    enabled: false,
-    condition: "-",
-    required: false
-  },
-  
-  orderExtendedAttribute: {
-    enabled: false,
-    condition: "-",
-    required: false
-  },
-  
-  orderQuoteId: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
-  orderRepresentOrderId: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
-  orderOnBehalfCompId: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
-  orderSpread: {
-    enabled: false,
-    condition: "-",
-    required: false
-  },
-  
+ 
   orderAmendReason: {
     enabled: true,
     condition: "orderAmendReason must be only populated when orderAction in (8,9,10)",
@@ -445,53 +354,14 @@ module.exports = {
     required: true
   },
   
-  orderExdestinationInstruction: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
-  orderExecutionParameter: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
-  orderInfobarrierId: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
-  orderLegRatio: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
-  orderLocateId: {
-    enabled: false,
-    condition: "-",
-    required: false
-  },
+ 
   
   orderNegotiatedIndicator: {
     enabled: true,
     condition: "orderNegotiatedIndicator should be in (1,2)",
     required: true
   },
-  
-  orderOpenClose: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
-  orderParticipantPriorityCode: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
+ 
   
 
   //change
@@ -500,30 +370,7 @@ module.exports = {
     condition: "orderActionInitiated should not be null and must be in (1,2,3,4)",
     required: true
   },
-  
-  orderPackageIndicator: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
-  orderPackageId: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
-  orderPackagePricetype: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
-  orderStrategyType: {
-    enabled: false,
-    condition: "-",
-    required: false
-  },
+ 
   
   orderSecondaryOffering: {
     enabled: true,
@@ -567,35 +414,12 @@ module.exports = {
     required: true
   },
   
-  orderSeqNumber: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
   atsDisplayIndicator: {
     enabled: true,
     condition: "atsDisplayIndicator should be in (1,2) when not null",
     required: true
   },
-  
-  orderDisplayQty: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
-  orderWorkingPrice: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
-  
-  atsOrderType: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
+
   
   orderNbboSource: {
     enabled: true,
@@ -615,11 +439,6 @@ module.exports = {
     required: true
   },
   
-  orderNetPrice: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
   
   routeRejectedFlag: {
     enabled: true,
@@ -627,9 +446,4 @@ module.exports = {
     required: true
   },
   
-  orderOriginationSystem: {
-    enabled: false,
-    condition: "-",
-    required: true
-  }
 };

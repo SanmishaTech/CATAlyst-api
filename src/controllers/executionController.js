@@ -848,6 +848,12 @@ const uploadExecutions = async (req, res, next) => {
         fileName: fileNameForBatch,
         tradeDate: req.body.tradeDate ? new Date(req.body.tradeDate) : null,
         fileType: req.body.fileType || 'execution',
+        validation_1: null,
+        validation_1_status: null,
+        validation_2: null,
+        validation_2_status: null,
+        validation_3: null,
+        validation_3_status: null,
       },
     });
 
