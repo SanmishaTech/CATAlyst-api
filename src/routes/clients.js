@@ -733,6 +733,12 @@ router.post(
   accountMappingController.uploadAccountMapping
 );
 
+router.get(
+  "/:id/account-mapping/template",
+  auth,
+  accountMappingController.downloadAccountMappingTemplate
+);
+
 router.post(
   "/:id/currency-codes/upload",
   auth,

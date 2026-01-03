@@ -552,7 +552,7 @@ model USBrokerDealer {
 
 model AccountMapping {
   id             Int       @id @default(autoincrement())
-  clientRefId    Int?
+  clientRefId    Int
   clientId       String?   @db.VarChar(128)
   accountNo      String?   @db.VarChar(128)
   accountType    String?   @db.VarChar(64)
@@ -563,23 +563,23 @@ model AccountMapping {
   entity         String?   @db.VarChar(255)
   settlementType String?   @db.VarChar(64)
   clearingBroker String?   @db.VarChar(128)
-  agreement      String?   @db.VarChar(255)
+  agreement      Boolean?
   agreementType  String?   @db.VarChar(128)
   primaryParty   String?   @db.VarChar(255)
   counterParty   String?   @db.VarChar(255)
-  activeFlag     Boolean   @default(true)
+  active     Boolean?
   validFrom      DateTime? @db.Date
   validTo        DateTime? @db.Date
   region         String?   @db.VarChar(64)
   updatedBy      String?   @db.VarChar(255)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
-  client         Client?   @relation("ClientAccountMappings", fields: [clientRefId], references: [id], onDelete: Cascade)
+  client         Client   @relation("ClientAccountMappings", fields: [clientRefId], references: [id], onDelete: Cascade)
 
   @@index([clientRefId])
   @@index([clientId])
   @@index([accountNo])
-  @@map("account_mapping")
+  @@map("account_mappings")
 }
 
 model CurrencyCode {
