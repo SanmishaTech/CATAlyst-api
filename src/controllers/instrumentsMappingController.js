@@ -180,7 +180,11 @@ const parseDateMMDDYYYY = (v) => {
   return undefined;
 };
 
-// Strict timestamp YYYY-MM-DD HH:MM:SS (or 'T' separator), plus Excel Date/serials
+// Timestamp parser: accepts
+// - YYYY-MM-DD HH:MM:SS (24h)
+// - YYYY-MM-DD H:MM:SSAM/PM (AM/PM with or without space)
+// - Separator can be space or 'T'
+// Also accepts Excel serials and Date objects
 const parseDateTimestamp = (v) => {
   if (v === null || v === undefined || v === "") return undefined;
   if (v instanceof Date) return v;
@@ -191,14 +195,19 @@ const parseDateTimestamp = (v) => {
     return new Date(excelEpoch + days * 86400000);
   }
   const s = String(v).trim();
-  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/);
+  const m = s.match(
+    /^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2}):(\d{2})\s*(AM|PM)?$/i
+  );
   if (m) {
     const year = parseInt(m[1], 10);
     const month = parseInt(m[2], 10) - 1;
     const day = parseInt(m[3], 10);
-    const hh = parseInt(m[4], 10);
+    let hh = parseInt(m[4], 10);
     const mm = parseInt(m[5], 10);
     const ss = parseInt(m[6], 10);
+    const ampm = (m[7] || "").toLowerCase();
+    if (ampm === "pm" && hh < 12) hh += 12;
+    if (ampm === "am" && hh === 12) hh = 0;
     if (month >= 0 && month <= 11)
       return new Date(Date.UTC(year, month, day, hh, mm, ss));
   }
@@ -281,23 +290,95 @@ async function uploadInstrumentsMapping(req, res, next) {
         }
 
         if (dateFields.has(field)) {
-          const parsed =
+          const displayFull =
+            cell && typeof cell.text === "string" ? cell.text.trim() : "";
+          const present = !(
+            (raw === null || raw === undefined || raw === "") && displayFull === ""
+          );
+
+          // 1) Try parse raw value with primary parser
+          let parsed =
             field === "expirationDate"
               ? parseDateTimestamp(raw)
               : parseDateMMDDYYYY(raw);
-          const present = !(raw === null || raw === undefined || raw === "");
-          if (present && parsed === undefined) {
+          if (parsed !== undefined) {
+            rec[field] = parsed;
+            return;
+          }
+
+          // 2) Try parse displayed text using general parser
+          // Use broader parseDate which supports multiple formats as a fallback
+          parsed = parseDate(displayFull);
+          if (parsed !== undefined) {
+            rec[field] = parsed;
+            return;
+          }
+
+          // 3) Extract common substrings from display text and parse
+          // Try numeric MM/DD/YYYY anywhere
+          const numericAnywhere = displayFull.match(
+            /(0?[1-9]|1[0-2])\/(0?[1-9]|[12][0-9]|3[01])\/(\d{2,4})/
+          );
+          if (numericAnywhere) {
+            const mm = parseInt(numericAnywhere[1], 10) - 1;
+            const dd = parseInt(numericAnywhere[2], 10);
+            let yy = parseInt(numericAnywhere[3], 10);
+            if (String(numericAnywhere[3]).length === 2) yy = 2000 + yy;
+            if (yy > 2099) yy = 2099;
+            rec[field] = new Date(Date.UTC(yy, mm, dd));
+            return;
+          }
+          // Try D Mon YYYY/YY formats anywhere (e.g., 2 Jan 2025)
+          const dMonAnywhere = displayFull.match(
+            /(\d{1,2})[-\/\s]([A-Za-z]{3,})[-\/\s](\d{2,4})/
+          );
+          if (dMonAnywhere) {
+            const day = parseInt(dMonAnywhere[1], 10);
+            const monStr = String(dMonAnywhere[2]).trim().toLowerCase();
+            const monthMap = {
+              jan: 0,
+              january: 0,
+              feb: 1,
+              february: 1,
+              mar: 2,
+              march: 2,
+              apr: 3,
+              april: 3,
+              may: 4,
+              jun: 5,
+              june: 5,
+              jul: 6,
+              july: 6,
+              aug: 7,
+              august: 7,
+              sep: 8,
+              sept: 8,
+              september: 8,
+              oct: 9,
+              october: 9,
+              nov: 10,
+              november: 10,
+              dec: 11,
+              december: 11,
+            };
+            const month = monthMap[monStr];
+            let year = parseInt(dMonAnywhere[3], 10);
+            if (String(dMonAnywhere[3]).length === 2) year = 2000 + year;
+            if (year > 2099) year = 2099;
+            if (month !== undefined && day >= 1 && day <= 31) {
+              rec[field] = new Date(Date.UTC(year, month, day));
+              return;
+            }
+          }
+
+          if (present) {
             const fmt =
-              field === "expirationDate" ? "YYYY-MM-DD HH:MM:SS" : "MM/DD/YYYY";
+              field === "expirationDate" ? "timestamp or common date formats" : "MM/DD/YYYY or common date formats";
             errors.push({
               row: rowNumber,
               field,
-              message: `Invalid date for ${field}: '${raw}' (expected ${fmt})`,
+              message: `Invalid date for ${field}: '${displayFull || raw}' (accepted ${fmt})`,
             });
-            return;
-          }
-          if (parsed !== undefined) {
-            rec[field] = parsed;
           }
           return;
         }

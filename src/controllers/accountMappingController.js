@@ -19,18 +19,23 @@ const headerMapping = {
   settlementtype: "settlementType",
   clearingbroker: "clearingBroker",
   agreement: "agreement",
+  agreementyn: "agreement",
   agreementtype: "agreementType",
   primaryparty: "primaryParty",
   counterparty: "counterParty",
-  active: "activeFlag",
-  activeflag: "activeFlag",
+  active: "active",
+  activeyn: "active",
+  activeflag: "active",
   validfrom: "validFrom",
   validto: "validTo",
+  // Support headers with format hints like "Valid From (MM/DD/YYYY)"
+  validfrommmddyyyy: "validFrom",
+  validtommddyyyy: "validTo",
   region: "region",
   updatedby: "updatedBy",
 };
 
-const booleanFields = new Set(["activeFlag"]);
+const booleanFields = new Set(["active", "agreement"]);
 const dateFields = new Set(["validFrom", "validTo"]);
 
 const fieldMaxLengths = {
@@ -74,55 +79,54 @@ const parseDate = (v) => {
       if (t) return parseDate(t);
     }
   }
-  if (v instanceof Date) {
-    const y = v.getUTCFullYear();
+  if (v instanceof Date && !isNaN(v.valueOf())) {
+    let y = v.getUTCFullYear();
     const m = v.getUTCMonth();
     const d = v.getUTCDate();
-    if (y >= 0 && y < 100) return new Date(Date.UTC(2000 + y, m, d));
-    return v;
+    if (y >= 0 && y < 100) y = 2000 + y;
+    if (y > 2099) y = 2099;
+    return new Date(Date.UTC(y, m, d));
   }
   if (typeof v === "number" && isFinite(v)) {
     const serial = v;
     const excelEpoch = Date.UTC(1899, 11, 30);
     const days = serial >= 60 ? serial - 1 : serial;
-    return new Date(excelEpoch + days * 86400000);
+    const d = new Date(excelEpoch + days * 86400000);
+    let y = d.getUTCFullYear();
+    const m = d.getUTCMonth();
+    const dd = d.getUTCDate();
+    if (y >= 0 && y < 100) y = 2000 + y;
+    if (y > 2099) y = 2099;
+    return new Date(Date.UTC(y, m, dd));
   }
 
   const s = String(v).trim();
 
-  const iso = s.match(/^([0-9]{4})[-/]([0-9]{1,2})[-/]([0-9]{1,2})$/);
+  const iso = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
   if (iso) {
-    const year = parseInt(iso[1], 10);
+    let year = parseInt(iso[1], 10);
     const month = parseInt(iso[2], 10) - 1;
     const day = parseInt(iso[3], 10);
-    if (month >= 0 && month <= 11 && day >= 1 && day <= 31) {
-      return new Date(Date.UTC(year, month, day));
-    }
+    if (year > 2099) year = 2099;
+    return new Date(Date.UTC(year, month, day));
   }
 
-  const mdy = s.match(
-    /^([0][1-9]|1[0-2]|[1-9])\/([0][1-9]|[12][0-9]|3[01]|[1-9])\/(\d{4})$/
-  );
+  const mdy = s.match(/^(0?[1-9]|1[0-2])\/(0?[1-9]|[12][0-9]|3[01])\/(\d{4})$/);
   if (mdy) {
     const month = parseInt(mdy[1], 10) - 1;
     const day = parseInt(mdy[2], 10);
-    const year = parseInt(mdy[3], 10);
-    if (month >= 0 && month <= 11) return new Date(Date.UTC(year, month, day));
+    let year = parseInt(mdy[3], 10);
+    if (year > 2099) year = 2099;
+    return new Date(Date.UTC(year, month, day));
   }
 
   const dmy = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
   if (dmy) {
     let day = parseInt(dmy[1], 10);
     let month = parseInt(dmy[2], 10) - 1;
-    const year = parseInt(dmy[3], 10);
-    if (month > 11 && day >= 1 && day <= 12) {
-      const tmp = day;
-      day = month + 1;
-      month = tmp - 1;
-    }
-    if (month >= 0 && month <= 11 && day >= 1 && day <= 31) {
-      return new Date(Date.UTC(year, month, day));
-    }
+    let year = parseInt(dmy[3], 10);
+    if (year > 2099) year = 2099;
+    return new Date(Date.UTC(year, month, day));
   }
 
   const dmon = s.match(
@@ -160,6 +164,7 @@ const parseDate = (v) => {
     const month = monthMap[monStr];
     let year = parseInt(dmon[3], 10);
     if (String(dmon[3]).length === 2) year = 2000 + year;
+    if (year > 2099) year = 2099;
     if (month !== undefined && day >= 1 && day <= 31) {
       return new Date(Date.UTC(year, month, day));
     }
@@ -240,17 +245,81 @@ async function uploadAccountMapping(req, res, next) {
         }
 
         if (dateFields.has(field)) {
-          const parsed = parseDate(raw);
-          const present = !(raw === null || raw === undefined || raw === "");
-          if (present && parsed === undefined) {
-            errors.push({
-              row: rowNumber,
-              field,
-              message: `Invalid date for ${field}: '${raw}' (expected Excel date, MM/DD/YYYY, DD-MMM-YY, DD-MM-YYYY, or YYYY-MM-DD)`,
-            });
+          const displayFull =
+            cell && typeof cell.text === "string" ? cell.text.trim() : "";
+          const present = !(
+            (raw === null || raw === undefined || raw === "") &&
+            displayFull === ""
+          );
+          if (!present) return;
+
+          // 1) Try parse raw value
+          const parsedRaw = parseDate(raw);
+          if (parsedRaw !== undefined) {
+            rec[field] = parsedRaw;
             return;
           }
-          if (parsed !== undefined) rec[field] = parsed;
+
+          // 2) Try parse full display
+          const parsedDisp = parseDate(displayFull);
+          if (parsedDisp !== undefined) {
+            rec[field] = parsedDisp;
+            return;
+          }
+
+          // 3) Extract substrings and parse
+          const numericAnywhere = displayFull.match(
+            /(0?[1-9]|1[0-2])\/(0?[1-9]|[12][0-9]|3[01])\/(\d{2,4})/
+          );
+          if (numericAnywhere) {
+            const mm = parseInt(numericAnywhere[1], 10) - 1;
+            const dd = parseInt(numericAnywhere[2], 10);
+            let yy = parseInt(numericAnywhere[3], 10);
+            if (String(numericAnywhere[3]).length === 2) yy = 2000 + yy;
+            if (yy > 2099) yy = 2099;
+            rec[field] = new Date(Date.UTC(yy, mm, dd));
+            return;
+          }
+          const dMonAnywhere = displayFull.match(
+            /(\d{1,2})[-/\s]([A-Za-z]{3,})[-/\s](\d{2,4})/
+          );
+          if (dMonAnywhere) {
+            const day = parseInt(dMonAnywhere[1], 10);
+            const monStr = String(dMonAnywhere[2]).trim().toLowerCase();
+            const monthMap = {
+              jan: 0,
+              january: 0,
+              feb: 1,
+              february: 1,
+              mar: 2,
+              march: 2,
+              apr: 3,
+              april: 3,
+              may: 4,
+              jun: 5,
+              june: 5,
+              jul: 6,
+              july: 6,
+              aug: 7,
+              august: 7,
+              sep: 8,
+              sept: 8,
+              september: 8,
+              oct: 9,
+              october: 9,
+              nov: 10,
+              november: 10,
+              dec: 11,
+              december: 11,
+            };
+            const month = monthMap[monStr];
+            let year = parseInt(dMonAnywhere[3], 10);
+            if (String(dMonAnywhere[3]).length === 2) year = 2000 + year;
+            if (year > 2099) year = 2099;
+            if (month !== undefined && day >= 1 && day <= 31) {
+              rec[field] = new Date(Date.UTC(year, month, day));
+            }
+          }
           return;
         }
 
@@ -309,4 +378,48 @@ async function uploadAccountMapping(req, res, next) {
 
 module.exports = {
   uploadAccountMapping,
+  downloadAccountMappingTemplate,
 };
+
+async function downloadAccountMappingTemplate(req, res, next) {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    const ws = workbook.addWorksheet("Account Mapping");
+    const headers = [
+      "AccountNo",
+      "AccountType",
+      "ClearingTpe",
+      "Desk",
+      "InfoBarrier",
+      "Owner",
+      "Entity",
+      "Client ID",
+      "Settlement Type",
+      "Clearing Broker",
+      "Agreement (Y/N)",
+      "Agreement Type",
+      "Primary Party",
+      "Counter Party",
+      "Active (Y/N)",
+      "Valid From (MM/DD/YYYY)",
+      "Valid To (MM/DD/YYYY)",
+      "Region",
+      "Updated By",
+    ];
+    ws.addRow(headers);
+    ws.columns = headers.map((h) => ({ header: h, key: h, width: Math.max(15, h.length + 2) }));
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="account_mapping_template.xlsx"'
+    );
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (err) {
+    next(err);
+  }
+}
