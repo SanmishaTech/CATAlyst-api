@@ -642,7 +642,7 @@ model InstrumentsMapping {
 
 model FirmEntity {
   id              Int       @id @default(autoincrement())
-  clientRefId     Int?
+  clientRefId     Int
   firmId          Int
   firmName        String?   @db.VarChar(255)
   imid            String?   @db.VarChar(64)
@@ -652,18 +652,18 @@ model FirmEntity {
   lei             String?   @db.VarChar(64)
   validFrom       DateTime? @db.Date
   validTo         DateTime? @db.Date
-  activeFlag      Boolean   @default(true)
+  activeFlag      Boolean?   
   type            String?   @db.VarChar(64)
   account         String?   @db.VarChar(128)
   clearingAccount String?   @db.VarChar(128)
   clearingBroker  String?   @db.VarChar(128)
   clearingType    String?   @db.VarChar(64)
   region          String?   @db.VarChar(64)
-  brokerDealer    Boolean   @default(false)
-  affiliateFlag   Boolean   @default(false)
+  brokerDealer    Boolean?   
+  affiliateFlag   Boolean?  
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  client          Client?   @relation("ClientFirmEntities", fields: [clientRefId], references: [id], onDelete: Cascade)
+  client          Client   @relation("ClientFirmEntities", fields: [clientRefId], references: [id], onDelete: Cascade)
 
   @@index([clientRefId])
   @@index([firmId])
