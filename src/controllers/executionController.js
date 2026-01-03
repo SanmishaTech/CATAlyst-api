@@ -112,6 +112,8 @@ const fieldMapping = {
   execution_order_id_version: "executionOrderIdVersion",
   executiontradeexecutionsystem: "executionTradeExecutionSystem",
   execution_trade_execution_system: "executionTradeExecutionSystem",
+  tradeexecutionsystem: "executionTradeExecutionSystem",
+  trade_execution_system: "executionTradeExecutionSystem",
   executionomssource: "executionOmsSource",
   execution_oms_source: "executionOmsSource",
   executionbookingeligiblity: "executionBookingEligiblity",
@@ -825,18 +827,77 @@ const uploadExecutions = async (req, res, next) => {
       }
     }
 
-    // If no valid executions, return error WITHOUT creating batch
+    // If no valid executions, still create batch and store rejected executions (mirror orders behavior)
     if (validExecutions.length === 0) {
       console.error('[EXECUTION VALIDATION] All executions failed validation:');
       errors.forEach((err, idx) => {
         console.error(`  [${idx + 1}] Row ${err.index + 2}, ExecutionID: ${err.executionId || 'N/A'} - ${err.error}`);
       });
 
-      return res.status(400).json({
-        message: "No valid executions found. Batch not created.",
+      const uniqueRejectedExecutionIndices = new Set(errors.map((err) => err.index));
+      const rejectedExecutionsCount = uniqueRejectedExecutionIndices.size;
+
+      batch = await prisma.batch.create({
+        data: {
+          userId,
+          status: "completed",
+          fileName: fileNameForBatch,
+          tradeDate: req.body.tradeDate ? new Date(req.body.tradeDate) : null,
+          fileType: req.body.fileType || 'execution',
+          validation_1: null,
+          validation_1_status: null,
+          validation_2: null,
+          validation_2_status: null,
+          validation_3: null,
+          validation_3_status: null,
+          totalOrders: executionsArray.length,
+          successfulOrders: 0,
+          failedOrders: rejectedExecutionsCount,
+          errorLog: errors.length > 0 ? JSON.stringify(errors) : null,
+          completedAt: new Date(),
+        },
+      });
+
+      // Persist rejected executions
+      try {
+        const uploadType = req.file ? 'excel' : 'json';
+        const errorsByIndex = {};
+        errors.forEach((err) => {
+          if (!errorsByIndex[err.index]) errorsByIndex[err.index] = [];
+          errorsByIndex[err.index].push(err.error);
+        });
+        const rejectedExecutionsData = Object.keys(errorsByIndex).map((index) => {
+          const idx = parseInt(index);
+          const executionData = executionsArray[idx];
+          const errorMessages = errorsByIndex[index];
+          return {
+            batchId: batch.id,
+            userId: userId,
+            rowNumber: uploadType === 'excel' ? idx + 2 : null,
+            jsonIndex: uploadType === 'json' ? idx : null,
+            executionId: executionData?.executionId || null,
+            rawData: executionData ? JSON.stringify(executionData) : null,
+            validationErrors: JSON.stringify(errorMessages),
+            uploadType: uploadType,
+          };
+        });
+
+        await prisma.rejectedExecution.createMany({
+          data: rejectedExecutionsData,
+          skipDuplicates: false,
+        });
+        console.log(`[REJECTED EXECUTIONS] Saved ${rejectedExecutionsData.length} rejected executions to database`);
+      } catch (dbError) {
+        console.error('[REJECTED EXECUTIONS] Failed to save rejected executions to database:', dbError);
+      }
+
+      return res.status(201).json({
+        message: "All records rejected (no valid executions). Batch created for tracking.",
         total: executionsArray.length,
+        imported: 0,
         failed: errors.length,
         errors,
+        batchId: batch.id,
       });
     }
 
