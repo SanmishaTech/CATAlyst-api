@@ -12,11 +12,28 @@ const {
   buildEffectiveLevelSchemaPreferDefaultConditions,
 } = require("./validationSchemaService");
 
+const hasValue = (v) => {
+  if (v === null || v === undefined) return false;
+  if (typeof v === "string") return v.trim() !== "";
+  return true;
+};
+
+const toStr = (v) => {
+  if (v === null || v === undefined) return "";
+  return String(v).trim();
+};
+
 const toMs = (v) => {
   if (v === null || v === undefined) return null;
   if (v instanceof Date) return v.getTime();
   const s = String(v).trim();
   if (!s) return null;
+  if (/^\d+$/.test(s)) {
+    const n = Number(s);
+    if (!Number.isFinite(n)) return null;
+    if (s.length > 13) return Math.floor(n / 1e6);
+    return n;
+  }
   const t = Date.parse(s);
   return Number.isFinite(t) ? t : null;
 };
@@ -26,6 +43,8 @@ const evaluateOrderValidation3ReferenceRules = (order, schema, ctx) => {
   if (!schema || typeof schema !== "object") return errors;
   const exchangeDestinations = ctx?.exchangeDestinations;
   const validFirmIds = ctx?.validFirmIds;
+  const validAccountNos = ctx?.validAccountNos;
+  const validCurrencyCodes = ctx?.validCurrencyCodes;
 
   const addRuleError = (field) => {
     const cond = schema?.[field]?.condition;
@@ -46,8 +65,8 @@ const evaluateOrderValidation3ReferenceRules = (order, schema, ctx) => {
 
     // Apply this reference-data validation only for Order_Action in (5,6)
     if (isExternalRouteAction) {
-      const dest = String(order?.orderDestination ?? "").trim();
-      if (!dest) {
+      const dest = toStr(order?.orderDestination);
+      if (!hasValue(dest)) {
         addRuleError("orderDestination");
       } else if (
         exchangeDestinations instanceof Set &&
@@ -59,13 +78,13 @@ const evaluateOrderValidation3ReferenceRules = (order, schema, ctx) => {
   }
 
   if (schema.orderRoutedOrderId?.enabled) {
-    const dest = String(order?.orderDestination ?? "").trim();
-    const routedId = String(order?.orderRoutedOrderId ?? "").trim();
+    const dest = toStr(order?.orderDestination);
+    const routedId = toStr(order?.orderRoutedOrderId);
     const isExchange =
       exchangeDestinations instanceof Set &&
-      dest &&
+      hasValue(dest) &&
       exchangeDestinations.has(dest);
-    if (isExchange && !routedId) {
+    if (isExchange && !hasValue(routedId)) {
       addRuleError("orderRoutedOrderId");
     }
   }
@@ -78,7 +97,6 @@ const evaluateOrderValidation3ReferenceRules = (order, schema, ctx) => {
       addRuleError("orderExecutingEntity");
     } else if (
       validFirmIds instanceof Set &&
-      validFirmIds.size > 0 &&
       !validFirmIds.has(n)
     ) {
       addRuleError("orderExecutingEntity");
@@ -93,10 +111,57 @@ const evaluateOrderValidation3ReferenceRules = (order, schema, ctx) => {
       addRuleError("orderBookingEntity");
     } else if (
       validFirmIds instanceof Set &&
-      validFirmIds.size > 0 &&
       !validFirmIds.has(n)
     ) {
       addRuleError("orderBookingEntity");
+    }
+  }
+
+  if (schema.orderPositionAccount?.enabled) {
+    const acct = toStr(order?.orderPositionAccount);
+    if (!hasValue(acct)) {
+      addRuleError("orderPositionAccount");
+    } else if (
+      validAccountNos instanceof Set &&
+      !validAccountNos.has(acct)
+    ) {
+      addRuleError("orderPositionAccount");
+    }
+  }
+
+  if (schema.orderCurrencyId?.enabled) {
+    const code = toStr(order?.orderCurrencyId);
+    if (!hasValue(code)) {
+      addRuleError("orderCurrencyId");
+    } else if (
+      validCurrencyCodes instanceof Set &&
+      !validCurrencyCodes.has(code)
+    ) {
+      addRuleError("orderCurrencyId");
+    }
+  }
+
+  if (schema.orderExecutingAccount?.enabled) {
+    const acct = toStr(order?.orderExecutingAccount);
+    if (hasValue(acct)) {
+      if (
+        validAccountNos instanceof Set &&
+        !validAccountNos.has(acct)
+      ) {
+        addRuleError("orderExecutingAccount");
+      }
+    }
+  }
+
+  if (schema.orderClearingAccount?.enabled) {
+    const acct = toStr(order?.orderClearingAccount);
+    if (hasValue(acct)) {
+      if (
+        validAccountNos instanceof Set &&
+        !validAccountNos.has(acct)
+      ) {
+        addRuleError("orderClearingAccount");
+      }
     }
   }
 
@@ -105,6 +170,101 @@ const evaluateOrderValidation3ReferenceRules = (order, schema, ctx) => {
     const evt = toMs(order?.orderEventTime);
     if (start !== null && evt !== null && start < evt) {
       addRuleError("orderStartTime");
+    }
+  }
+
+  return errors;
+};
+
+const evaluateExecutionValidation3ReferenceRules = (exe, schema, ctx) => {
+  const errors = [];
+  if (!schema || typeof schema !== "object") return errors;
+  const validFirmIds = ctx?.validFirmIds;
+  const validAccountNos = ctx?.validAccountNos;
+  const validCurrencyCodes = ctx?.validCurrencyCodes;
+  const exchangeMicCodes = ctx?.exchangeMicCodes;
+
+  const addRuleError = (field) => {
+    const cond = schema?.[field]?.condition;
+    errors.push({
+      field,
+      message: `${field} does not satisfy rule: ${cond ?? ""}`.trim(),
+    });
+  };
+
+  if (schema.executionLastMarket?.enabled) {
+    const mic = toStr(exe?.executionLastMarket);
+    if (!hasValue(mic)) {
+      addRuleError("executionLastMarket");
+    } else if (
+      exchangeMicCodes instanceof Set &&
+      !exchangeMicCodes.has(mic)
+    ) {
+      addRuleError("executionLastMarket");
+    }
+  }
+
+  if (schema.executionAccount?.enabled) {
+    const acct = toStr(exe?.executionAccount);
+    if (!hasValue(acct)) {
+      addRuleError("executionAccount");
+    } else if (
+      validAccountNos instanceof Set &&
+      !validAccountNos.has(acct)
+    ) {
+      addRuleError("executionAccount");
+    }
+  }
+
+  if (schema.executionBookingAccount?.enabled) {
+    const acct = toStr(exe?.executionBookingAccount);
+    if (hasValue(acct)) {
+      if (
+        validAccountNos instanceof Set &&
+        !validAccountNos.has(acct)
+      ) {
+        addRuleError("executionBookingAccount");
+      }
+    }
+  }
+
+  if (schema.executionBookingEntity?.enabled) {
+    const v = exe?.executionBookingEntity;
+    const n =
+      typeof v === "number" ? v : Number.parseInt(String(v ?? "").trim(), 10);
+    if (!Number.isFinite(n)) {
+      addRuleError("executionBookingEntity");
+    } else if (
+      validFirmIds instanceof Set &&
+      !validFirmIds.has(n)
+    ) {
+      addRuleError("executionBookingEntity");
+    }
+  }
+
+  if (schema.executionExecutingEntity?.enabled) {
+    const v = exe?.executionExecutingEntity;
+    const n =
+      typeof v === "number" ? v : Number.parseInt(String(v ?? "").trim(), 10);
+    if (!Number.isFinite(n)) {
+      addRuleError("executionExecutingEntity");
+    } else if (
+      validFirmIds instanceof Set &&
+      !validFirmIds.has(n)
+    ) {
+      addRuleError("executionExecutingEntity");
+    }
+  }
+
+  if (schema.executionCurrencyId?.enabled) {
+    const code = toStr(exe?.executionCurrencyId);
+    if (!hasValue(code)) {
+      addRuleError("executionCurrencyId");
+    } else if (
+      validCurrencyCodes instanceof Set &&
+      !validCurrencyCodes.has(code)
+    ) {
+      addRuleError("executionCurrencyId");
     }
   }
 
@@ -198,6 +358,50 @@ const processValidation3ForBatch = async (batchId) => {
       : [];
     const validFirmIds = new Set((firmRows || []).map((r) => r.firmId));
 
+    const accountNosToCheck = new Set();
+    const currencyCodesToCheck = new Set();
+    for (const o of orders) {
+      const pos = toStr(o.orderPositionAccount);
+      const execAcct = toStr(o.orderExecutingAccount);
+      const clrAcct = toStr(o.orderClearingAccount);
+      const ccy = toStr(o.orderCurrencyId);
+      if (hasValue(pos)) accountNosToCheck.add(pos);
+      if (hasValue(execAcct)) accountNosToCheck.add(execAcct);
+      if (hasValue(clrAcct)) accountNosToCheck.add(clrAcct);
+      if (hasValue(ccy)) currencyCodesToCheck.add(ccy);
+    }
+
+    const accountRows = accountNosToCheck.size
+      ? await prisma.accountMapping.findMany({
+          where: {
+            clientRefId: batch.user.clientId,
+            activeFlag: true,
+            accountNo: { in: Array.from(accountNosToCheck) },
+          },
+          select: { accountNo: true },
+        })
+      : [];
+    const validAccountNos = new Set(
+      (accountRows || [])
+        .map((r) => toStr(r.accountNo))
+        .filter((x) => hasValue(x))
+    );
+
+    const currencyRows = currencyCodesToCheck.size
+      ? await prisma.currencyCode.findMany({
+          where: {
+            clientRefId: batch.user.clientId,
+            code: { in: Array.from(currencyCodesToCheck) },
+          },
+          select: { code: true },
+        })
+      : [];
+    const validCurrencyCodes = new Set(
+      (currencyRows || [])
+        .map((r) => toStr(r.code))
+        .filter((x) => hasValue(x))
+    );
+
     let passCnt = 0,
       failCnt = 0;
     for (const order of orders) {
@@ -206,6 +410,8 @@ const processValidation3ForBatch = async (batchId) => {
       const refErrors = evaluateOrderValidation3ReferenceRules(order, effectiveSchema, {
         exchangeDestinations,
         validFirmIds,
+        validAccountNos,
+        validCurrencyCodes,
       });
       const allErrors = [...(result.errors || []), ...ruleErrors, ...refErrors];
       if (allErrors.length) {
@@ -298,17 +504,100 @@ const processExecutionValidation3ForBatch = async (batchId, batch = null) => {
     );
 
     const executions = await prisma.execution.findMany({ where: { batchId } });
+
+    const firmIdsToCheck = new Set();
+    const accountNosToCheck = new Set();
+    const currencyCodesToCheck = new Set();
+    for (const e of executions) {
+      const execEnt =
+        typeof e.executionExecutingEntity === "number"
+          ? e.executionExecutingEntity
+          : Number.parseInt(String(e.executionExecutingEntity ?? "").trim(), 10);
+      const bookEnt =
+        typeof e.executionBookingEntity === "number"
+          ? e.executionBookingEntity
+          : Number.parseInt(String(e.executionBookingEntity ?? "").trim(), 10);
+      if (Number.isFinite(execEnt)) firmIdsToCheck.add(execEnt);
+      if (Number.isFinite(bookEnt)) firmIdsToCheck.add(bookEnt);
+
+      const acct = toStr(e.executionAccount);
+      const bookAcct = toStr(e.executionBookingAccount);
+      const ccy = toStr(e.executionCurrencyId);
+      if (hasValue(acct)) accountNosToCheck.add(acct);
+      if (hasValue(bookAcct)) accountNosToCheck.add(bookAcct);
+      if (hasValue(ccy)) currencyCodesToCheck.add(ccy);
+    }
+
+    const firmRows = firmIdsToCheck.size
+      ? await prisma.firmEntity.findMany({
+          where: {
+            clientRefId: batch.user.clientId,
+            firmId: { in: Array.from(firmIdsToCheck) },
+            activeFlag: true,
+          },
+          select: { firmId: true },
+        })
+      : [];
+    const validFirmIds = new Set((firmRows || []).map((r) => r.firmId));
+
+    const accountRows = accountNosToCheck.size
+      ? await prisma.accountMapping.findMany({
+          where: {
+            clientRefId: batch.user.clientId,
+            activeFlag: true,
+            accountNo: { in: Array.from(accountNosToCheck) },
+          },
+          select: { accountNo: true },
+        })
+      : [];
+    const validAccountNos = new Set(
+      (accountRows || [])
+        .map((r) => toStr(r.accountNo))
+        .filter((x) => hasValue(x))
+    );
+
+    const currencyRows = currencyCodesToCheck.size
+      ? await prisma.currencyCode.findMany({
+          where: {
+            clientRefId: batch.user.clientId,
+            code: { in: Array.from(currencyCodesToCheck) },
+          },
+          select: { code: true },
+        })
+      : [];
+    const validCurrencyCodes = new Set(
+      (currencyRows || [])
+        .map((r) => toStr(r.code))
+        .filter((x) => hasValue(x))
+    );
+
+    const exchangeMicRows = await prisma.uSBrokerDealer.findMany({
+      where: {
+        membershipType: "Exchange",
+        micValue: { not: null },
+      },
+      select: { micValue: true },
+    });
+    const exchangeMicCodes = new Set(
+      (exchangeMicRows || [])
+        .map((r) => toStr(r.micValue))
+        .filter((x) => hasValue(x))
+    );
     let pass = 0,
       fail = 0;
     for (const exe of executions) {
       let result = validateExecution(exe, effectiveExeSchema);
       // Apply Level-2 rules for executions
       const ruleErrors = evaluateLevel2Rules(exe, effectiveExeSchema);
-      if (ruleErrors.length > 0) {
-        result = {
-          success: false,
-          errors: [...(result.errors || []), ...ruleErrors],
-        };
+      const refErrors = evaluateExecutionValidation3ReferenceRules(exe, effectiveExeSchema, {
+        validFirmIds,
+        validAccountNos,
+        validCurrencyCodes,
+        exchangeMicCodes,
+      });
+      const allErrors = [...(result.errors || []), ...(ruleErrors || []), ...(refErrors || [])];
+      if (allErrors.length > 0) {
+        result = { success: false, errors: allErrors };
       }
       const validation = await prisma.validation.create({
         data: {
