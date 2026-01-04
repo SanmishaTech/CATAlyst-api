@@ -6,8 +6,6 @@ const {
   classifyOrdersForBatch,
   classifyExecutionsForBatch,
 } = require("./businessClassificationService");
-const { validateOrder, validateExecution } = require("./validationLevel1Service");
-const { evaluateLevel2Rules } = require("./validationLevel2Service");
 const {
   buildEffectiveLevelSchemaPreferDefaultConditions,
 } = require("./validationSchemaService");
@@ -41,10 +39,28 @@ const toMs = (v) => {
 const evaluateOrderValidation3ReferenceRules = (order, schema, ctx) => {
   const errors = [];
   if (!schema || typeof schema !== "object") return errors;
-  const exchangeDestinations = ctx?.exchangeDestinations;
+  const brokerDealerDestinations = ctx?.brokerDealerDestinations;
   const validFirmIds = ctx?.validFirmIds;
   const validAccountNos = ctx?.validAccountNos;
   const validCurrencyCodes = ctx?.validCurrencyCodes;
+  const validInstrumentIds = ctx?.validInstrumentIds;
+
+  const normalizeDestinationKey = (v) => toStr(v).toUpperCase();
+
+  const isExchangeDestination = (dest) => {
+    const key = normalizeDestinationKey(dest);
+    if (!hasValue(key)) return false;
+    if (!(brokerDealerDestinations instanceof Map)) return false;
+    const info = brokerDealerDestinations.get(key);
+    return !!info?.hasExchange;
+  };
+
+  const isKnownDestination = (dest) => {
+    const key = normalizeDestinationKey(dest);
+    if (!hasValue(key)) return false;
+    if (!(brokerDealerDestinations instanceof Map)) return false;
+    return brokerDealerDestinations.has(key);
+  };
 
   const addRuleError = (field) => {
     const cond = schema?.[field]?.condition;
@@ -61,18 +77,23 @@ const evaluateOrderValidation3ReferenceRules = (order, schema, ctx) => {
       actionNum === 5 ||
       actionNum === 6 ||
       actionStr === "5" ||
-      actionStr === "6";
+      actionStr === "6" ||
+      actionStr.toLowerCase() === "order external route" ||
+      actionStr.toLowerCase() === "order external route acknowledged";
 
     // Apply this reference-data validation only for Order_Action in (5,6)
     if (isExternalRouteAction) {
       const dest = toStr(order?.orderDestination);
       if (!hasValue(dest)) {
         addRuleError("orderDestination");
-      } else if (
-        exchangeDestinations instanceof Set &&
-        !exchangeDestinations.has(dest)
-      ) {
-        addRuleError("orderDestination");
+      } else {
+        // Step 1: Order_Destination must match a US Broker Dealer.ClientID
+        if (!isKnownDestination(dest)) {
+          addRuleError("orderDestination");
+        } else if (!isExchangeDestination(dest)) {
+          // Step 2: matching record(s) must have Membership Type = 'Exchange'
+          addRuleError("orderDestination");
+        }
       }
     }
   }
@@ -80,10 +101,7 @@ const evaluateOrderValidation3ReferenceRules = (order, schema, ctx) => {
   if (schema.orderRoutedOrderId?.enabled) {
     const dest = toStr(order?.orderDestination);
     const routedId = toStr(order?.orderRoutedOrderId);
-    const isExchange =
-      exchangeDestinations instanceof Set &&
-      hasValue(dest) &&
-      exchangeDestinations.has(dest);
+    const isExchange = hasValue(dest) && isExchangeDestination(dest);
     if (isExchange && !hasValue(routedId)) {
       addRuleError("orderRoutedOrderId");
     }
@@ -141,6 +159,18 @@ const evaluateOrderValidation3ReferenceRules = (order, schema, ctx) => {
     }
   }
 
+  if (schema.orderInstrumentId?.enabled) {
+    const inst = toStr(order?.orderInstrumentId);
+    if (!hasValue(inst)) {
+      addRuleError("orderInstrumentId");
+    } else if (
+      validInstrumentIds instanceof Set &&
+      !validInstrumentIds.has(inst)
+    ) {
+      addRuleError("orderInstrumentId");
+    }
+  }
+
   if (schema.orderExecutingAccount?.enabled) {
     const acct = toStr(order?.orderExecutingAccount);
     if (hasValue(acct)) {
@@ -173,6 +203,26 @@ const evaluateOrderValidation3ReferenceRules = (order, schema, ctx) => {
     }
   }
 
+  if (schema.orderIdSession?.enabled) {
+    const actionStr = String(order?.orderAction ?? "").trim();
+    const actionNum = Number.parseInt(actionStr, 10);
+    const isExternalRouteAction =
+      actionNum === 5 ||
+      actionNum === 6 ||
+      actionStr === "5" ||
+      actionStr === "6" ||
+      actionStr.toLowerCase() === "order external route" ||
+      actionStr.toLowerCase() === "order external route acknowledged";
+    const dest = toStr(order?.orderDestination);
+    const isExchange = hasValue(dest) && isExchangeDestination(dest);
+    if (isExternalRouteAction && isExchange) {
+      const session = toStr(order?.orderIdSession);
+      if (!hasValue(session)) {
+        addRuleError("orderIdSession");
+      }
+    }
+  }
+
   return errors;
 };
 
@@ -182,7 +232,25 @@ const evaluateExecutionValidation3ReferenceRules = (exe, schema, ctx) => {
   const validFirmIds = ctx?.validFirmIds;
   const validAccountNos = ctx?.validAccountNos;
   const validCurrencyCodes = ctx?.validCurrencyCodes;
-  const exchangeMicCodes = ctx?.exchangeMicCodes;
+  const validInstrumentIds = ctx?.validInstrumentIds;
+  const brokerDealerDestinations = ctx?.brokerDealerDestinations;
+
+  const normalizeDestinationKey = (v) => toStr(v).toUpperCase();
+
+  const isExchangeDestination = (dest) => {
+    const key = normalizeDestinationKey(dest);
+    if (!hasValue(key)) return false;
+    if (!(brokerDealerDestinations instanceof Map)) return false;
+    const info = brokerDealerDestinations.get(key);
+    return !!info?.hasExchange;
+  };
+
+  const isKnownDestination = (dest) => {
+    const key = normalizeDestinationKey(dest);
+    if (!hasValue(key)) return false;
+    if (!(brokerDealerDestinations instanceof Map)) return false;
+    return brokerDealerDestinations.has(key);
+  };
 
   const addRuleError = (field) => {
     const cond = schema?.[field]?.condition;
@@ -196,11 +264,18 @@ const evaluateExecutionValidation3ReferenceRules = (exe, schema, ctx) => {
     const mic = toStr(exe?.executionLastMarket);
     if (!hasValue(mic)) {
       addRuleError("executionLastMarket");
-    } else if (
-      exchangeMicCodes instanceof Set &&
-      !exchangeMicCodes.has(mic)
-    ) {
+    } else if (!isKnownDestination(mic)) {
       addRuleError("executionLastMarket");
+    }
+  }
+
+  if (schema.externalExecutionId?.enabled) {
+    const lastMarket = toStr(exe?.executionLastMarket);
+    if (hasValue(lastMarket) && isKnownDestination(lastMarket) && isExchangeDestination(lastMarket)) {
+      const extId = toStr(exe?.externalExecutionId);
+      if (!hasValue(extId)) {
+        addRuleError("externalExecutionId");
+      }
     }
   }
 
@@ -242,6 +317,17 @@ const evaluateExecutionValidation3ReferenceRules = (exe, schema, ctx) => {
     }
   }
 
+  if (schema.executionTradingEntity?.enabled) {
+    const v = exe?.executionTradingEntity;
+    const n =
+      typeof v === "number" ? v : Number.parseInt(String(v ?? "").trim(), 10);
+    if (!Number.isFinite(n)) {
+      addRuleError("executionTradingEntity");
+    } else if (validFirmIds instanceof Set && !validFirmIds.has(n)) {
+      addRuleError("executionTradingEntity");
+    }
+  }
+
   if (schema.executionExecutingEntity?.enabled) {
     const v = exe?.executionExecutingEntity;
     const n =
@@ -253,6 +339,22 @@ const evaluateExecutionValidation3ReferenceRules = (exe, schema, ctx) => {
       !validFirmIds.has(n)
     ) {
       addRuleError("executionExecutingEntity");
+    }
+  }
+
+  if (schema.executionInstrumentId?.enabled) {
+    const inst = toStr(exe?.executionInstrumentId);
+    if (!hasValue(inst)) {
+      addRuleError("executionInstrumentId");
+    } else if (validInstrumentIds instanceof Set && !validInstrumentIds.has(inst)) {
+      addRuleError("executionInstrumentId");
+    }
+  }
+
+  if (schema.executionContraBroker?.enabled) {
+    const contra = toStr(exe?.executionContraBroker);
+    if (hasValue(contra) && !isKnownDestination(contra)) {
+      addRuleError("executionContraBroker");
     }
   }
 
@@ -320,18 +422,24 @@ const processValidation3ForBatch = async (batchId) => {
     );
 
     const orders = await prisma.order.findMany({ where: { batchId } });
-    const exchangeRows = await prisma.uSBrokerDealer.findMany({
+    const brokerDealerRows = await prisma.uSBrokerDealer.findMany({
       where: {
-        membershipType: "Exchange",
+        clientRefId: batch.user.clientId,
+        activeFlag: true,
         clientId: { not: null },
       },
-      select: { clientId: true },
+      select: { clientId: true, membershipType: true },
     });
-    const exchangeDestinations = new Set(
-      (exchangeRows || [])
-        .map((r) => String(r.clientId ?? "").trim())
-        .filter(Boolean)
-    );
+    const brokerDealerDestinations = new Map();
+    for (const row of brokerDealerRows || []) {
+      const key = String(row.clientId ?? "").trim().toUpperCase();
+      if (!key) continue;
+      const membership = String(row.membershipType ?? "").trim().toLowerCase();
+      const prev = brokerDealerDestinations.get(key) || { hasExchange: false };
+      brokerDealerDestinations.set(key, {
+        hasExchange: prev.hasExchange || membership === "exchange",
+      });
+    }
 
     const firmIdsToCheck = new Set();
     for (const o of orders) {
@@ -360,22 +468,24 @@ const processValidation3ForBatch = async (batchId) => {
 
     const accountNosToCheck = new Set();
     const currencyCodesToCheck = new Set();
+    const instrumentIdsToCheck = new Set();
     for (const o of orders) {
       const pos = toStr(o.orderPositionAccount);
       const execAcct = toStr(o.orderExecutingAccount);
       const clrAcct = toStr(o.orderClearingAccount);
       const ccy = toStr(o.orderCurrencyId);
+      const inst = toStr(o.orderInstrumentId);
       if (hasValue(pos)) accountNosToCheck.add(pos);
       if (hasValue(execAcct)) accountNosToCheck.add(execAcct);
       if (hasValue(clrAcct)) accountNosToCheck.add(clrAcct);
       if (hasValue(ccy)) currencyCodesToCheck.add(ccy);
+      if (hasValue(inst)) instrumentIdsToCheck.add(inst);
     }
 
     const accountRows = accountNosToCheck.size
       ? await prisma.accountMapping.findMany({
           where: {
             clientRefId: batch.user.clientId,
-            activeFlag: true,
             accountNo: { in: Array.from(accountNosToCheck) },
           },
           select: { accountNo: true },
@@ -402,16 +512,32 @@ const processValidation3ForBatch = async (batchId) => {
         .filter((x) => hasValue(x))
     );
 
+    const instrumentRows = instrumentIdsToCheck.size
+      ? await prisma.instrumentsMapping.findMany({
+          where: {
+            clientRefId: batch.user.clientId,
+            instrumentId: { in: Array.from(instrumentIdsToCheck) },
+          },
+          select: { instrumentId: true },
+        })
+      : [];
+    const validInstrumentIds = new Set(
+      (instrumentRows || [])
+        .map((r) => toStr(r.instrumentId))
+        .filter((x) => hasValue(x))
+    );
+
     let passCnt = 0,
       failCnt = 0;
     for (const order of orders) {
-      let result = validateOrder(order, effectiveSchema);
-      const ruleErrors = evaluateLevel2Rules(order, effectiveSchema) || [];
+      let result = { success: true, errors: [] };
+      const ruleErrors = [];
       const refErrors = evaluateOrderValidation3ReferenceRules(order, effectiveSchema, {
-        exchangeDestinations,
+        brokerDealerDestinations,
         validFirmIds,
         validAccountNos,
         validCurrencyCodes,
+        validInstrumentIds,
       });
       const allErrors = [...(result.errors || []), ...ruleErrors, ...refErrors];
       if (allErrors.length) {
@@ -508,6 +634,7 @@ const processExecutionValidation3ForBatch = async (batchId, batch = null) => {
     const firmIdsToCheck = new Set();
     const accountNosToCheck = new Set();
     const currencyCodesToCheck = new Set();
+    const instrumentIdsToCheck = new Set();
     for (const e of executions) {
       const execEnt =
         typeof e.executionExecutingEntity === "number"
@@ -517,8 +644,13 @@ const processExecutionValidation3ForBatch = async (batchId, batch = null) => {
         typeof e.executionBookingEntity === "number"
           ? e.executionBookingEntity
           : Number.parseInt(String(e.executionBookingEntity ?? "").trim(), 10);
+      const tradeEnt =
+        typeof e.executionTradingEntity === "number"
+          ? e.executionTradingEntity
+          : Number.parseInt(String(e.executionTradingEntity ?? "").trim(), 10);
       if (Number.isFinite(execEnt)) firmIdsToCheck.add(execEnt);
       if (Number.isFinite(bookEnt)) firmIdsToCheck.add(bookEnt);
+      if (Number.isFinite(tradeEnt)) firmIdsToCheck.add(tradeEnt);
 
       const acct = toStr(e.executionAccount);
       const bookAcct = toStr(e.executionBookingAccount);
@@ -526,6 +658,9 @@ const processExecutionValidation3ForBatch = async (batchId, batch = null) => {
       if (hasValue(acct)) accountNosToCheck.add(acct);
       if (hasValue(bookAcct)) accountNosToCheck.add(bookAcct);
       if (hasValue(ccy)) currencyCodesToCheck.add(ccy);
+
+      const inst = toStr(e.executionInstrumentId);
+      if (hasValue(inst)) instrumentIdsToCheck.add(inst);
     }
 
     const firmRows = firmIdsToCheck.size
@@ -544,7 +679,6 @@ const processExecutionValidation3ForBatch = async (batchId, batch = null) => {
       ? await prisma.accountMapping.findMany({
           where: {
             clientRefId: batch.user.clientId,
-            activeFlag: true,
             accountNo: { in: Array.from(accountNosToCheck) },
           },
           select: { accountNo: true },
@@ -571,29 +705,50 @@ const processExecutionValidation3ForBatch = async (batchId, batch = null) => {
         .filter((x) => hasValue(x))
     );
 
-    const exchangeMicRows = await prisma.uSBrokerDealer.findMany({
-      where: {
-        membershipType: "Exchange",
-        micValue: { not: null },
-      },
-      select: { micValue: true },
-    });
-    const exchangeMicCodes = new Set(
-      (exchangeMicRows || [])
-        .map((r) => toStr(r.micValue))
+    const instrumentRows = instrumentIdsToCheck.size
+      ? await prisma.instrumentsMapping.findMany({
+          where: {
+            clientRefId: batch.user.clientId,
+            instrumentId: { in: Array.from(instrumentIdsToCheck) },
+          },
+          select: { instrumentId: true },
+        })
+      : [];
+    const validInstrumentIds = new Set(
+      (instrumentRows || [])
+        .map((r) => toStr(r.instrumentId))
         .filter((x) => hasValue(x))
     );
+
+    const brokerDealerRows = await prisma.uSBrokerDealer.findMany({
+      where: {
+        clientRefId: batch.user.clientId,
+        activeFlag: true,
+        clientId: { not: null },
+      },
+      select: { clientId: true, membershipType: true },
+    });
+    const brokerDealerDestinations = new Map();
+    for (const row of brokerDealerRows || []) {
+      const key = String(row.clientId ?? "").trim().toUpperCase();
+      if (!key) continue;
+      const membership = String(row.membershipType ?? "").trim().toLowerCase();
+      const prev = brokerDealerDestinations.get(key) || { hasExchange: false };
+      brokerDealerDestinations.set(key, {
+        hasExchange: prev.hasExchange || membership === "exchange",
+      });
+    }
     let pass = 0,
       fail = 0;
     for (const exe of executions) {
-      let result = validateExecution(exe, effectiveExeSchema);
-      // Apply Level-2 rules for executions
-      const ruleErrors = evaluateLevel2Rules(exe, effectiveExeSchema);
+      let result = { success: true, errors: [] };
+      const ruleErrors = [];
       const refErrors = evaluateExecutionValidation3ReferenceRules(exe, effectiveExeSchema, {
         validFirmIds,
         validAccountNos,
         validCurrencyCodes,
-        exchangeMicCodes,
+        validInstrumentIds,
+        brokerDealerDestinations,
       });
       const allErrors = [...(result.errors || []), ...(ruleErrors || []), ...(refErrors || [])];
       if (allErrors.length > 0) {

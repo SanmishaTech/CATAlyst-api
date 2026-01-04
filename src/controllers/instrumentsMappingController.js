@@ -196,7 +196,7 @@ const parseDateTimestamp = (v) => {
   }
   const s = String(v).trim();
   const m = s.match(
-    /^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2}):(\d{2})\s*(AM|PM)?$/i
+    /^(\d{4})-(\d{2})-(\d{2})[ T-](\d{1,2}):(\d{2}):(\d{2})\s*(AM|PM)?$/i
   );
   if (m) {
     const year = parseInt(m[1], 10);
