@@ -58,6 +58,8 @@ const fieldMapping = {
   linked_order_id: "linkedOrderId",
   linkordertype: "linkOrderType",
   link_order_type: "linkOrderType",
+  linkedordertype: "linkOrderType",
+  linked_order_type: "linkOrderType",
   orderaction: "orderAction",
   order_action: "orderAction",
   orderstatus: "orderStatus",
@@ -373,8 +375,8 @@ const validateAndNormalizeOrder = (orderData, userId, batchId, clientId) => {
     if (!validation.valid) {
       validationErrors.push(validation.error);
     } else {
-      // Store the validated string value
-      validatedEnumValues[field] = validation.value;
+      validatedEnumValues[field] =
+        validation.value === 0 ? 0 : validation.value == null ? null : String(validation.value);
     }
   });
 
