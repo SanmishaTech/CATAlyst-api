@@ -3,6 +3,7 @@ const { initValidationCron } = require('./src/jobs/validationCron');
 const { initValidation2Cron } = require('./src/jobs/validation2Cron');
 const { initValidation3Cron } = require('./src/jobs/validation3Cron');
 const { initBusinessClassificationCron } = require('./src/jobs/businessClassificationCron');
+const { initOrderCatEventCron } = require('./src/jobs/orderCatEventCron');
 
 const port = process.env.PORT || 3000;
 
@@ -28,4 +29,9 @@ app.listen(port, () => {
   if (process.env.CRON_BUSINESS_CLASSIFICATION_ENABLED !== 'false') {
     initBusinessClassificationCron();
   }
+
+  // Initialize order CAT event cronjob if enabled
+  // if (process.env.CRON_ORDER_CAT_EVENT_ENABLED !== 'false') {
+  //   initOrderCatEventCron();
+  // }
 });

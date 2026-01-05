@@ -4,22 +4,22 @@ A simple Node.js REST API project built with Express, Prisma, and JWT.
 
 ## Features
 
-*   User authentication and authorization
-*   User management (CRUD operations)
-*   Password reset functionality
-*   Role-based access control (RBAC)
-*   API documentation with Swagger
+- User authentication and authorization
+- User management (CRUD operations)
+- Password reset functionality
+- Role-based access control (RBAC)
+- API documentation with Swagger
 
 ## Technologies Used
 
-*   Node.js
-*   Express.js
-*   Prisma (ORM)
-*   JSON Web Tokens (JWT)
-*   Bcrypt
-*   Joi
-*   Swagger
-*   MySQL
+- Node.js
+- Express.js
+- Prisma (ORM)
+- JSON Web Tokens (JWT)
+- Bcrypt
+- Joi
+- Swagger
+- MySQL
 
 ## Installation
 
@@ -41,9 +41,9 @@ A simple Node.js REST API project built with Express, Prisma, and JWT.
     npm install
     ```
 
-4.  Create a `.env` file in the root directory.  See `.env` file example below.
+4.  Create a `.env` file in the root directory. See `.env` file example below.
 
-5.  Configure the `.env` file with your database connection string, JWT secret, and email settings.  Example:
+5.  Configure the `.env` file with your database connection string, JWT secret, and email settings. Example:
 
     ```
     PORT=3000
@@ -93,23 +93,33 @@ A simple Node.js REST API project built with Express, Prisma, and JWT.
 Run each validation/business classification cron once immediately (JS files, no ts-node needed):
 
 - Validation 1 (orders/executions):
+
 ```bash
 node .\runValidation.js
 ```
 
 - Validation 2:
+
 ```bash
 node -e "require('dotenv').config(); const { triggerValidation2 } = require('./src/jobs/validation2Cron'); triggerValidation2().then(()=>process.exit(0)).catch(e=>{console.error(e);process.exit(1)});"
 ```
 
 - Validation 3:
+
 ```bash
 node -e "require('dotenv').config(); const { triggerValidation3 } = require('./src/jobs/validation3Cron'); triggerValidation3().then(()=>process.exit(0)).catch(e=>{console.error(e);process.exit(1)});"
 ```
 
 - Business Classification:
+
 ```bash
 node -e "require('dotenv').config(); const { triggerBusinessClassification } = require('./src/jobs/businessClassificationCron'); triggerBusinessClassification().then(()=>process.exit(0)).catch(e=>{console.error(e);process.exit(1)});"
+```
+
+- Order Cat Event:
+
+```bash
+node -e "require('dotenv').config(); const { triggerOrderCatEvent } = require('./src/jobs/orderCatEventCron'); triggerOrderCatEvent().then(()=>process.exit(0)).catch(e=>{console.error(e);process.exit(1)});"
 ```
 
 These use your existing `.env`, Prisma client, and queue logic; they simply run the handlers once instead of waiting for the scheduled interval.
@@ -122,20 +132,20 @@ API documentation is available at `http://localhost:3000/api-docs` when the serv
 
 The following environment variables are required:
 
-*   `PORT`: The port the server will listen on (default: 3000).
-*   `DATABASE_URL`: The connection string to your MySQL database.
-*   `JWT_SECRET`: A secret key used to sign JWTs.
-*   `EMAIL_TRANSPORTER`: The email transporter to use (options: smtp, mailtrap, sendgrid).
-*   `EMAIL_HOST`: The host for your email server (required if `EMAIL_TRANSPORTER` is `smtp`).
-*   `EMAIL_PORT`: The port for your email server (required if `EMAIL_TRANSPORTER` is `smtp`).
-*   `EMAIL_USER`: The username for your email account (required if `EMAIL_TRANSPORTER` is `smtp` or `mailtrap`).
-*   `EMAIL_PASSWORD`: The password for your email account (required if `EMAIL_TRANSPORTER` is `smtp` or `mailtrap`).
-*   `EMAIL_FROM`: The email address used as the sender.
-*   `SENDGRID_API_KEY`: The API key for SendGrid (required if `EMAIL_TRANSPORTER` is `sendgrid`).
-*   `MAILTRAP_HOST`: The host for Mailtrap (required if `EMAIL_TRANSPORTER` is `mailtrap`).
-*   `MAILTRAP_PORT`: The port for Mailtrap (required if `EMAIL_TRANSPORTER` is `mailtrap`).
-*   `ALLOW_REGISTRATION`:  Boolean value to enable or disable user registration (default: true).
-*   `DEFAULT_USER_ROLE`:  The default role assigned to newly registered users (default: 'user').
+- `PORT`: The port the server will listen on (default: 3000).
+- `DATABASE_URL`: The connection string to your MySQL database.
+- `JWT_SECRET`: A secret key used to sign JWTs.
+- `EMAIL_TRANSPORTER`: The email transporter to use (options: smtp, mailtrap, sendgrid).
+- `EMAIL_HOST`: The host for your email server (required if `EMAIL_TRANSPORTER` is `smtp`).
+- `EMAIL_PORT`: The port for your email server (required if `EMAIL_TRANSPORTER` is `smtp`).
+- `EMAIL_USER`: The username for your email account (required if `EMAIL_TRANSPORTER` is `smtp` or `mailtrap`).
+- `EMAIL_PASSWORD`: The password for your email account (required if `EMAIL_TRANSPORTER` is `smtp` or `mailtrap`).
+- `EMAIL_FROM`: The email address used as the sender.
+- `SENDGRID_API_KEY`: The API key for SendGrid (required if `EMAIL_TRANSPORTER` is `sendgrid`).
+- `MAILTRAP_HOST`: The host for Mailtrap (required if `EMAIL_TRANSPORTER` is `mailtrap`).
+- `MAILTRAP_PORT`: The port for Mailtrap (required if `EMAIL_TRANSPORTER` is `mailtrap`).
+- `ALLOW_REGISTRATION`: Boolean value to enable or disable user registration (default: true).
+- `DEFAULT_USER_ROLE`: The default role assigned to newly registered users (default: 'user').
 
 ### Additional settings used in this project
 
@@ -169,7 +179,7 @@ SERVE_FRONTEND=false
 
 ## Database
 
-This project uses Prisma as an ORM to interact with a MySQL database.  Ensure you have a MySQL server running and update the `DATABASE_URL` in the `.env` file accordingly.
+This project uses Prisma as an ORM to interact with a MySQL database. Ensure you have a MySQL server running and update the `DATABASE_URL` in the `.env` file accordingly.
 
 ## Contributing
 
