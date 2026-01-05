@@ -180,7 +180,7 @@ module.exports = {
   
   orderRestrictions: {
     enabled: true,
-    condition: "orderRestrictions should not be null and must be in (1,2,3,4,5,6,7)",
+    condition: "orderRestrictions should not be null and must be in (1-7) (single value or '~' separated list)",
     required: true
   },
   

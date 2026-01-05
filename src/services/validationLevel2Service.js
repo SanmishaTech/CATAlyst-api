@@ -245,9 +245,27 @@ const evaluateLevel2Rules = (record, rulesObj) => {
   }
 
   if (enabled("orderRestrictions")) {
-    const r = toNumber(record.orderRestrictions);
-    if (r === null || r < 1 || r > 7) {
+    const raw = toStr(record.orderRestrictions);
+    if (!raw) {
       fail("orderRestrictions", cond("orderRestrictions"));
+    } else {
+      const parts = raw
+        .split("~")
+        .map((p) => p.trim())
+        .filter((p) => p !== "");
+
+      if (parts.length === 0) {
+        fail("orderRestrictions", cond("orderRestrictions"));
+      } else {
+        const invalid = parts.some((p) => {
+          const n = Number(p);
+          return !Number.isFinite(n) || !Number.isInteger(n) || n < 1 || n > 7;
+        });
+
+        if (invalid) {
+          fail("orderRestrictions", cond("orderRestrictions"));
+        }
+      }
     }
   }
 

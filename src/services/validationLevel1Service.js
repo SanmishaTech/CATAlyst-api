@@ -208,10 +208,42 @@ const validateOrder = (orderData, zodSchemaObj) => {
             Array.isArray(fieldConfig.values) &&
             fieldConfig.values.length > 0
           ) {
-            innerSchema = z.enum(fieldConfig.values, {
-              required_error: "required",
-              invalid_type_error: "invalid format",
-            });
+            if (fieldName === "orderRestrictions") {
+              const allowed = fieldConfig.values.map((v) => String(v));
+              innerSchema = z
+                .string({
+                  required_error: "required",
+                  invalid_type_error: "invalid format",
+                })
+                .superRefine((val, ctx) => {
+                  const raw = String(val).trim();
+                  const parts = raw
+                    .split("~")
+                    .map((p) => p.trim())
+                    .filter((p) => p !== "");
+
+                  if (parts.length === 0) {
+                    ctx.addIssue({
+                      code: ZodIssueCode.custom,
+                      message: "invalid enum value",
+                    });
+                    return;
+                  }
+
+                  const invalid = parts.some((p) => !allowed.includes(p));
+                  if (invalid) {
+                    ctx.addIssue({
+                      code: ZodIssueCode.custom,
+                      message: "invalid enum value",
+                    });
+                  }
+                });
+            } else {
+              innerSchema = z.enum(fieldConfig.values, {
+                required_error: "required",
+                invalid_type_error: "invalid format",
+              });
+            }
           } else {
             innerSchema = z.any();
           }
