@@ -212,6 +212,12 @@ const classifyOrdersForBatch = async (batchId) => {
   const data = [];
   for (const order of orders) {
     const groups = classifyOrderRecord(order);
+    if (!groups.length) {
+      groups.push({
+        businessClassification: "No Business Classification",
+        businessGroup: null,
+      });
+    }
     for (const g of groups) {
       data.push({
         orderId: order.id,
@@ -240,6 +246,12 @@ const classifyExecutionsForBatch = async (batchId) => {
   const data = [];
   for (const exe of executions) {
     const groups = classifyExecutionRecord(exe);
+    if (!groups.length) {
+      groups.push({
+        businessClassification: "No Business Classification",
+        businessGroup: null,
+      });
+    }
     for (const g of groups) {
       data.push({
         executionId: exe.id,

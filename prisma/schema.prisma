@@ -485,7 +485,7 @@ model OrderBusinessClassification {
   orderId                Int
   uniqueID               String    @db.VarChar(256)
   businessClassification String    @db.VarChar(128)
-  businessGroup          String    @db.VarChar(128)
+  businessGroup          String?   @db.VarChar(128)
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
   order                  Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -502,7 +502,7 @@ model ExecutionBusinessClassification {
   executionId            Int
   uniqueID               String    @db.VarChar(256)
   businessClassification String    @db.VarChar(128)
-  businessGroup          String    @db.VarChar(128)
+  businessGroup          String?   @db.VarChar(128)
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
   execution              Execution @relation(fields: [executionId], references: [id], onDelete: Cascade)

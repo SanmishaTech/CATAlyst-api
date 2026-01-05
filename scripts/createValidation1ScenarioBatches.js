@@ -8,8 +8,12 @@ const parseArgs = (argv) => {
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--templateBatchId") out.templateBatchId = argv[i + 1];
+    if (a === "--userId") out.userId = argv[i + 1];
+    if (a === "--userEmail") out.userEmail = argv[i + 1];
     if (a === "--limit") out.limit = argv[i + 1];
     if (a === "--skipRun") out.skipRun = true;
+    if (a === "--stormOnly") out.stormOnly = true;
+    if (a === "--stormCount") out.stormCount = argv[i + 1];
   }
   return out;
 };
@@ -108,10 +112,34 @@ const getBatchReport = async (batchId, topN) => {
 };
 
 const main = async () => {
-  const { templateBatchId, limit, skipRun } = parseArgs(process.argv.slice(2));
+  const {
+    templateBatchId,
+    userId,
+    userEmail,
+    limit,
+    skipRun,
+    stormOnly,
+    stormCount,
+  } = parseArgs(process.argv.slice(2));
   let tplBatchId = Number.parseInt(String(templateBatchId ?? "").trim(), 10);
   if (!Number.isFinite(tplBatchId)) tplBatchId = NaN;
   const topN = Math.max(1, Number.parseInt(String(limit ?? "10"), 10) || 10);
+
+  const stormNRaw = Number.parseInt(String(stormCount ?? "25"), 10);
+  const stormN = Number.isFinite(stormNRaw) ? Math.max(1, stormNRaw) : 25;
+
+  let preferredUserId = Number.parseInt(String(userId ?? "").trim(), 10);
+  if (!Number.isFinite(preferredUserId)) preferredUserId = NaN;
+  if (!Number.isFinite(preferredUserId) && userEmail) {
+    const byEmail = await prisma.user.findFirst({
+      where: { email: String(userEmail).trim() },
+      select: { id: true },
+    });
+    if (!byEmail) {
+      throw new Error(`User not found for --userEmail ${String(userEmail).trim()}`);
+    }
+    preferredUserId = byEmail.id;
+  }
 
   let templateBatch = null;
   if (Number.isFinite(tplBatchId)) {
@@ -133,6 +161,7 @@ const main = async () => {
         OR: [{ fileType: null }, { fileType: { not: "execution" } }],
         validation_1: true,
         validation_1_status: "passed",
+        ...(Number.isFinite(preferredUserId) ? { userId: preferredUserId } : {}),
       },
       orderBy: { id: "desc" },
       select: {
@@ -145,7 +174,7 @@ const main = async () => {
     });
     if (!fallback) {
       throw new Error(
-        `No passed orders template batch found. Provide --templateBatchId pointing to an orders batch that already passed Level 1.`
+        `No passed orders template batch found${Number.isFinite(preferredUserId) ? ` for userId=${preferredUserId}` : ""}. Provide --templateBatchId (or --userId/--userEmail) pointing to an orders batch that already passed Level 1.`
       );
     }
     templateBatch = fallback;
@@ -221,6 +250,54 @@ const main = async () => {
     },
   ];
 
+  scenarios.push({
+    name: "V1_ERROR_STORM",
+    build: () => ({
+      pass: {},
+      fail: {
+        // Required strings (min 1) -> empty string triggers schema violation
+        orderId: "",
+        orderAction: "",
+        orderCapacity: "",
+        orderSide: "",
+        orderType: "",
+        orderComplianceId: "",
+        orderOmsSource: "",
+        orderPublishingTime: "",
+        orderOriginationSystem: "",
+
+        // Numbers/decimals (min 0) -> -1 triggers out-of-range
+        orderBookingEntity: -1,
+        orderClearingAccount: -1,
+        orderExecutingAccount: -1,
+        orderExecutingEntity: -1,
+        orderInstrumentId: -1,
+        orderLinkedInstrumentId: -1,
+        orderPositionAccount: -1,
+        orderTradingOwner: -1,
+
+        orderAskPrice: "-1",
+        orderAskSize: "-1",
+        orderBidPrice: "-1",
+        orderBidSize: "-1",
+        orderCumQty: "-1",
+        orderDiscretionPrice: "-1",
+        orderDisplayPrice: "-1",
+        orderDisplayQty: "-1",
+        orderLeavesQty: "-1",
+        orderLegRatio: "-1",
+        orderMinimumQty: "-1",
+        orderNetPrice: "-1",
+        orderOptionStrikePrice: "-1",
+        orderPrice: "-1",
+        orderQuantity: "-1",
+        orderSpread: "-1",
+        orderStopPrice: "-1",
+        orderWorkingPrice: "-1",
+      },
+    }),
+  });
+
   if (requiredCandidate) {
     scenarios.push({
       name: `V1_FAIL_required_${requiredCandidate.field}`,
@@ -271,6 +348,10 @@ const main = async () => {
     });
   }
 
+  const effectiveScenarios = stormOnly
+    ? scenarios.filter((s) => s.name === "V1_ERROR_STORM")
+    : scenarios;
+
   console.log("\n[createValidation1ScenarioBatches] Using:");
   console.table([
     {
@@ -278,13 +359,13 @@ const main = async () => {
       templateOrderId: templateOrder.id,
       userId: user.id,
       clientId: user.clientId,
-      scenarios: scenarios.length,
+      scenarios: effectiveScenarios.length,
     },
   ]);
 
   const created = [];
 
-  for (const s of scenarios) {
+  for (const s of effectiveScenarios) {
     const batch = await prisma.batch.create({
       data: {
         userId: user.id,
@@ -312,20 +393,23 @@ const main = async () => {
     await prisma.order.create({ data: passOrder });
 
     if (spec.fail) {
-      const failOrder = cloneOrderData(templateOrder, {
-        batchId: batch.id,
-        userId: user.id,
-        scenarioId: makeScenarioId(`${s.name}-FAIL`),
-        fields: spec.fail,
-      });
+      const n = s.name === "V1_ERROR_STORM" ? stormN : 1;
+      for (let i = 0; i < n; i++) {
+        const failOrder = cloneOrderData(templateOrder, {
+          batchId: batch.id,
+          userId: user.id,
+          scenarioId: makeScenarioId(`${s.name}-FAIL-${i + 1}`),
+          fields: spec.fail,
+        });
 
-      try {
-        await prisma.order.create({ data: failOrder });
-      } catch (e) {
-        console.error(
-          `\n[createValidation1ScenarioBatches] Failed to insert fail-order for scenario ${s.name} (field overrides may not match DB column type).`
-        );
-        console.error(e);
+        try {
+          await prisma.order.create({ data: failOrder });
+        } catch (e) {
+          console.error(
+            `\n[createValidation1ScenarioBatches] Failed to insert fail-order for scenario ${s.name} (field overrides may not match DB column type).`
+          );
+          console.error(e);
+        }
       }
     }
 
