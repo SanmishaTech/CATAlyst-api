@@ -31,7 +31,7 @@ app.listen(port, () => {
   }
 
   // Initialize order CAT event cronjob if enabled
-  if (process.env.CRON_ORDER_CAT_EVENT_ENABLED !== 'false') {
-    initOrderCatEventCron();
-  }
+  // if (process.env.CRON_ORDER_CAT_EVENT_ENABLED !== 'false') {
+  //   initOrderCatEventCron();
+  // }
 });

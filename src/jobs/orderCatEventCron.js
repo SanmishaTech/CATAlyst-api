@@ -108,7 +108,7 @@ const processOrderCatEventQueue = async () => {
             orderBusinessClassificationId: cls.id,
             uniqueID: order.uniqueID || cls.uniqueID,
             orderRefId: order.id,
-            orderIdInstance: order.orderIdInstance || 0,
+            orderIdInstance: order.orderIdInstance || null,
             catEvent,
           },
         });
