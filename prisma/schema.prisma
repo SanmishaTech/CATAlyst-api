@@ -287,6 +287,7 @@ model Order {
   validationErrors              ValidationError[]
   validations                   Validation[]
   businessClassifications       OrderBusinessClassification[]
+  orderCatEvents          OrderCatEvent[]
 
   @@index([userId])
   @@index([batchId])
@@ -443,6 +444,7 @@ model Execution {
   validationErrors                  ValidationError[]
   validations                       Validation[]
   businessClassifications           ExecutionBusinessClassification[]
+  executionCatEvents          ExecutionCatEvent[]
 
   @@index([userId])
   @@index([batchId])
@@ -490,6 +492,7 @@ model OrderBusinessClassification {
   updatedAt              DateTime  @updatedAt
   order                  Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
+  orderCatEvents          OrderCatEvent[]
   @@index([orderId])
   @@index([uniqueID])
   @@index([businessClassification])
@@ -506,6 +509,8 @@ model ExecutionBusinessClassification {
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
   execution              Execution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+  executionCatEvents          ExecutionCatEvent[]
 
   @@index([executionId])
   @@index([uniqueID])
@@ -668,4 +673,282 @@ model FirmEntity {
   @@index([clientRefId])
   @@index([firmId])
   @@map("firm_entity")
+}
+
+
+
+
+model OrderCatEvent {
+  id                     Int   @id @default(autoincrement())
+  orderBusinessClassificationId Int
+  uniqueID               String    @db.VarChar(256)
+  orderRefId                Int
+  orderIdInstance Int
+  catEvent               String    @db.VarChar(50)
+
+  actionType             String?
+  errorROEID             Int?
+  firmROEID              String?   @db.VarChar(64)
+  type                   String?    @db.VarChar(50)
+  CATreporterIMID        String?
+  orderKeyDate           DateTime?
+  orderID                String?    @db.VarChar(64)
+  symbol                 String?
+  eventTimestamp         DateTime?
+
+  manualFlag             Boolean?
+  electronicdupFlag      Boolean?
+  electronicTimestamp    DateTime?
+  manualOrderKeyDate     DateTime?
+  manualOrderID          String?   @db.VarChar(64)
+
+  deptType               String?
+  solicitationFlag       Boolean?
+  RFQID                  String?   @db.VarChar(64)
+
+  side                   String?
+  price                  Decimal?
+  quantity               Decimal?
+  minQty                 Int?
+
+  orderType              String?
+  timeInForce            Json?
+  tradingSession         String?
+  handlingInstructions   Json?
+
+  custDspIntrFlag        Boolean?
+  firmDesignatedID       String?   @db.VarChar(40)
+  accountHolderType      String?
+  affiliateFlag          Boolean?
+  infoBarrierID          String?   @db.VarChar(20)
+
+  aggregatedOrders       Json?
+  AO_orderID             String?   @db.VarChar(64)
+  AO_orderKeyDate        DateTime?
+  AO_quantity            Decimal?
+  AO_originatingIMID     String?
+
+  negotiatedTradeFlag    Boolean?
+  representativeInd      String?
+  seqNum                 String?    @db.VarChar(40)
+
+  atsDisplayInd          String?
+  displayPrice           Decimal?
+  workingPrice           Decimal?
+  displayQty             Int?
+
+  atsOrderType           Json?
+
+  nbbPrice               Decimal?
+  nbbQty                 Int?
+  nboPrice               Decimal?
+  nboQty                 Int?
+  nbboSource             String?
+  nbboTimestamp          DateTime?
+
+  netPrice               Decimal?
+  BFMMFlag               Boolean?
+
+  originatingIMID        String?
+  senderIMID             String?
+  destination             String?
+  destinationType        String?
+
+  routedOrderID          String?   @db.VarChar(64)
+  session                String?   @db.VarChar(40)
+  isoInd                 String?
+  routeRejectedFlag      Boolean?
+  dupROIDCond            Boolean?
+  multiLegInd            Boolean?
+
+  pairedOrderID          String?   @db.VarChar(64)
+  quoteKeyDate           DateTime?
+  quoteID                String?   @db.VarChar(64)
+
+  priorOrderKeyDate      DateTime?
+  priorOrderID           String?   @db.VarChar(64)
+
+  receiverIMID           String?
+  senderType             String?
+
+  requestTimestamp       DateTime?
+  initiator              String?
+
+  leavesQty              Decimal?
+  cancelQty              Decimal?
+
+  tradeKeyDate           DateTime?
+  tradeID                String?   @db.VarChar(64)
+
+  cancelFlag             Boolean?
+  cancelTimestamp        DateTime?
+
+  capacity               String?
+  tapeTradeID            String?   @db.VarChar(40)
+  marketCenterID         String?
+
+  sideDetailsInd         String?
+  buyDetails             Json?
+  sellDetails            Json?
+
+  reportingExceptionCode String?
+  clearingFirm           Int?
+  counterparty           String?
+
+  fillKeyDate            DateTime?
+  fulfillmentID          String?   @db.VarChar(64)
+  fulfillmentLinkType    String?
+
+  clientDetails          Json?
+  firmDetails            Json?
+
+  order                  Order     @relation(fields: [orderRefId], references: [id], onDelete: Cascade)
+
+
+  orderBusinessClassification          OrderBusinessClassification   @relation( fields: [orderBusinessClassificationId], references: [id], onDelete: Cascade)
+
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+
+  @@index([orderRefId])
+  @@index([orderBusinessClassificationId])
+  @@map("order_cat_events")
+}
+
+
+model ExecutionCatEvent {
+  id                     Int   @id @default(autoincrement())
+  executionBusinessClassificationId Int
+  uniqueID               String    @db.VarChar(256)
+  executionId                Int
+  executionIdInstance Int
+  catEvent               String    @db.VarChar(50)
+
+  actionType             String?
+  errorROEID             Int?
+  firmROEID              String?   @db.VarChar(64)
+  type                   String    @db.VarChar(50)
+  CATreporterIMID        String?
+  orderKeyDate           DateTime?
+  orderID                String?  @db.VarChar(64)
+  symbol                 String?
+  eventTimestamp         DateTime?
+
+  manualFlag             Boolean?
+  electronicdupFlag      Boolean?
+  electronicTimestamp    DateTime?
+  manualOrderKeyDate     DateTime?
+  manualOrderID          String?   @db.VarChar(64)
+
+  deptType               String?
+  solicitationFlag       Boolean?
+  RFQID                  String?   @db.VarChar(64)
+
+  side                   String?
+  price                  Decimal?
+  quantity               Decimal?
+  minQty                 Int?
+
+  orderType              String?
+  timeInForce            Json?
+  tradingSession         String?
+  handlingInstructions   Json?
+
+  custDspIntrFlag        Boolean?
+  firmDesignatedID       String?   @db.VarChar(40)
+  accountHolderType      String?
+  affiliateFlag          Boolean?
+  infoBarrierID          String?   @db.VarChar(20)
+
+  aggregatedOrders       Json?
+  AO_orderID             String?   @db.VarChar(64)
+  AO_orderKeyDate        DateTime?
+  AO_quantity            Decimal?
+  AO_originatingIMID     String?
+
+  negotiatedTradeFlag    Boolean?
+  representativeInd      String?
+  seqNum                 String?    @db.VarChar(40)
+
+  atsDisplayInd          String?
+  displayPrice           Decimal?
+  workingPrice           Decimal?
+  displayQty             Int?
+
+  atsOrderType           Json?
+
+  nbbPrice               Decimal?
+  nbbQty                 Int?
+  nboPrice               Decimal?
+  nboQty                 Int?
+  nbboSource             String?
+  nbboTimestamp          DateTime?
+
+  netPrice               Decimal?
+  BFMMFlag               Boolean?
+
+  originatingIMID        String?
+  senderIMID             String?
+  destination             String?
+  destinationType        String?
+
+  routedOrderID          String?   @db.VarChar(64)
+  session                String?   @db.VarChar(40)
+  isoInd                 String?
+  routeRejectedFlag      Boolean?
+  dupROIDCond            Boolean?
+  multiLegInd            Boolean?
+
+  pairedOrderID          String?   @db.VarChar(64)
+  quoteKeyDate           DateTime?
+  quoteID                String?   @db.VarChar(64)
+
+  priorOrderKeyDate      DateTime?
+  priorOrderID           String?   @db.VarChar(64)
+
+  receiverIMID           String?
+  senderType             String?
+
+  requestTimestamp       DateTime?
+  initiator              String?
+
+  leavesQty              Decimal?
+  cancelQty              Decimal?
+
+  tradeKeyDate           DateTime?
+  tradeID                String?   @db.VarChar(64)
+
+  cancelFlag             Boolean?
+  cancelTimestamp        DateTime?
+
+  capacity               String?
+  tapeTradeID            String?   @db.VarChar(40)
+  marketCenterID         String?
+
+  sideDetailsInd         String?
+  buyDetails             Json?
+  sellDetails            Json?
+
+  reportingExceptionCode String?
+  clearingFirm           Int?
+  counterparty           String?
+
+  fillKeyDate            DateTime?
+  fulfillmentID          String?   @db.VarChar(64)
+  fulfillmentLinkType    String?
+
+  clientDetails          Json?
+  firmDetails            Json?
+
+  execution              Execution     @relation(fields: [executionId], references: [id], onDelete: Cascade)
+
+
+  executionBusinessClassification          ExecutionBusinessClassification   @relation( fields: [executionBusinessClassificationId], references: [id], onDelete: Cascade)
+
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+   @@index([executionId])
+  @@index([executionBusinessClassificationId])
+  @@map("execution_cat_events")
 }
