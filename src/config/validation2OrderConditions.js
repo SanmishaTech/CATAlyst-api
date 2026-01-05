@@ -75,13 +75,7 @@ module.exports = {
     condition: "orderCapacity should not be null and orderCapacity must be in (1,2,3,4,5,6)",
     required: true
   },
-  
-  orderDestination: {
-    enabled: true,
-    condition: "orderDestination must be provided when order is routed to external destination",
-    required: true
-  },
-  
+
   orderClientRef: {
     enabled: true,
     condition: "orderClientRef should not be null when orderAction in (14) and orderClientRef should be null when orderCapacity in (2,4)",

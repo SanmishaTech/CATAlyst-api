@@ -542,9 +542,12 @@ const getValidation2Schema = async (req, res, next) => {
       });
     }
     
-    res.json({
-      schema: client.validation_2 || null,
-    });
+    const schema = client.validation_2 || null;
+    if (schema && typeof schema === "object") {
+      const { orderDestination, ...rest } = schema;
+      return res.json({ schema: rest });
+    }
+    res.json({ schema });
   } catch (error) {
     next(error);
   }
@@ -559,9 +562,11 @@ const updateValidation2Schema = async (req, res, next) => {
   const validationErrors = await validateRequest(schema, req.body, res);
 
   try {
+    const incomingSchema = req.body.schema && typeof req.body.schema === "object" ? req.body.schema : {};
+    const { orderDestination, ...sanitizedSchema } = incomingSchema;
     const updatedClient = await prisma.client.update({
       where: { id: parseInt(req.params.id) },
-      data: { validation_2: req.body.schema },
+      data: { validation_2: sanitizedSchema },
     });
     
     // Record history
@@ -571,7 +576,7 @@ const updateValidation2Schema = async (req, res, next) => {
           clientId: parseInt(req.params.id),
           validationType: 2,
           fileType: 'ORDER',
-          schema: JSON.stringify(req.body.schema),
+          schema: JSON.stringify(sanitizedSchema),
           changedBy: req.user ? req.user.id : null,
         },
       });

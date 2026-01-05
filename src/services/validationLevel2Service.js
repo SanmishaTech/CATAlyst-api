@@ -129,13 +129,6 @@ const evaluateLevel2Rules = (record, rulesObj) => {
     }
   }
 
-  if (enabled("orderDestination")) {
-    // Interpreting "routed to external destination" as Order_Action in (5,6)
-    if (inList(record.orderAction, ["5", "6"]) && !hasValue(record.orderDestination)) {
-      fail("orderDestination", cond("orderDestination"));
-    }
-  }
-
   if (enabled("orderClientRef")) {
     if (inList(record.orderCapacity, ["2", "4"]) && hasValue(record.orderClientRef)) {
       fail("orderClientRef", cond("orderClientRef"));
@@ -329,7 +322,13 @@ const evaluateLevel2Rules = (record, rulesObj) => {
   }
 
   if (enabled("orderRoutedOrderId")) {
-    if (hasValue(record.orderDestination) && inList(record.orderExdestinationInstruction, ["Internal", "External"]) && !hasValue(record.orderRoutedOrderId)) {
+    const exDestInstr = toStr(record.orderExdestinationInstruction).toLowerCase();
+    const isInternalExternalInstr =
+      exDestInstr === "internal" ||
+      exDestInstr === "external" ||
+      exDestInstr === "1" ||
+      exDestInstr === "2";
+    if (hasValue(record.orderDestination) && isInternalExternalInstr && !hasValue(record.orderRoutedOrderId)) {
       fail("orderRoutedOrderId", cond("orderRoutedOrderId"));
     }
   }
@@ -710,7 +709,7 @@ const processValidation2ForBatch = async (batchId) => {
 
     // Get client's validation_2 schema (if configured). If not configured, fall back to defaults.
     let clientValidation2Schema = null;
-    if (batch.user.clientId) {
+    if (batch.user && batch.user.clientId) {
       const client = await prisma.client.findUnique({
         where: { id: batch.user.clientId },
         select: { validation_2: true },
@@ -730,9 +729,17 @@ const processValidation2ForBatch = async (batchId) => {
     const hasClientValidation2Schema =
       !!clientValidation2Schema && typeof clientValidation2Schema === "object";
 
+    const sanitizedClientSchema = hasClientValidation2Schema
+      ? (() => {
+          const s = { ...(clientValidation2Schema || {}) };
+          delete s.orderDestination;
+          return s;
+        })()
+      : {};
+
     const effectiveSchema = buildEffectiveLevelSchemaPreferDefaultConditions(
       defaultValidation2OrderConditions,
-      hasClientValidation2Schema ? clientValidation2Schema : {}
+      sanitizedClientSchema
     );
 
     // Get all orders for this batch
