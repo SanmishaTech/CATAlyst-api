@@ -683,7 +683,7 @@ model OrderCatEvent {
   orderBusinessClassificationId Int
   uniqueID               String    @db.VarChar(256)
   orderRefId                Int
-  orderIdInstance Int
+  orderIdInstance String?   @db.VarChar(64)
   catEvent               String    @db.VarChar(50)
 
   actionType             String?
