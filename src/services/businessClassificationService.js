@@ -102,6 +102,17 @@ const mapOrderEdge = (order) => {
   const capacity = String(order.orderCapacity || "").trim();
   const action = String(order.orderAction || "").trim();
   const linkedType = String(order.linkOrderType || order.linkedOrderType || "").trim();
+  const hasAnySignal =
+    !!capacity ||
+    !!action ||
+    !!linkedType ||
+    !!order.orderDestination ||
+    !!order.orderOmsSource ||
+    !!order.orderOriginationSystem ||
+    !!order.orderInfobarrierId;
+
+  if (!hasAnySignal) return null;
+
   if (capacity === "1" && order.orderOmsSource && order.orderOmsSource === order.orderOriginationSystem) {
     return "Client Facing";
   }
