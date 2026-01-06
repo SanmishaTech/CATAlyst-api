@@ -109,6 +109,39 @@ const getBatches = async (req, res, next) => {
   }
 };
 
+const checkBatchFileNameExists = async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const fileNameRaw = req.query.fileName;
+
+    if (typeof fileNameRaw !== "string" || fileNameRaw.trim() === "") {
+      return next(createError(400, "fileName query param is required"));
+    }
+
+    const fileName = fileNameRaw.trim();
+
+    const existing = await prisma.batch.findFirst({
+      where: {
+        userId,
+        fileName,
+      },
+      select: {
+        id: true,
+        fileName: true,
+        fileType: true,
+        createdAt: true,
+      },
+    });
+
+    res.json({
+      exists: !!existing,
+      batch: existing || null,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // Get single batch by ID
 const getBatchById = async (req, res, next) => {
   try {
@@ -489,4 +522,5 @@ module.exports = {
   getBatchStats,
   getBatchValidationErrors,
   revalidateBatch,
+  checkBatchFileNameExists,
 };

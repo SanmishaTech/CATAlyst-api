@@ -117,6 +117,8 @@ router.get("/", auth, batchController.getBatches);
  */
 router.get("/stats", auth, batchController.getBatchStats);
 
+router.get("/check-filename", auth, batchController.checkBatchFileNameExists);
+
 /**
  * @swagger
  * /batches/{id}:
