@@ -36,7 +36,7 @@ module.exports = {
   },
   parentOrderId: {
     enabled: true,
-    condition: "parentOrderId should not be null when orderParentChildType in (C)",
+    condition: "parentOrderId should not be null when orderParentChildType in (2)",
     required: true
   },
   
@@ -196,11 +196,6 @@ module.exports = {
     required: true
   },
   
-  orderOsi: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
   
   orderInstrumentId: {
     enabled: true,
@@ -208,12 +203,7 @@ module.exports = {
     required: true
   },
   
-  orderLinkedInstrumentId: {
-    enabled: false,
-    condition: "-",
-    required: false
-  },
-  
+
   orderCurrencyId: {
     enabled: true,
     condition: "orderCurrencyId should not be null",
@@ -222,15 +212,10 @@ module.exports = {
   
   orderFlowType: {
     enabled: true,
-    condition: "orderFlowType should be null OR must be in (1,2,3)",
+    condition: "orderFlowType should be null OR (orderFlowType should not be null and must be in (1,2,3,4,5))",
     required: true
   },
   
-  orderAlgoInstruction: {
-    enabled: false,
-    condition: "-",
-    required: true
-  },
   
   orderSymbol: {
     enabled: true,
@@ -262,21 +247,15 @@ module.exports = {
     required: false
   },
   
-  orderExecutingAccount: {
-    enabled: true,
-    condition: "orderExecutingAccount should be null OR must be present in lookup table",
-    required: false
-  },
-
   orderClientOrderId: {
     enabled: true,
-    condition: "orderClientOrderId should not be null when orderAction in (1,2,8,9,10)",
+    condition: "orderClientOrderId should not be null when orderAction in (1,2,8,9,10) and orderCapacity in (1)",
     required: true
   },
   
   orderRoutedOrderId: {
     enabled: true,
-    condition: "orderRoutedOrderId must be populated when orderDestination is not null and orderExdestinationInstruction in (Internal,External)",
+    condition: "orderRoutedOrderId should not be null when orderAction in (5,6)",
     required: true
   },
  

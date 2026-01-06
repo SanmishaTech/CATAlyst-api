@@ -324,29 +324,18 @@ const evaluateLevel2Rules = (record, rulesObj) => {
     fail("orderEntityId", cond("orderEntityId"));
   }
 
-  if (enabled("orderExecutingAccount")) {
-    // "should be null OR must be present in lookup table".
-    // This service currently cannot validate lookup membership in-memory.
-    // We enforce only that if populated, it is a non-empty value.
-    if (hasValue(record.orderExecutingAccount) === false) {
-      // null is allowed
-    }
-  }
-
   if (enabled("orderClientOrderId")) {
-    if (inList(record.orderAction, ["1", "2", "8", "9", "10"]) && !hasValue(record.orderClientOrderId)) {
+    if (
+      inList(record.orderCapacity, ["1"]) &&
+      inList(record.orderAction, ["1", "2", "8", "9", "10"]) &&
+      !hasValue(record.orderClientOrderId)
+    ) {
       fail("orderClientOrderId", cond("orderClientOrderId"));
     }
   }
 
   if (enabled("orderRoutedOrderId")) {
-    const exDestInstr = toStr(record.orderExdestinationInstruction).toLowerCase();
-    const isInternalExternalInstr =
-      exDestInstr === "internal" ||
-      exDestInstr === "external" ||
-      exDestInstr === "1" ||
-      exDestInstr === "2";
-    if (hasValue(record.orderDestination) && isInternalExternalInstr && !hasValue(record.orderRoutedOrderId)) {
+    if (inList(record.orderAction, ["5", "6"]) && !hasValue(record.orderRoutedOrderId)) {
       fail("orderRoutedOrderId", cond("orderRoutedOrderId"));
     }
   }

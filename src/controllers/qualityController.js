@@ -11,6 +11,9 @@ const prisma = new PrismaClient();
 exports.getQualityIssues = asyncHandler(async (req, res) => {
   const userId = req.user.id;
   const userRole = req.user.role;
+  const fetchAll = ['1', 'true', 'yes'].includes(
+    String(req.query.fetchAll || '').toLowerCase()
+  );
   
   // Pagination parameters
   const page = parseInt(req.query.page) || 1;
@@ -46,7 +49,7 @@ exports.getQualityIssues = asyncHandler(async (req, res) => {
   const allowedSortFields = ['validationCode', 'category', 'message', 'fileName', 'createdAt', 'batchId'];
   const validSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
   
-  console.log('[Quality Issues] Fetching issues for user:', userId, 'role:', userRole, 'page:', page, 'limit:', limit, 'sortBy:', validSortBy, 'sortOrder:', sortOrder, 'fromDate:', fromDate, 'toDate:', toDate, 'search:', searchFilter);
+  console.log('[Quality Issues] Fetching issues for user:', userId, 'role:', userRole, 'page:', page, 'limit:', limit, 'fetchAll:', fetchAll, 'sortBy:', validSortBy, 'sortOrder:', sortOrder, 'fromDate:', fromDate, 'toDate:', toDate, 'search:', searchFilter);
 
   // Build query based on user role - optimize with single query
   let whereClause = {};
@@ -238,6 +241,8 @@ LEFT JOIN executions e ON ve.executionId = e.id
   // NOTE: whereSQL now constructed earlier with additional filters, no longer based on ve.createdAt.
   // (see dynamic whereConditions section above)
 
+  const paginationClause = fetchAll ? '' : `LIMIT ${limit} OFFSET ${skip}`;
+
   // Fetch validation errors with batch and order information using raw SQL for better performance
   // Use subquery to filter validation_errors first, then join with batch and orders
   // This is more efficient than filtering after joining
@@ -387,7 +392,7 @@ LEFT JOIN executions e ON ve.executionId = e.id
 LEFT JOIN executions e ON ve.executionId = e.id
       ${whereSQLSubquery}
       ORDER BY ${orderByField} ${sortOrder.toUpperCase()}
-      LIMIT ${limit} OFFSET ${skip}
+      ${paginationClause}
     ) ve
     LEFT JOIN batches b ON ve.batchId = b.id
     LEFT JOIN orders o ON ve.orderId = o.id
@@ -554,13 +559,15 @@ LEFT JOIN executions e ON ve.executionId = e.id
   });
 
   // Calculate pagination metadata
-  const totalPages = Math.ceil(totalCount / limit);
+  const totalPages = fetchAll
+    ? (totalCount > 0 ? 1 : 0)
+    : Math.ceil(totalCount / limit);
 
   res.json({ 
     issues,
     pagination: {
-      page,
-      limit,
+      page: fetchAll ? 1 : page,
+      limit: fetchAll ? totalCount : limit,
       total: totalCount,
       pages: totalPages
     },
